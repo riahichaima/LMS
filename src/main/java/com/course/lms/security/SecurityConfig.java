@@ -59,6 +59,11 @@ public class SecurityConfig {
                 .requestMatchers("/student/login").permitAll()
                 .requestMatchers("/admin/register").permitAll()
                 .requestMatchers("/admin/login").permitAll()
+                // Endpoints du module d'apprentissage (publics pour tous authentifiés)
+                .requestMatchers("/api/courses/**").authenticated()
+                .requestMatchers("/api/chapters/**").authenticated()
+                .requestMatchers("/api/lessons/**").authenticated()
+                .requestMatchers("/api/files/download/**").authenticated()
                 // Endpoints spécifiques par rôle
                 .requestMatchers("/admin/me").hasRole("ADMIN")
                 .requestMatchers("/admin/users").hasRole("ADMIN")
@@ -68,6 +73,8 @@ public class SecurityConfig {
                 .requestMatchers("/teacher/me").hasRole("TEACHER")
                 .requestMatchers("/student/me").hasRole("STUDENT")
                 .requestMatchers("/student/me").hasRole("STUDENT")
+                // Endpoints professeur uniquement
+                .requestMatchers("/api/teacher/**").hasRole("TEACHER")
                 // Endpoints database et debug (admin uniquement)
                 .requestMatchers("/database/**").hasRole("ADMIN")
                 .requestMatchers("/debug/**").hasRole("ADMIN")
