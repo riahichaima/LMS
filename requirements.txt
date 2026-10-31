@@ -1,0 +1,17 @@
+# Web
+fastapi
+uvicorn[standard]
+pydantic-settings
+python-multipart
+
+# Client HTTP (Azure OpenAI, liens externes)
+httpx
+
+# Extraction de contenu (PDF, pages web)
+pypdf
+beautifulsoup4
+lxml
+
+# Vidéo : ffmpeg embarqué + téléchargement YouTube
+imageio-ffmpeg
+yt-dlp

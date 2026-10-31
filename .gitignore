@@ -1,0 +1,10 @@
+# Secrets (clé Azure) — copier .env.example en .env
+.env
+
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+
+# Fichiers temporaires, contenus indexés, cache des vidéos
+uploads/
