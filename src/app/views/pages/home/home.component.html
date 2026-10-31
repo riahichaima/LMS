@@ -1,0 +1,297 @@
+<!-- Intro : le logo arrive de loin, grandit jusqu'à la taille de la page puis se place dans la barre -->
+<div class="intro" *ngIf="showIntro()" [class.intro--leaving]="introDone()" (click)="skipIntro()" title="Cliquer pour passer">
+  <img #introLogo class="intro__logo" src="assets/images/lms-logo-mark.png" alt="" />
+</div>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="topbar__brand" (click)="scrollTo('top')">
+      <img #navLogo class="topbar__logo" [class.topbar__logo--hidden]="showIntro()"
+           src="assets/images/lms-logo-mark.png" alt="LMS — Votre plateforme e-learning" />
+    </a>
+    <nav class="topbar__links">
+      <a *ngFor="let link of navLinks" (click)="scrollTo(link.id)">{{ link.label }}</a>
+    </nav>
+    <div class="topbar__actions">
+      <ng-container *ngIf="!authService.isLoggedIn(); else connected">
+        <a class="cta cta--text" routerLink="/login">Se connecter</a>
+        <a class="cta cta--outline" routerLink="/register">Créer un compte</a>
+      </ng-container>
+      <ng-template #connected>
+        <button class="cta cta--solid" (click)="goToSpace()">Mon espace</button>
+      </ng-template>
+    </div>
+  </div>
+</header>
+
+<main class="page" [class.page--visible]="introDone()" id="top">
+
+  <!-- ── Présentation ── -->
+  <section class="hero">
+    <span class="eyebrow"><svg cIcon name="cilLightbulb"></svg> E-learning propulsé par l'IA</span>
+    <h1>Votre plateforme <span class="accent">intelligente</span><br />pour l'e&#8209;learning</h1>
+    <div class="hero__cta">
+      <ng-container *ngIf="!authService.isLoggedIn(); else connectedCta">
+        <a class="cta cta--solid cta--lg" routerLink="/register">Créer un compte</a>
+        <a class="cta cta--outline cta--lg" routerLink="/login">Se connecter</a>
+      </ng-container>
+      <ng-template #connectedCta>
+        <button class="cta cta--solid cta--lg" (click)="goToSpace()">Accéder à mon espace</button>
+      </ng-template>
+    </div>
+    <p class="hero__trust"><svg cIcon name="cilCheck"></svg> Vos propres supports de cours · corrections incluses · trois espaces dédiés</p>
+
+    <!-- Illustration : une bibliothèque de cours (livres, écrans, vidéo) et des étiquettes d'activité -->
+    <div class="library" aria-hidden="true">
+      <span class="chip chip--a"><i class="dot dot--green"></i>PDF importé</span>
+      <span class="chip chip--b"><i class="dot dot--blue"></i>Vidéo transcrite</span>
+      <span class="chip chip--c"><i class="dot dot--amber"></i>Quiz généré</span>
+      <span class="chip chip--d"><i class="dot dot--blue"></i>TP corrigé</span>
+      <span class="chip chip--e"><i class="dot dot--gray"></i>Niveau avancé</span>
+
+      <div class="shelf">
+        <div class="book book--1"></div>
+        <div class="book book--2"></div>
+        <div class="screen screen--1"><span class="play"></span></div>
+        <div class="book book--3"></div>
+        <div class="doc doc--1"><i></i><i></i><i></i><i class="short"></i></div>
+        <div class="book book--4"></div>
+        <div class="screen screen--2"><i></i><i></i><i class="short"></i></div>
+        <div class="book book--5"></div>
+        <div class="doc doc--2"><i></i><i></i><i class="short"></i></div>
+        <div class="book book--6"></div>
+        <span class="learner learner--1"></span>
+        <span class="learner learner--2"></span>
+        <span class="learner learner--3"></span>
+        <span class="learner learner--4"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pour qui ── -->
+  <section class="section" id="pour-qui">
+    <div class="section__head reveal">
+      <span class="kicker">Pour qui</span>
+      <h2>Une plateforme pour toute la formation</h2>
+    </div>
+    <div class="cards">
+      <article class="audience reveal" *ngFor="let a of audiences">
+        <div class="audience__icon"><svg cIcon [name]="a.icon"></svg></div>
+        <h3>{{ a.title }}</h3>
+        <p>{{ a.text }}</p>
+        <ul class="checks">
+          <li *ngFor="let p of a.points"><svg cIcon name="cilCheck"></svg>{{ p }}</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ── Engagement ── -->
+  <section class="band reveal">
+    <div class="band__inner">
+      <div class="band__badge"><svg cIcon name="cilLockLocked"></svg><span>Vos contenus</span></div>
+      <div>
+        <h2>Vos cours, vos questions</h2>
+        <p>L'IA s'appuie uniquement sur les supports que vous importez : chaque question et chaque exercice viennent de votre cours, avec leur correction à relire.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Comment ça marche ── -->
+  <section class="section method" id="methode">
+    <div class="method__intro reveal">
+      <span class="kicker">Comment ça marche</span>
+      <h2>Du support de cours au quiz corrigé, en trois étapes</h2>
+      <p>Une fois votre cours créé, chaque chapitre peut servir à générer de nouvelles évaluations.</p>
+      <a class="cta cta--outline" routerLink="/register" *ngIf="!authService.isLoggedIn()">Commencer</a>
+    </div>
+
+    <ol class="timeline">
+      <li class="timeline__step reveal" *ngFor="let s of steps; let i = index">
+        <span class="timeline__num">{{ i + 1 }}</span>
+        <h3>{{ s.title }}</h3>
+        <p>{{ s.text }}</p>
+
+        <!-- Maquettes d'écran -->
+        <div class="mock" [ngSwitch]="i">
+          <div class="mock__bar"><i></i><i></i><i></i></div>
+          <ng-container *ngSwitchCase="0">
+            <div class="mock__line"></div>
+            <div class="mock__line mock__line--short"></div>
+            <div class="tags">
+              <span class="tag tag--pdf">PDF</span><span class="tag tag--video">Vidéo</span>
+              <span class="tag tag--audio">Audio</span><span class="tag tag--link">Lien web</span>
+            </div>
+          </ng-container>
+          <ng-container *ngSwitchCase="1">
+            <div class="levels">
+              <span class="level level--on">Débutant</span><span class="level level--on">Intermédiaire</span><span class="level">Avancé</span>
+            </div>
+            <div class="bar"><span style="width: 78%"></span></div>
+            <div class="mock__caption">Génération en cours… 12 s</div>
+          </ng-container>
+          <ng-container *ngSwitchCase="2">
+            <div class="mock__question">Quelle annotation génère equals() et hashCode() ?</div>
+            <div class="answer">A. &#64;Getter</div>
+            <div class="answer answer--ok">B. &#64;EqualsAndHashCode <svg cIcon name="cilCheck"></svg></div>
+            <div class="mock__caption mock__caption--ok">Correction : génère les deux méthodes à partir des champs.</div>
+          </ng-container>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- ── Chiffres et formats ── -->
+  <section class="tinted">
+    <div class="stats">
+      <div class="stat reveal" *ngFor="let s of stats">
+        <strong>{{ s.value }}</strong>
+        <span>{{ s.label }}</span>
+      </div>
+    </div>
+    <div class="section__head reveal">
+      <span class="kicker">Supports et résultats</span>
+      <h2>Tout ce que vous pouvez importer et obtenir</h2>
+    </div>
+    <div class="formats">
+      <div class="format reveal" *ngFor="let f of formats">
+        <svg cIcon [name]="f.icon"></svg><span>{{ f.label }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Outils ── -->
+  <section class="section" id="outils">
+    <div class="section__head reveal">
+      <span class="kicker">Les outils</span>
+      <h2>Tout ce qu'il faut pour enseigner, au même endroit</h2>
+    </div>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Pour l'enseignant</span>
+        <h3>Studio de création de cours</h3>
+        <p>Construisez vos cours en chapitres et en leçons, ajoutez vos supports et modifiez-les à tout moment.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Plusieurs supports par leçon</li>
+          <li><svg cIcon name="cilCheck"></svg>Remplacement des fichiers en un clic</li>
+          <li><svg cIcon name="cilCheck"></svg>Quiz et TP conservés après modification</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="tree">
+          <div class="tree__chapter"><svg cIcon name="cilLibrary"></svg> Chapitre 1 · Introduction</div>
+          <div class="tree__lesson">Leçon 1.1 <span class="tag tag--pdf">PDF</span><span class="tag tag--video">Vidéo</span></div>
+          <div class="tree__lesson">Leçon 1.2 <span class="tag tag--audio">Audio</span></div>
+          <div class="tree__chapter"><svg cIcon name="cilLibrary"></svg> Chapitre 2 · Pratique</div>
+          <div class="tree__lesson">Leçon 2.1 <span class="tag tag--link">Lien web</span><span class="tag tag--pdf">PDF</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Propulsé par l'IA</span>
+        <h3>Générateur de quiz et de TP</h3>
+        <p>Un quiz et un TP par niveau, à partir des sources que vous choisissez, avec leurs corrections séparées.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Débutant, intermédiaire, avancé</li>
+          <li><svg cIcon name="cilCheck"></svg>Choix des sources : PDF, vidéo, audio, lien</li>
+          <li><svg cIcon name="cilCheck"></svg>Corrigés regroupés dans un onglet dédié</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="tabs"><span class="tabs__on">Quiz</span><span>TP</span><span>Corrections</span></div>
+        <div class="line"><span>Quiz débutant</span><b>6 questions</b></div>
+        <div class="line"><span>Quiz intermédiaire</span><b>6 questions</b></div>
+        <div class="line"><span>TP avancé</span><b>4 exercices</b></div>
+        <div class="line"><span>Corrigés</span><b class="ok">Inclus</b></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Pour l'étudiant</span>
+        <h3>Un assistant qui connaît vos cours</h3>
+        <p>Posez vos questions sur un document, une vidéo ou une notion : l'assistant répond à partir des contenus du cours.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Questions en langage naturel</li>
+          <li><svg cIcon name="cilCheck"></svg>Réponses fondées sur vos supports</li>
+          <li><svg cIcon name="cilCheck"></svg>Disponible à tout moment</li>
+        </ul>
+      </div>
+      <div class="panel chat">
+        <div class="bubble bubble--me">Que fait l'annotation &#64;Builder ?</div>
+        <div class="bubble bubble--ai"><svg cIcon name="cilLightbulb"></svg> Elle génère un « builder » pour créer l'objet étape par étape, d'après le chapitre 2 du cours.</div>
+        <div class="bubble bubble--me">Et avec &#64;NoArgsConstructor ?</div>
+        <div class="typing"><i></i><i></i><i></i></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Pour l'administrateur</span>
+        <h3>Utilisateurs, rôles et formations</h3>
+        <p>Activez les comptes, attribuez les rôles et les formateurs, et suivez l'activité de la plateforme.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Activation et désactivation des comptes</li>
+          <li><svg cIcon name="cilCheck"></svg>Attribution des formateurs aux cours</li>
+          <li><svg cIcon name="cilCheck"></svg>Statistiques en un coup d'œil</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="line"><span>Sarah B.</span><span class="role role--student">Étudiant</span></div>
+        <div class="line"><span>Karim M.</span><span class="role role--teacher">Enseignant</span></div>
+        <div class="line"><span>Lina T.</span><span class="role role--student">Étudiant</span></div>
+        <div class="line"><span>Youssef A.</span><span class="role role--admin">Administrateur</span></div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── FAQ ── -->
+  <section class="section faq" id="faq">
+    <div class="faq__intro reveal">
+      <span class="kicker">FAQ</span>
+      <h2>Questions fréquentes</h2>
+      <p>Une autre question ? <a routerLink="/register">Créez votre compte</a> et découvrez la plateforme.</p>
+    </div>
+    <div class="faq__list reveal">
+      <div class="faq__item" *ngFor="let f of faqs; let i = index" [class.faq__item--open]="openFaq() === i">
+        <button class="faq__q" type="button" (click)="toggleFaq(i)" [attr.aria-expanded]="openFaq() === i">
+          {{ f.q }}
+          <svg cIcon name="cilChevronRight" class="faq__chevron"></svg>
+        </button>
+        <div class="faq__a" *ngIf="openFaq() === i">{{ f.a }}</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Pied de page ── -->
+  <footer class="site-footer">
+    <div class="site-footer__cta">
+      <div>
+        <h2>Prêt à créer votre premier cours ?</h2>
+        <p>Créez votre compte et générez vos premiers quiz en quelques minutes.</p>
+      </div>
+      <a class="cta cta--light cta--lg" routerLink="/register" *ngIf="!authService.isLoggedIn(); else footerSpace">Créer un compte</a>
+      <ng-template #footerSpace><button class="cta cta--light cta--lg" (click)="goToSpace()">Mon espace</button></ng-template>
+    </div>
+    <div class="site-footer__cols">
+      <div class="site-footer__brand">
+        <img src="assets/images/lms-logo-mark.png" alt="LMS" />
+        <p>Votre plateforme intelligente pour l'e&#8209;learning.</p>
+      </div>
+      <div>
+        <h4>Plateforme</h4>
+        <a *ngFor="let link of navLinks" (click)="scrollTo(link.id)">{{ link.label }}</a>
+      </div>
+      <div>
+        <h4>Compte</h4>
+        <a routerLink="/login">Se connecter</a>
+        <a routerLink="/register">Créer un compte</a>
+        <a routerLink="/forgot-password">Mot de passe oublié</a>
+      </div>
+    </div>
+    <div class="site-footer__bottom">© 2026 LMS · Plateforme e-learning</div>
+  </footer>
+</main>

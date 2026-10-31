@@ -1,0 +1,95 @@
+<div class="auth">
+  <div class="auth__top">
+    <a routerLink="/"><img class="auth__logo" src="assets/images/lms-logo-mark.png" alt="LMS — Accueil" /></a>
+    <a class="auth__home" routerLink="/">← Retour à l'accueil</a>
+  </div>
+
+  <div class="auth__card" [class.auth__card--narrow]="registeredEmail()">
+    <div class="auth__form">
+      <div *ngIf="registeredEmail(); else registerForm" class="text-center">
+        <svg cIcon name="cilEnvelopeOpen" size="3xl" class="text-success mb-3"></svg>
+        <h1>Vérifiez votre email</h1>
+        <p class="subtitle">
+          Votre compte a été créé. Un lien de vérification a été envoyé à
+          <strong>{{ registeredEmail() }}</strong>. Cliquez dessus pour activer votre compte.
+        </p>
+
+        <c-alert color="info" *ngIf="resendMessage()" class="mb-3">{{ resendMessage() }}</c-alert>
+
+        <a class="auth__submit d-block text-decoration-none" routerLink="/login">Aller à la connexion</a>
+        <p class="auth__switch">
+          Rien reçu ?
+          <a href="javascript:void(0)" (click)="resendVerification()">
+            <c-spinner aria-hidden="true" size="sm" *ngIf="resending()"></c-spinner>
+            Renvoyer l'email de vérification
+          </a>
+        </p>
+      </div>
+
+      <ng-template #registerForm>
+        <form (ngSubmit)="onRegister()">
+          <h1>Créer un compte</h1>
+          <p class="subtitle">Rejoignez la plateforme de formation LMS</p>
+
+          <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">
+            {{ errorMessage() }}
+          </c-alert>
+
+          <c-input-group class="mb-3">
+            <span cInputGroupText><svg cIcon name="cilUser"></svg></span>
+            <input name="name" [(ngModel)]="name" autoComplete="name" cFormControl placeholder="Nom complet" required />
+          </c-input-group>
+
+          <c-input-group class="mb-3">
+            <span cInputGroupText>&#64;</span>
+            <input name="email" [(ngModel)]="email" autoComplete="email" cFormControl
+                   placeholder="Adresse e-mail" type="email" required />
+          </c-input-group>
+
+          <c-input-group class="mb-3">
+            <span cInputGroupText><svg cIcon name="cilPeople"></svg></span>
+            <select name="role" [(ngModel)]="role" cSelect>
+              <option value="STUDENT">Étudiant</option>
+              <option value="TEACHER">Enseignant</option>
+              <option value="ADMIN">Administrateur</option>
+            </select>
+          </c-input-group>
+
+          <c-input-group class="mb-3">
+            <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
+            <input name="password" [(ngModel)]="password" autoComplete="new-password" cFormControl
+                   placeholder="Mot de passe (Ex: Pass1234!)"
+                   title="8 caractères min., une majuscule, une minuscule, un chiffre et un caractère spécial"
+                   type="password" required />
+          </c-input-group>
+
+          <c-input-group class="mb-4">
+            <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
+            <input name="confirmPassword" [(ngModel)]="confirmPassword" autoComplete="new-password" cFormControl
+                   placeholder="Confirmer le mot de passe" type="password" required />
+          </c-input-group>
+
+          <button class="auth__submit" type="submit" [disabled]="loading()">
+            <c-spinner aria-hidden="true" size="sm" *ngIf="loading()"></c-spinner>
+            <span *ngIf="!loading()">Créer mon compte</span>
+          </button>
+
+          <p class="auth__switch">
+            Vous avez déjà un compte ?<a routerLink="/login">Se connecter</a>
+          </p>
+        </form>
+      </ng-template>
+    </div>
+
+    <aside class="auth__side" *ngIf="!registeredEmail()">
+      <h2>Déjà inscrit ?</h2>
+      <p>Retrouvez vos cours, vos quiz et vos TP dans votre espace.</p>
+      <ul>
+        <li>Étudiant : cours, quiz et assistant IA</li>
+        <li>Enseignant : studio et génération IA</li>
+        <li>Administrateur : gestion de la plateforme</li>
+      </ul>
+      <a class="auth__side-btn" routerLink="/login">Se connecter</a>
+    </aside>
+  </div>
+</div>

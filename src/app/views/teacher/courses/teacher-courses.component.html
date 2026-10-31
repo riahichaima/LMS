@@ -1,0 +1,178 @@
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex justify-content-between align-items-center">
+        <strong><svg cIcon name="cilBook" class="me-2"></svg>Studio de Création des Cours (Enseignant)</strong>
+        <button cButton color="success" class="text-white" (click)="openCreateModal()">
+          <svg cIcon name="cilPlus" class="me-1"></svg> Créer un Nouveau Cours
+        </button>
+      </c-card-header>
+      <c-card-body>
+        <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+          {{ errorMessage() }}
+        </c-alert>
+        <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
+          {{ successMessage() }}
+        </c-alert>
+
+        <div *ngIf="loading()" class="text-center py-4">
+          <c-spinner color="primary"></c-spinner>
+          <p class="mt-2 text-muted">Chargement de vos cours...</p>
+        </div>
+
+        <table cTable [hover]="true" [responsive]="true" *ngIf="!loading()">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Titre du Cours</th>
+              <th>Description</th>
+              <th>Chapitres</th>
+              <th>Statut</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of courses()">
+              <td>#{{ c.id }}</td>
+              <td class="fw-semibold">{{ c.title }}</td>
+              <td>{{ c.description }}</td>
+              <td>{{ c.chaptersCount || c.chapters?.length || 0 }} Chapitres</td>
+              <td>
+                <c-badge [color]="c.status === 'PUBLISHED' ? 'success' : 'warning'">
+                  {{ c.status || 'PUBLISHED' }}
+                </c-badge>
+              </td>
+              <td class="text-end text-nowrap">
+                <button cButton color="primary" variant="outline" size="sm" class="me-2" (click)="openEditModal(c)" title="Modifier">
+                  <svg cIcon name="cilPencil"></svg> Modifier
+                </button>
+                <button cButton color="danger" size="sm" (click)="deleteCourse(c)" title="Supprimer">
+                  <svg cIcon name="cilTrash"></svg> Supprimer
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="courses().length === 0">
+              <td colspan="6" class="text-center py-3 text-muted">
+                Vous n'avez pas encore créé de cours. Cliquez sur "Créer un Nouveau Cours" pour commencer.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
+
+<!-- Modal Studio de Création de Cours -->
+<c-modal [(visible)]="createModalVisible" id="createCourseModal" size="xl">
+  <c-modal-header>
+    <h5 cModalTitle>{{ isEditing ? 'Modifier le cours' : 'Studio de Création de Cours & Chapitres' }}</h5>
+  </c-modal-header>
+  <c-modal-body style="max-height: 70vh; overflow-y: auto;">
+    <c-alert color="danger" *ngIf="errorMessage() && createModalVisible()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <div class="mb-3">
+      <label class="form-label fw-bold">Titre du Cours :</label>
+      <input type="text" cFormControl [(ngModel)]="courseTitle" placeholder="Ex: Mathématiques Niveau 1" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label fw-bold">Description :</label>
+      <textarea cFormControl rows="3" [(ngModel)]="courseDescription" placeholder="Description générale du cours..."></textarea>
+    </div>
+
+    <hr class="my-4" />
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h6 class="fw-bold mb-0">Chapitres & Leçons du Cours</h6>
+      <button cButton color="primary" size="sm" (click)="addChapter()">
+        <svg cIcon name="cilPlus" class="me-1"></svg> Ajouter un Chapitre
+      </button>
+    </div>
+
+    <div *ngFor="let chap of chapters; let chapIdx = index" class="border rounded p-3 mb-3 bg-light">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="text-primary fw-bold mb-0">Chapitre {{ chapIdx + 1 }}</h6>
+        <button cButton color="danger" variant="ghost" size="sm" (click)="removeChapter(chapIdx)">
+          <svg cIcon name="cilTrash"></svg> Supprimer Chapitre
+        </button>
+      </div>
+
+      <div class="row g-2 mb-2">
+        <div class="col-md-6">
+          <input type="text" cFormControl [(ngModel)]="chap.title" placeholder="Titre du chapitre" />
+        </div>
+        <div class="col-md-6">
+          <input type="text" cFormControl [(ngModel)]="chap.description" placeholder="Description courte du chapitre" />
+        </div>
+      </div>
+
+      <!-- Leçons du chapitre -->
+      <div class="ms-3 mt-3 border-start ps-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-semibold text-secondary">Leçons de ce chapitre :</span>
+          <button cButton color="info" size="sm" class="text-white" (click)="addLesson(chap)">
+            <svg cIcon name="cilPlus" class="me-1"></svg> Leçon
+          </button>
+        </div>
+
+        <div *ngFor="let les of chap.lessons; let lesIdx = index" class="border rounded p-2 mb-2 bg-white">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <strong>Leçon {{ chapIdx + 1 }}.{{ lesIdx + 1 }}</strong>
+            <button cButton color="danger" variant="ghost" size="sm" (click)="removeLesson(chap, lesIdx)">
+              <svg cIcon name="cilTrash"></svg>
+            </button>
+          </div>
+
+          <div class="row g-2 mb-2">
+            <div class="col-md-6">
+              <input type="text" cFormControl [(ngModel)]="les.title" placeholder="Titre de la leçon" />
+            </div>
+            <div class="col-md-6">
+              <input type="text" cFormControl [(ngModel)]="les.description" placeholder="Description de la leçon" />
+            </div>
+          </div>
+
+          <!-- Ressources de la leçon -->
+          <div class="ms-2 mt-2">
+            <span class="text-muted small fw-bold">Ressources de la leçon (une ou plusieurs) :</span>
+            <div class="d-flex flex-wrap gap-1 mt-1">
+              <button *ngFor="let rt of resourceTypes" cButton size="sm" [color]="'outline-' + rt.color"
+                      (click)="addResource(les, rt.type)">+ {{ rt.label }}</button>
+            </div>
+
+            <div *ngFor="let res of les.resources; let resIdx = index" class="mt-2 border rounded p-2 bg-light">
+              <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="badge" [ngClass]="'bg-' + resourceInfo(res.resourceType).color">{{ resourceInfo(res.resourceType).label }}</span>
+                <button cButton color="danger" variant="ghost" size="sm" (click)="removeResource(les, resIdx)">
+                  &times;
+                </button>
+              </div>
+              <input type="text" cFormControl class="mb-1 form-control-sm" [(ngModel)]="res.title" placeholder="Titre de la ressource" />
+
+              <div *ngIf="resourceInfo(res.resourceType).url">
+                <input type="url" cFormControl class="form-control-sm" [(ngModel)]="res.externalUrl"
+                       [placeholder]="res.resourceType === 'YOUTUBE_VIDEO' ? 'https://www.youtube.com/watch?v=...' : 'https://...'" />
+              </div>
+
+              <div *ngIf="resourceInfo(res.resourceType).accept as accept">
+                <div *ngIf="res.filePath && !res.fileName" class="small mb-1">
+                  Fichier actuel : <a [href]="fileUrl(res.filePath)" target="_blank" rel="noopener">ouvrir</a>
+                  <span class="text-body-secondary">(choisissez un fichier ci-dessous pour le remplacer)</span>
+                </div>
+                <input type="file" class="form-control form-control-sm" [accept]="accept" (change)="onFileSelected($event, res)" />
+                <small *ngIf="res.fileName" class="text-success">Sélectionné : {{ res.fileName }}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </c-modal-body>
+  <c-modal-footer>
+    <button cButton color="secondary" (click)="createModalVisible.set(false)">Annuler</button>
+    <button cButton color="success" class="text-white" (click)="saveCourse()" [disabled]="loading()">
+      <c-spinner aria-hidden="true" size="sm" *ngIf="loading()"></c-spinner>
+      {{ isEditing ? 'Enregistrer les modifications' : 'Enregistrer le cours complet' }}
+    </button>
+  </c-modal-footer>
+</c-modal>

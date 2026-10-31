@@ -1,0 +1,110 @@
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex justify-content-between align-items-center">
+        <strong><svg cIcon name="cilPeople" class="me-2"></svg>Gestion des Utilisateurs</strong>
+        <button cButton color="primary" size="sm" (click)="loadUsers()">
+          <svg cIcon name="cilReload" class="me-1"></svg> Actualiser
+        </button>
+      </c-card-header>
+      <c-card-body>
+        <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+          {{ errorMessage() }}
+        </c-alert>
+        <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
+          {{ successMessage() }}
+        </c-alert>
+
+        <div *ngIf="loading()" class="text-center py-4">
+          <c-spinner color="primary"></c-spinner>
+          <p class="mt-2 text-muted">Chargement des utilisateurs...</p>
+        </div>
+
+        <table cTable [hover]="true" [responsive]="true" *ngIf="!loading()">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom complet</th>
+              <th>Email</th>
+              <th>Rôle</th>
+              <th>Statut</th>
+              <th class="text-end">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of users()">
+              <td>#{{ u.id }}</td>
+              <td class="fw-semibold">{{ u.name }}</td>
+              <td>{{ u.email }}</td>
+              <td>
+                <c-badge [color]="getRoleBadgeColor(u.role)">
+                  {{ u.role }}
+                </c-badge>
+              </td>
+              <td>
+                <c-badge [color]="u.enabled !== false ? 'success' : 'secondary'">
+                  {{ u.enabled !== false ? 'Actif' : 'Inactif' }}
+                </c-badge>
+              </td>
+              <td class="text-end">
+                <button
+                  cButton
+                  [color]="u.enabled !== false ? 'warning' : 'success'"
+                  size="sm"
+                  class="me-1"
+                  (click)="toggleUserActivation(u)"
+                  [title]="u.enabled !== false ? 'Désactiver' : 'Activer'"
+                >
+                  <svg cIcon [name]="u.enabled !== false ? 'cilUserUnfollow' : 'cilUserFollow'"></svg>
+                </button>
+                <button
+                  cButton
+                  color="info"
+                  size="sm"
+                  class="me-1 text-white"
+                  (click)="openRoleModal(u)"
+                  title="Modifier le rôle"
+                >
+                  <svg cIcon name="cilPencil"></svg>
+                </button>
+                <button
+                  cButton
+                  color="danger"
+                  size="sm"
+                  (click)="deleteUser(u)"
+                  title="Supprimer"
+                >
+                  <svg cIcon name="cilTrash"></svg>
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="users().length === 0">
+              <td colspan="6" class="text-center py-3 text-muted">
+                Aucun utilisateur trouvé.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
+
+<!-- Modal Modification de Rôle -->
+<c-modal [(visible)]="roleModalVisible" id="roleModal">
+  <c-modal-header>
+    <h5 cModalTitle>Modifier le rôle de {{ selectedUser?.name }}</h5>
+  </c-modal-header>
+  <c-modal-body>
+    <label class="form-label fw-bold mb-2">Nouveau rôle :</label>
+    <select cSelect [(ngModel)]="selectedRole" class="form-select">
+      <option value="STUDENT">STUDENT (Étudiant)</option>
+      <option value="TEACHER">TEACHER (Enseignant)</option>
+      <option value="ADMIN">ADMIN (Administrateur)</option>
+    </select>
+  </c-modal-body>
+  <c-modal-footer>
+    <button cButton color="secondary" (click)="roleModalVisible.set(false)">Annuler</button>
+    <button cButton color="primary" (click)="saveRole()">Enregistrer</button>
+  </c-modal-footer>
+</c-modal>

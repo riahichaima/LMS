@@ -1,0 +1,139 @@
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+        <strong><svg cIcon name="cilTask" class="me-2"></svg>Vos TP et Quiz avec IA</strong>
+        <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
+          <svg cIcon name="cilReload"></svg>
+        </button>
+      </c-card-header>
+      <c-card-body>
+        <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+
+        <!-- Filtres -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <select cSelect [ngModel]="courseFilter()" (ngModelChange)="courseFilter.set(+$event)">
+              <option [ngValue]="0">Tous les cours</option>
+              <option *ngFor="let c of courses()" [ngValue]="c.courseId">{{ c.courseTitle }}</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <select cSelect [ngModel]="levelFilter()" (ngModelChange)="levelFilter.set($event)">
+              <option value="">Tous les niveaux</option>
+              <option value="BEGINNER">Débutant</option>
+              <option value="INTERMEDIATE">Intermédiaire</option>
+              <option value="ADVANCED">Avancé</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Onglets : quiz, TP et corrections séparés -->
+        <div class="btn-group mb-4 flex-wrap" role="group">
+          <button cButton [color]="tab() === 'quiz' ? 'primary' : 'light'" (click)="tab.set('quiz')">
+            Quiz ({{ quizzes().length }})
+          </button>
+          <button cButton [color]="tab() === 'tp' ? 'primary' : 'light'" (click)="tab.set('tp')">
+            TP ({{ exerciseCount() }} exercices)
+          </button>
+          <button cButton [color]="tab() === 'corrections' ? 'success' : 'light'" (click)="tab.set('corrections')">
+            Corrections
+          </button>
+        </div>
+
+        <div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+
+        <ng-container *ngIf="!loading()">
+          <div *ngIf="courses().length === 0" class="text-center text-body-secondary py-5">
+            Aucun quiz ni TP pour le moment. Utilisez la page « Générateur Quiz/TP IA » pour en créer à partir d'un chapitre.
+          </div>
+
+          <!-- QUIZ (sans les réponses) -->
+          <ng-container *ngIf="tab() === 'quiz'">
+            <div *ngFor="let item of quizzes()" class="border rounded p-3 mb-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                <div>
+                  <h5 class="mb-1">{{ item.quiz.title }}</h5>
+                  <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                  <c-badge [color]="levelColor(item.quiz.difficultyLevel)">{{ levelLabel(item.quiz.difficultyLevel) }}</c-badge>
+                  <c-badge color="light" textColor="dark">{{ item.quiz.questions.length }} questions</c-badge>
+                  <c-badge color="light" textColor="dark">{{ item.quiz.timeLimitMinutes }} min</c-badge>
+                </div>
+              </div>
+              <div *ngFor="let q of item.quiz.questions; let i = index" class="mb-3">
+                <div class="fw-semibold mb-1">{{ i + 1 }}. {{ q.questionText }}</div>
+                <ul class="list-unstyled ms-3 mb-0">
+                  <li *ngFor="let a of q.answers; let j = index" class="py-1">
+                    <span class="text-body-secondary me-1">{{ letter(j) }}.</span> {{ a.answerText }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <p *ngIf="quizzes().length === 0 && courses().length > 0" class="text-body-secondary">Aucun quiz pour ce filtre.</p>
+          </ng-container>
+
+          <!-- TP (énoncés uniquement) -->
+          <ng-container *ngIf="tab() === 'tp'">
+            <div *ngFor="let item of tps()" class="border rounded p-3 mb-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                <div>
+                  <h5 class="mb-1">{{ item.tp.title }}</h5>
+                  <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                  <c-badge [color]="levelColor(item.tp.difficultyLevel)">{{ levelLabel(item.tp.difficultyLevel) }}</c-badge>
+                  <c-badge color="light" textColor="dark">{{ item.exercises.length }} exercices</c-badge>
+                  <c-badge color="light" textColor="dark">{{ item.tp.maxPoints }} pts · {{ item.tp.timeLimitHours }} h</c-badge>
+                </div>
+              </div>
+              <div *ngFor="let ex of item.exercises" class="mb-3">
+                <h6 class="fw-bold">Exercice {{ ex.number }}</h6>
+                <div class="bg-body-tertiary border rounded p-3" style="white-space: pre-wrap;">{{ ex.statement }}</div>
+              </div>
+            </div>
+            <p *ngIf="tps().length === 0 && courses().length > 0" class="text-body-secondary">Aucun TP pour ce filtre.</p>
+          </ng-container>
+
+          <!-- CORRECTIONS -->
+          <ng-container *ngIf="tab() === 'corrections'">
+            <h5 class="fw-bold mb-3" *ngIf="quizzes().length > 0">Corrigés des quiz</h5>
+            <div *ngFor="let item of quizzes()" class="border border-success-subtle rounded p-3 mb-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                <div>
+                  <h6 class="mb-1 fw-bold">{{ item.quiz.title }}</h6>
+                  <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+                </div>
+                <c-badge [color]="levelColor(item.quiz.difficultyLevel)">{{ levelLabel(item.quiz.difficultyLevel) }}</c-badge>
+              </div>
+              <ol class="mb-0 ps-3">
+                <li *ngFor="let q of item.quiz.questions; let i = index" class="mb-2">
+                  <span class="text-body-secondary">{{ q.questionText }}</span><br />
+                  <strong class="text-success">{{ correctLetter(item.quiz, i) }}. {{ correctText(item.quiz, i) }}</strong>
+                  <div *ngIf="q.explanation" class="small text-body-secondary">{{ q.explanation }}</div>
+                </li>
+              </ol>
+            </div>
+
+            <h5 class="fw-bold mb-3 mt-2" *ngIf="tps().length > 0">Corrigés des TP</h5>
+            <div *ngFor="let item of tps()" class="border border-success-subtle rounded p-3 mb-4">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+                <div>
+                  <h6 class="mb-1 fw-bold">{{ item.tp.title }}</h6>
+                  <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+                </div>
+                <c-badge [color]="levelColor(item.tp.difficultyLevel)">{{ levelLabel(item.tp.difficultyLevel) }}</c-badge>
+              </div>
+              <div *ngFor="let ex of item.exercises" class="mb-3">
+                <div class="fw-semibold">Exercice {{ ex.number }}</div>
+                <div class="border rounded p-3 mt-1" style="white-space: pre-wrap;">{{ ex.solution || 'Pas de solution fournie.' }}</div>
+              </div>
+            </div>
+            <p *ngIf="quizzes().length === 0 && tps().length === 0 && courses().length > 0" class="text-body-secondary">Aucune correction pour ce filtre.</p>
+          </ng-container>
+        </ng-container>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

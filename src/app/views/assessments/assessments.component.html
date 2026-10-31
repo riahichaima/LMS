@@ -1,0 +1,116 @@
+<c-row>
+  <c-col lg="9" class="mx-auto">
+    <c-card class="mb-4">
+      <c-card-header>
+        <ul class="nav nav-tabs card-header-tabs">
+          <li class="nav-item">
+            <a class="nav-link cursor-pointer" [class.active]="activeTab === 'quiz'" (click)="activeTab = 'quiz'">
+              <svg cIcon name="cilTask" class="me-1"></svg> Passer le Quiz
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link cursor-pointer" [class.active]="activeTab === 'tp'" (click)="activeTab = 'tp'">
+              <svg cIcon name="cilPencil" class="me-1"></svg> Soumettre un TP & Correction IA
+            </a>
+          </li>
+        </ul>
+      </c-card-header>
+      <c-card-body>
+
+        <!-- QUIZ TAB -->
+        <div *ngIf="activeTab === 'quiz'">
+          <h4 class="mb-3 text-primary">Quiz #{{ quizId }} - Évaluation Connaissances</h4>
+
+          <c-alert color="danger" *ngIf="quizError()" dismissible class="mb-3">
+            {{ quizError() }}
+          </c-alert>
+
+          <form (ngSubmit)="submitQuiz()" *ngIf="!quizSubmitted()">
+            <div class="mb-4 p-3 border rounded bg-light">
+              <h6 class="fw-bold">Question 1 : Que signifie le terme LMS ?</h6>
+              <div class="ms-3 mt-2">
+                <c-form-check>
+                  <input cFormCheckInput type="radio" name="q1" value="Learning Management System" [(ngModel)]="answers['1']" id="q1a" />
+                  <label cFormCheckLabel for="q1a">Learning Management System</label>
+                </c-form-check>
+                <c-form-check>
+                  <input cFormCheckInput type="radio" name="q1" value="Local Messaging System" [(ngModel)]="answers['1']" id="q1b" />
+                  <label cFormCheckLabel for="q1b">Local Messaging System</label>
+                </c-form-check>
+              </div>
+            </div>
+
+            <div class="mb-4 p-3 border rounded bg-light">
+              <h6 class="fw-bold">Question 2 : Vrai ou Faux ? FastAPI est un framework Python performant.</h6>
+              <div class="ms-3 mt-2">
+                <c-form-check>
+                  <input cFormCheckInput type="radio" name="q2" value="Vrai" [(ngModel)]="answers['2']" id="q2a" />
+                  <label cFormCheckLabel for="q2a">Vrai</label>
+                </c-form-check>
+                <c-form-check>
+                  <input cFormCheckInput type="radio" name="q2" value="Faux" [(ngModel)]="answers['2']" id="q2b" />
+                  <label cFormCheckLabel for="q2b">Faux</label>
+                </c-form-check>
+              </div>
+            </div>
+
+            <button cButton color="primary" type="submit" [disabled]="quizLoading()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="quizLoading()"></c-spinner>
+              <span *ngIf="!quizLoading()">Soumettre mes réponses</span>
+            </button>
+          </form>
+
+          <div *ngIf="quizSubmitted()" class="p-4 border rounded bg-success bg-opacity-10">
+            <h5 class="text-success fw-bold">Quiz Soumis avec Succès !</h5>
+            <p>Vos réponses ont été enregistrées et validées par le système.</p>
+            <pre class="bg-white p-3 border rounded text-dark">{{ quizResult() | json }}</pre>
+          </div>
+        </div>
+
+        <!-- TP / ASSIGNMENT TAB -->
+        <div *ngIf="activeTab === 'tp'">
+          <h4 class="mb-3 text-info">Soumission de TP #{{ assignmentId }}</h4>
+          <div class="p-3 border rounded bg-light mb-3">
+            <h6 class="fw-bold text-dark">Sujet du TP :</h6>
+            <p class="mb-0 text-secondary">{{ assignmentSubject }}</p>
+          </div>
+
+          <c-alert color="danger" *ngIf="tpError()" dismissible class="mb-3">
+            {{ tpError() }}
+          </c-alert>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold">Votre réponse ou code de solution :</label>
+            <textarea cFormControl rows="6" [(ngModel)]="studentTpAnswer" placeholder="Saisissez ici le détail de votre réponse..."></textarea>
+          </div>
+
+          <button cButton color="info" class="text-white" (click)="submitTp()" [disabled]="tpLoading() || !studentTpAnswer.trim()">
+            <c-spinner aria-hidden="true" size="sm" *ngIf="tpLoading()"></c-spinner>
+            <span *ngIf="!tpLoading()">Soumettre pour Correction IA Immédiate</span>
+          </button>
+
+          <!-- Result Correction IA -->
+          <div *ngIf="tpResult() as tp" class="mt-4 p-4 border rounded bg-white shadow-sm">
+            <h5 class="text-success fw-bold d-flex justify-content-between">
+              <span>Évaluation par l'Agent IA :</span>
+              <span class="badge bg-primary fs-6">Score : {{ tp.score }} / 100</span>
+            </h5>
+
+            <div class="mt-3">
+              <h6 class="fw-bold text-dark">Feedback Pédagogique :</h6>
+              <p class="text-secondary bg-light p-3 border rounded">{{ tp.feedback }}</p>
+            </div>
+
+            <div class="mt-3" *ngIf="tp.suggestions && tp.suggestions.length > 0">
+              <h6 class="fw-bold text-dark">Conseils d'amélioration :</h6>
+              <ul>
+                <li *ngFor="let s of tp.suggestions">{{ s }}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

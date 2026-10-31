@@ -1,0 +1,254 @@
+<!-- Header Welcome Card -->
+<c-row class="mb-4">
+  <c-col xs="12">
+    <c-card class="bg-primary text-white shadow-sm">
+      <c-card-body class="p-4 d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="fw-bold mb-1">Bienvenue, {{ currentUser?.name }} !</h3>
+          <p class="mb-0 text-white-50">
+            Espace d'apprentissage & gestion LMS — Rôle :
+            <span class="badge bg-light text-primary ms-1">{{ currentUser?.role }}</span>
+          </p>
+        </div>
+        <div class="d-none d-md-block">
+          <button cButton color="light" class="text-primary fw-bold" routerLink="/ai-assistant">
+            <svg cIcon name="cilLightbulb" class="me-1"></svg> Ouvrir l'Assistant IA
+          </button>
+        </div>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
+
+<!-- ========================================== -->
+<!-- 1. TABLEAU DE BORD ADMINISTRATEUR -->
+<!-- ========================================== -->
+<div *ngIf="authService.isAdmin()">
+  <c-row class="g-3 mb-4">
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-info h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Utilisateurs Inscrits</div>
+          <div class="fs-2 fw-bold my-2 text-info">{{ adminStats()?.totalUsers || recentUsers().length || 0 }}</div>
+          <small class="text-muted">Total des comptes sur la plateforme</small>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-success h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Formations / Cours</div>
+          <div class="fs-2 fw-bold my-2 text-success">{{ adminStats()?.totalCourses || 0 }}</div>
+          <small class="text-muted">Cours créés dans le catalogue</small>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-warning h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Inscriptions Totales</div>
+          <div class="fs-2 fw-bold my-2 text-warning">{{ adminStats()?.totalEnrollments || 0 }}</div>
+          <small class="text-muted">Étudiants inscrits aux cours</small>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row>
+    <c-col xs="12">
+      <c-card class="mb-4">
+        <c-card-header class="d-flex justify-content-between align-items-center">
+          <strong>Derniers Utilisateurs Créés</strong>
+          <a cButton color="primary" size="sm" routerLink="/admin/users">Gérer tous les utilisateurs</a>
+        </c-card-header>
+        <c-card-body>
+          <table cTable [hover]="true" [responsive]="true">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of recentUsers()">
+                <td>#{{ u.id }}</td>
+                <td class="fw-semibold">{{ u.name }}</td>
+                <td>{{ u.email }}</td>
+                <td><c-badge color="info">{{ u.role }}</c-badge></td>
+                <td>
+                  <c-badge [color]="u.enabled !== false ? 'success' : 'secondary'">
+                    {{ u.enabled !== false ? 'Actif' : 'Inactif' }}
+                  </c-badge>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+</div>
+
+<!-- ========================================== -->
+<!-- 2. TABLEAU DE BORD ENSEIGNANT -->
+<!-- ========================================== -->
+<div *ngIf="authService.isTeacher()">
+  <c-row class="g-3 mb-4">
+    <c-col sm="6" lg="6">
+      <c-card class="border-start border-start-4 border-start-success h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Mes Cours</div>
+          <div class="fs-2 fw-bold my-2 text-success">{{ teacherCourses().length }}</div>
+          <small class="text-muted">Formations créées et publiées</small>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <c-col sm="6" lg="6">
+      <c-card class="border-start border-start-4 border-start-primary h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Actions Rapides</div>
+          <div class="mt-3 d-flex gap-2">
+            <button cButton color="success" class="text-white" routerLink="/teacher/courses">
+              <svg cIcon name="cilPlus" class="me-1"></svg> Studio de Cours
+            </button>
+            <button cButton color="primary" routerLink="/teacher/assessments">
+              <svg cIcon name="cilTask" class="me-1"></svg> Générer Quiz/TP IA
+            </button>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row>
+    <c-col xs="12">
+      <c-card class="mb-4">
+        <c-card-header><strong>Mes Formations Récentes</strong></c-card-header>
+        <c-card-body>
+          <table cTable [hover]="true" [responsive]="true">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Titre</th>
+                <th>Description</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of teacherCourses()">
+                <td>#{{ c.id }}</td>
+                <td class="fw-semibold">{{ c.title }}</td>
+                <td>{{ c.description }}</td>
+                <td><c-badge color="success">{{ c.status || 'PUBLISHED' }}</c-badge></td>
+              </tr>
+              <tr *ngIf="teacherCourses().length === 0">
+                <td colspan="4" class="text-center py-3 text-muted">
+                  Aucun cours créé. Cliquez sur "Studio de Cours" pour publier votre première formation !
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+</div>
+
+<!-- ========================================== -->
+<!-- 3. TABLEAU DE BORD ÉTUDIANT -->
+<!-- ========================================== -->
+<div *ngIf="authService.isStudent()">
+  <c-row class="g-3 mb-4">
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-primary h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Mes Inscriptions</div>
+          <div class="fs-2 fw-bold my-2 text-primary">{{ studentEnrollments().length }}</div>
+          <small class="text-muted">Cours suivis actuellement</small>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-info h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Progression Moyenne</div>
+          <div class="fs-2 fw-bold my-2 text-info">{{ AverageStudentProgress }}%</div>
+          <c-progress class="mt-2" [height]="6">
+            <c-progress-bar [value]="AverageStudentProgress" color="info"></c-progress-bar>
+          </c-progress>
+        </c-card-body>
+      </c-card>
+    </c-col>
+
+    <c-col sm="6" lg="4">
+      <c-card class="border-start border-start-4 border-start-success h-100">
+        <c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Assistant IA</div>
+          <div class="mt-3">
+            <a cButton color="success" class="text-white w-100" routerLink="/ai-assistant">
+              <svg cIcon name="cilLightbulb" class="me-1"></svg> Poser une question à l'IA
+            </a>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <c-row>
+    <c-col xs="12">
+      <c-card class="mb-4">
+        <c-card-header class="d-flex justify-content-between align-items-center">
+          <strong>Mes Cours & Avancement</strong>
+          <a cButton color="primary" size="sm" routerLink="/courses">Explorer le Catalogue</a>
+        </c-card-header>
+        <c-card-body>
+          <table cTable [hover]="true" [responsive]="true">
+            <thead>
+              <tr>
+                <th>Formation</th>
+                <th>Progression</th>
+                <th>Statut</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of studentEnrollments()">
+                <td class="fw-semibold">{{ e.course.title }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <c-progress class="flex-grow-1" [height]="8">
+                      <c-progress-bar [value]="e.progressPercentage" color="primary"></c-progress-bar>
+                    </c-progress>
+                    <span class="small fw-bold">{{ e.progressPercentage }}%</span>
+                  </div>
+                </td>
+                <td>
+                  <c-badge [color]="e.completed ? 'success' : 'primary'">
+                    {{ e.completed ? 'Terminé' : 'En cours' }}
+                  </c-badge>
+                </td>
+                <td class="text-end">
+                  <a cButton color="primary" size="sm" [routerLink]="['/assessments', e.course.id]">
+                    <svg cIcon name="cilTask" class="me-1"></svg> Quiz & TP
+                  </a>
+                </td>
+              </tr>
+              <tr *ngIf="studentEnrollments().length === 0">
+                <td colspan="4" class="text-center py-3 text-muted">
+                  Vous n'êtes inscrit à aucun cours pour l'instant. Parcourez le catalogue pour vous inscrire !
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+</div>

@@ -1,0 +1,47 @@
+<c-row>
+  <c-col>
+    <h2 class="mb-4">Cours Disponibles</h2>
+
+    <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+      {{ errorMessage() }}
+    </c-alert>
+
+    <div *ngIf="loading()" class="text-center py-5">
+      <c-spinner color="primary"></c-spinner>
+      <p class="mt-2 text-body-secondary">Chargement des cours...</p>
+    </div>
+
+    <div *ngIf="!loading() && courses().length === 0" class="text-center py-5">
+      <svg cIcon name="cilBook" size="xl" class="text-body-secondary mb-3" style="width: 48px; height: 48px;"></svg>
+      <p class="text-body-secondary">Aucun cours disponible pour le moment.</p>
+    </div>
+
+    <c-row *ngIf="!loading() && courses().length > 0">
+      <c-col lg="4" md="6" *ngFor="let course of courses()">
+        <c-card class="mb-4">
+          <c-card-header>
+            <strong>{{ course.title }}</strong>
+            <c-badge color="info" class="ms-2" *ngIf="course.level">{{ course.level }}</c-badge>
+          </c-card-header>
+          <c-card-body>
+            <p class="text-body-secondary">{{ course.description }}</p>
+            <div *ngIf="course.teacherName" class="mb-2">
+              <small class="text-body-secondary">Enseignant: {{ course.teacherName }}</small>
+            </div>
+            <div *ngIf="course.category" class="mb-2">
+              <c-badge color="secondary">{{ course.category }}</c-badge>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <small class="text-body-secondary">
+                {{ course.chaptersCount || 0 }} chapitres | {{ course.lessonsCount || 0 }} leçons
+              </small>
+              <button cButton color="primary" size="sm" (click)="enroll(course.id!)">
+                S'inscrire
+              </button>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </c-col>
+</c-row>

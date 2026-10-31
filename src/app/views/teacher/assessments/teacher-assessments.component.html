@@ -1,0 +1,122 @@
+<c-row>
+  <c-col lg="8" md="10" class="mx-auto">
+    <c-card class="mb-4">
+      <c-card-header>
+        <strong><svg cIcon name="cilTask" class="me-2"></svg>Générateur Automatique de Quiz & TP par IA (Multi-Agents)</strong>
+      </c-card-header>
+      <c-card-body>
+        <p class="text-muted">
+          Sélectionnez un chapitre de votre cours. L'agent IA pédagogique analysera automatiquement son contenu et générera des Quiz QCM et des sujets de TP adaptés à vos étudiants.
+        </p>
+
+        <c-alert *ngIf="modelStatus() as ms" [color]="ms.model_available ? 'info' : 'warning'" class="mb-3 py-2 small">
+          <ng-container *ngIf="ms.model_available; else modelDown">
+            <strong>Modèle IA :</strong>
+            Azure AI Foundry — {{ ms.chat_model }}
+            · transcription des vidéos : {{ ms.transcription_model }}
+            · analyse des images vidéo : {{ ms.video_vision ? 'oui' : 'non' }}
+          </ng-container>
+          <ng-template #modelDown>
+            <strong>Modèle IA indisponible.</strong> {{ ms.error || 'Vérifiez que LMS_AI est démarré.' }}
+          </ng-template>
+        </c-alert>
+
+        <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+          {{ errorMessage() }}
+        </c-alert>
+        <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
+          {{ successMessage() }}
+          Retrouvez-les avec leurs corrections dans <a routerLink="/teacher/ai-content" class="alert-link">Vos TP et Quiz avec IA</a>.
+        </c-alert>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">1. Sélectionner le cours :</label>
+          <select cSelect [(ngModel)]="selectedCourseId" (ngModelChange)="onCourseChange()">
+            <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">2. Sélectionner le chapitre cible :</label>
+          <select cSelect [(ngModel)]="selectedChapterId" (ngModelChange)="excludedSources.set([])">
+            <option *ngFor="let ch of chapters()" [ngValue]="ch.id">{{ ch.title }}</option>
+          </select>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <c-form-check>
+              <input cFormCheckInput type="checkbox" id="genQuiz" [(ngModel)]="generateQuiz" />
+              <label cFormCheckLabel for="genQuiz" class="fw-bold">Générer Quiz QCM</label>
+            </c-form-check>
+            <div class="mt-2" *ngIf="generateQuiz">
+              <label class="form-label small">Nombre de questions par quiz :</label>
+              <input type="number" cFormControl min="1" max="20" [(ngModel)]="quizQuestionCount" />
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <c-form-check>
+              <input cFormCheckInput type="checkbox" id="genAssign" [(ngModel)]="generateAssignment" />
+              <label cFormCheckLabel for="genAssign" class="fw-bold">Générer Sujets de TP</label>
+            </c-form-check>
+            <div class="mt-2" *ngIf="generateAssignment">
+              <label class="form-label small">Nombre d'exercices par TP :</label>
+              <input type="number" cFormControl min="1" max="10" [(ngModel)]="assignmentExerciseCount" />
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">3. Niveaux de difficulté à générer :</label>
+          <div class="d-flex gap-3">
+            <c-form-check>
+              <input cFormCheckInput type="checkbox" id="lvlBeg" [(ngModel)]="beginner" />
+              <label cFormCheckLabel for="lvlBeg">Débutant (BEGINNER)</label>
+            </c-form-check>
+            <c-form-check>
+              <input cFormCheckInput type="checkbox" id="lvlInt" [(ngModel)]="intermediate" />
+              <label cFormCheckLabel for="lvlInt">Intermédiaire (INTERMEDIATE)</label>
+            </c-form-check>
+            <c-form-check>
+              <input cFormCheckInput type="checkbox" id="lvlAdv" [(ngModel)]="advanced" />
+              <label cFormCheckLabel for="lvlAdv">Avancé (ADVANCED)</label>
+            </c-form-check>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">4. Sources du contenu à utiliser :</label>
+          <div *ngIf="availableSources().length > 0; else noSources" class="d-flex flex-wrap gap-3">
+            <c-form-check *ngFor="let s of availableSources()">
+              <input cFormCheckInput type="checkbox" [id]="'src' + s.type"
+                     [checked]="isSourceSelected(s.type)" (change)="toggleSource(s.type, $any($event.target).checked)" />
+              <label cFormCheckLabel [for]="'src' + s.type">{{ s.label }} ({{ s.count }})</label>
+            </c-form-check>
+          </div>
+          <ng-template #noSources>
+            <div class="small text-body-secondary">Aucune ressource dans ce chapitre : seuls les titres et descriptions des leçons seront utilisés.</div>
+          </ng-template>
+          <div class="small text-body-secondary mt-1">Le quiz et le TP sont générés uniquement à partir des sources cochées (une seule ou une combinaison).</div>
+        </div>
+
+        <div class="d-grid">
+          <button cButton color="primary" size="lg" (click)="onGenerate()" [disabled]="loading()">
+            <ng-container *ngIf="loading(); else idle">
+              <c-spinner aria-hidden="true" size="sm" class="me-2"></c-spinner>
+              Génération en cours... {{ formatElapsed(elapsed()) }}
+            </ng-container>
+            <ng-template #idle>
+              <svg cIcon name="cilLightbulb" class="me-2"></svg> Lancer la génération IA
+            </ng-template>
+          </button>
+          <small class="text-body-secondary mt-2 text-center">
+            Un quiz et/ou un TP par niveau coché : {{ callCount }} génération(s),
+            {{ modelStatus()?.provider === 'azure' ? 'environ 20 à 60 s avec Azure' : 'environ ' + (callCount * 1.5) + ' min avec le modèle local' }}.
+            Restez sur cette page jusqu'à la fin (ne la rechargez pas).
+          </small>
+        </div>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

@@ -1,0 +1,52 @@
+<c-row>
+  <c-col>
+    <h2 class="mb-4">Mes Inscriptions</h2>
+
+    <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+      {{ errorMessage() }}
+    </c-alert>
+
+    <div *ngIf="loading()" class="text-center py-5">
+      <c-spinner color="primary"></c-spinner>
+      <p class="mt-2 text-body-secondary">Chargement de vos inscriptions...</p>
+    </div>
+
+    <div *ngIf="!loading() && enrollments().length === 0" class="text-center py-5">
+      <svg cIcon name="cilLibrary" size="xl" class="text-body-secondary mb-3" style="width: 48px; height: 48px;"></svg>
+      <p class="text-body-secondary">Vous n'êtes inscrit à aucun cours pour le moment.</p>
+    </div>
+
+    <c-row *ngIf="!loading() && enrollments().length > 0">
+      <c-col lg="4" md="6" *ngFor="let enrollment of enrollments()">
+        <c-card class="mb-4">
+          <c-card-header>
+            <strong>{{ enrollment.course?.title || 'Cours' }}</strong>
+          </c-card-header>
+          <c-card-body>
+            <p class="text-body-secondary">{{ enrollment.course?.description }}</p>
+            <div class="mb-3">
+              <small class="text-body-secondary">
+                Inscrit le: {{ enrollment.enrolledAt | date:'dd/MM/yyyy' }}
+              </small>
+            </div>
+            <div class="mb-2">
+              <div class="d-flex justify-content-between">
+                <small>Progression</small>
+                <small>{{ enrollment.progressPercentage }}%</small>
+              </div>
+              <c-progress>
+                <c-progress-bar
+                  [value]="enrollment.progressPercentage"
+                  [color]="enrollment.completed ? 'success' : 'info'"
+                />
+              </c-progress>
+            </div>
+            <div *ngIf="enrollment.completed" class="text-center mt-2">
+              <span class="badge bg-success">Terminé</span>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </c-col>
+</c-row>

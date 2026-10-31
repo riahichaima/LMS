@@ -1,0 +1,177 @@
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex justify-content-between align-items-center">
+        <strong><svg cIcon name="cilLightbulb" class="me-2"></svg>Assistant Pédagogique Multi-Agents IA (Azure AI Foundry · GPT-4.1 mini)</strong>
+      </c-card-header>
+      <c-card-body>
+        <!-- Nav Tabs -->
+        <ul class="nav nav-tabs mb-4">
+          <li class="nav-item">
+            <a
+              class="nav-link cursor-pointer"
+              [class.active]="activeTab === 'text'"
+              (click)="selectTab('text')"
+            >
+              <svg cIcon name="cilNotes" class="me-1"></svg> Agent Document/Texte
+            </a>
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link cursor-pointer"
+              [class.active]="activeTab === 'video'"
+              (click)="selectTab('video')"
+            >
+              <svg cIcon name="cilMediaPlay" class="me-1"></svg> Agent Vidéo & YouTube
+            </a>
+          </li>
+          <li class="nav-item">
+            <a
+              class="nav-link cursor-pointer"
+              [class.active]="activeTab === 'progress'"
+              (click)="selectTab('progress')"
+            >
+              <svg cIcon name="cilChartPie" class="me-1"></svg> Agent Progression IA
+            </a>
+          </li>
+        </ul>
+
+        <!-- TAB 1: TEXT AGENT -->
+        <div *ngIf="activeTab === 'text'">
+          <div class="row mb-3">
+            <div class="col-md-8">
+              <label class="form-label fw-bold">Indexation d'un document (PDF / TXT) :</label>
+              <input type="file" class="form-control" accept=".pdf,.txt" (change)="onTextFileSelected($event)" />
+            </div>
+          </div>
+
+          <c-alert color="success" *ngIf="textUploadSuccess()" dismissible class="mb-3">
+            {{ textUploadSuccess() }}
+          </c-alert>
+          <c-alert color="danger" *ngIf="textUploadError()" dismissible class="mb-3">
+            {{ textUploadError() }}
+          </c-alert>
+
+          <!-- Chat Box -->
+          <div class="border rounded p-3 bg-light mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+            <div *ngFor="let m of textMessages()" class="mb-3">
+              <div [class]="m.role === 'user' ? 'text-end' : 'text-start'">
+                <span
+                  class="d-inline-block p-2 rounded"
+                  [class]="m.role === 'user' ? 'bg-primary text-white' : 'bg-white border text-dark'"
+                  style="max-width: 80%; text-align: left;"
+                >
+                  <strong>{{ m.role === 'user' ? 'Vous' : 'Agent IA Texte' }} :</strong><br />
+                  {{ m.content }}
+                  <div *ngIf="m.recommendation" class="mt-2 text-info small fw-bold">
+                    💡 Recommandation : {{ m.recommendation }}
+                  </div>
+                </span>
+              </div>
+            </div>
+            <div *ngIf="textMessages().length === 0" class="text-center text-muted py-5">
+              Posez votre question sur les cours ou vos documents téléversés !
+            </div>
+          </div>
+
+          <!-- Input -->
+          <div class="input-group">
+            <input
+              type="text"
+              cFormControl
+              [(ngModel)]="textInput"
+              (keyup.enter)="sendTextMessage()"
+              placeholder="Posez une question à l'Agent Texte..."
+            />
+            <button cButton color="primary" (click)="sendTextMessage()" [disabled]="textLoading()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="textLoading()"></c-spinner>
+              <span *ngIf="!textLoading()">Envoyer</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 2: VIDEO AGENT -->
+        <div *ngIf="activeTab === 'video'">
+          <div class="row g-3 mb-3">
+            <div class="col-md-7">
+              <label class="form-label fw-bold">Ingérer une vidéo YouTube :</label>
+              <div class="input-group">
+                <input type="text" cFormControl [(ngModel)]="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..." />
+                <button cButton color="danger" class="text-white" (click)="ingestYoutube()" [disabled]="videoLoading()">
+                  Ingérer YouTube
+                </button>
+              </div>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label fw-bold">Ou vidéo locale (.mp4) :</label>
+              <input type="file" class="form-control" accept="video/*" (change)="onVideoFileSelected($event)" />
+            </div>
+          </div>
+
+          <c-alert color="success" *ngIf="videoUploadSuccess()" dismissible class="mb-3">
+            {{ videoUploadSuccess() }}
+          </c-alert>
+          <c-alert color="danger" *ngIf="videoUploadError()" dismissible class="mb-3">
+            {{ videoUploadError() }}
+          </c-alert>
+
+          <!-- Chat Box -->
+          <div class="border rounded p-3 bg-light mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+            <div *ngFor="let m of videoMessages()" class="mb-3">
+              <div [class]="m.role === 'user' ? 'text-end' : 'text-start'">
+                <span
+                  class="d-inline-block p-2 rounded"
+                  [class]="m.role === 'user' ? 'bg-danger text-white' : 'bg-white border text-dark'"
+                  style="max-width: 80%; text-align: left;"
+                >
+                  <strong>{{ m.role === 'user' ? 'Vous' : 'Agent IA Vidéo' }} :</strong><br />
+                  {{ m.content }}
+                </span>
+              </div>
+            </div>
+            <div *ngIf="videoMessages().length === 0" class="text-center text-muted py-5">
+              Ingérez une vidéo et posez vos questions sur son contenu visuel ou audio !
+            </div>
+          </div>
+
+          <!-- Input -->
+          <div class="input-group">
+            <input
+              type="text"
+              cFormControl
+              [(ngModel)]="videoInput"
+              (keyup.enter)="sendVideoMessage()"
+              placeholder="Posez une question sur la vidéo..."
+            />
+            <button cButton color="danger" class="text-white" (click)="sendVideoMessage()" [disabled]="videoLoading()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="videoLoading()"></c-spinner>
+              <span *ngIf="!videoLoading()">Envoyer</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: PROGRESS ANALYSIS -->
+        <div *ngIf="activeTab === 'progress'">
+          <div class="mb-3 col-md-6">
+            <label class="form-label fw-bold">ID du Cours à analyser :</label>
+            <div class="input-group">
+              <input type="number" cFormControl [(ngModel)]="progressCourseId" placeholder="Ex: 1" />
+              <button cButton color="info" class="text-white" (click)="analyzeProgress()" [disabled]="progressLoading()">
+                Analyse IA
+              </button>
+            </div>
+          </div>
+
+          <c-alert color="danger" *ngIf="progressError()" dismissible class="mb-3">
+            {{ progressError() }}
+          </c-alert>
+
+          <div *ngIf="progressResult()" class="border rounded p-3 bg-light">
+            <h5 class="text-info fw-bold">Rapport d'analyse & Recommandations :</h5>
+            <pre class="bg-white p-3 border rounded text-dark">{{ progressResult() | json }}</pre>
+          </div>
+        </div>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
