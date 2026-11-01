@@ -12,6 +12,13 @@ public class UserWithRoleDetails {
     private String name;
     private String email;
     private RoleDetails role;
+    private boolean enabled;
+    private String approvalStatus;
+
+    public boolean isEnabled() { return enabled; }
+    public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
     
     @Data
     @NoArgsConstructor

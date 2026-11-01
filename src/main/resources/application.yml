@@ -1,0 +1,111 @@
+# Configuration du backend LMS.
+# Aucun secret n'est écrit ici : chaque valeur vient d'une variable d'environnement.
+#  - En local : fichier lms/.env (ignoré par Git, modèle : .env.example), chargé ci-dessous.
+#  - En production (Docker, Render, Azure…) : variables d'environnement du conteneur.
+# Les variables d'environnement sont prioritaires sur le fichier .env.
+
+spring:
+  application:
+    name: lms
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: ${JPA_SHOW_SQL:false}
+  mail:
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_SIZE:500MB}
+      max-request-size: ${MAX_UPLOAD_SIZE:500MB}
+
+server:
+  port: ${SERVER_PORT:8090}
+  # Réponses JSON / HTML compressées (moins de données transférées)
+  compression:
+    enabled: true
+    mime-types: application/json,application/javascript,text/html,text/css,text/plain,text/csv
+    min-response-size: 2KB
+  # Derrière un proxy HTTPS (Render, Azure, Caddy…) : URL et IP réelles du client
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+# Supervision technique : santé et métriques (Prometheus) sur un port interne, jamais publié.
+# /livez et /readyz restent disponibles sur le port public pour les health checks des hébergeurs.
+management:
+  server:
+    port: ${MANAGEMENT_PORT:8091}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+        add-additional-paths: true
+  metrics:
+    tags:
+      application: lms-backend
+    distribution:
+      # Histogramme des temps de réponse : percentiles (p95, p99) dans Grafana
+      percentiles-histogram:
+        http.server.requests: true
+
+app:
+  # Utilisé dans les liens des emails et les retours Stripe
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  # Origines autorisées à appeler l'API (séparées par des virgules), en plus des adresses locales
+  cors-origins: ${APP_CORS_ORIGINS:}
+  # Unique compte super administrateur, créé et maintenu au démarrage (mot de passe obligatoire).
+  super-admin:
+    email: ${SUPER_ADMIN_EMAIL:superadmin@lms.com}
+    password: ${SUPER_ADMIN_PASSWORD}
+    name: ${SUPER_ADMIN_NAME:Super Administrateur}
+
+jwt:
+  # Obligatoire : le backend refuse de démarrer sans clé de signature
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+file:
+  upload-dir: ${UPLOAD_DIR:uploads/videos}
+
+lms-ai:
+  base-url: ${LMS_AI_URL:http://localhost:8000}
+  # Le modèle (Azure AI Foundry, gpt-4.1-mini) se configure dans LMS_AI/.env
+  # Les quiz/TP sont générés en parallèle sur Azure ; seule l'analyse d'une longue vidéo prend plusieurs minutes
+  timeout-seconds: ${LMS_AI_TIMEOUT:900}
+
+# ── Paiements Stripe (MODE TEST uniquement) ──
+# Rien n'est écrit dans le code ni envoyé au frontend. Sans clé, le paiement en ligne est désactivé.
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY:}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  currency: usd
+
+payments:
+  # Répartition de chaque vente confirmée : 60 % enseignant, 40 % plateforme
+  teacher-share: 0.60
+  # Montant minimum d'une demande de retrait (USD)
+  min-withdrawal: 10.00

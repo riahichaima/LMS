@@ -21,15 +21,20 @@ public class ChapterService {
     @Autowired
     private CourseRepository courseRepository;
 
+    @Autowired
+    private LessonService lessonService;
+
     public ChapterResponse createChapter(ChapterRequest request, String userEmail, boolean isAdmin) {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
-        if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à ajouter un chapitre à ce cours");
+        if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new RuntimeException("Non autorisé : ce cours appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
         }
 
         Chapter chapter = new Chapter(request.getTitle(), course);
+        chapter.setDescription(request.getDescription());
+        chapter.setOrderIndex(request.getOrderIndex());
         Chapter savedChapter = chapterRepository.save(chapter);
 
         return mapToResponse(savedChapter);
@@ -41,7 +46,7 @@ public class ChapterService {
             throw new RuntimeException("Cours non trouvé");
         }
 
-        return chapterRepository.findByCourseId(courseId)
+        return chapterRepository.findByCourseIdOrderByOrderIndexAsc(courseId)
                 .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
@@ -52,11 +57,44 @@ public class ChapterService {
         return mapToResponse(chapter);
     }
 
-    private ChapterResponse mapToResponse(Chapter chapter) {
+    public ChapterResponse updateChapter(Long id, ChapterRequest request, String userEmail, boolean isAdmin) {
+        Chapter chapter = chapterRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Chapitre non trouvé"));
+
+        Course course = chapter.getCourse();
+        if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new RuntimeException("Non autorisé : ce chapitre appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+        }
+
+        chapter.setTitle(request.getTitle());
+        chapter.setDescription(request.getDescription());
+        chapter.setOrderIndex(request.getOrderIndex());
+        // Optionnel : permettre de changer de cours ? Généralement non pour un chapitre.
+        
+        Chapter updatedChapter = chapterRepository.save(chapter);
+        return mapToResponse(updatedChapter);
+    }
+
+    public void deleteChapter(Long id, String userEmail, boolean isAdmin) {
+        Chapter chapter = chapterRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Chapitre non trouvé"));
+
+        Course course = chapter.getCourse();
+        if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
+            throw new RuntimeException("Non autorisé : ce chapitre appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+        }
+
+        chapterRepository.delete(chapter);
+    }
+
+    public ChapterResponse mapToResponse(Chapter chapter) {
         return new ChapterResponse(
                 chapter.getId(),
                 chapter.getTitle(),
-                chapter.getCourse().getId()
+                chapter.getCourse().getId(),
+                chapter.getDescription(),
+                chapter.getOrderIndex(),
+                chapter.getLessons().stream().map(lessonService::mapToResponse).collect(Collectors.toList())
         );
     }
 }

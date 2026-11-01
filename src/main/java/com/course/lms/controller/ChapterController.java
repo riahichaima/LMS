@@ -32,12 +32,38 @@ public class ChapterController {
     // ESPACE PUBLIC / ETUDIANT
     @GetMapping("/courses/{courseId}/chapters")
     public ResponseEntity<List<ChapterResponse>> getChaptersByCourse(@PathVariable Long courseId) {
-        return ResponseEntity.ok(chapterService.getChaptersByCourseId(courseId));
+        return ResponseEntity.ok(courseAccessService.protectChaptersOfCourse(courseId, chapterService.getChaptersByCourseId(courseId)));
     }
 
     // Voir un chapitre spécifique
     @GetMapping("/chapters/{chapterId}")
     public ResponseEntity<ChapterResponse> getChapterById(@PathVariable Long chapterId) {
-        return ResponseEntity.ok(chapterService.getChapterById(chapterId));
+        return ResponseEntity.ok(courseAccessService.protectChapter(chapterId, chapterService.getChapterById(chapterId)));
+    }
+
+    @Autowired
+    private com.course.lms.service.CourseAccessService courseAccessService;
+
+    @GetMapping("/teacher/chapters/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<ChapterResponse> getTeacherChapterById(@PathVariable Long id) {
+        return ResponseEntity.ok(chapterService.getChapterById(id));
+    }
+
+    @PutMapping("/teacher/chapters/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<ChapterResponse> updateChapter(@PathVariable Long id, @Valid @RequestBody ChapterRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return ResponseEntity.ok(chapterService.updateChapter(id, request, auth.getName(), isAdmin));
+    }
+
+    @DeleteMapping("/teacher/chapters/{id}")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
+    public ResponseEntity<String> deleteChapter(@PathVariable Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        chapterService.deleteChapter(id, auth.getName(), isAdmin);
+        return ResponseEntity.ok("Chapitre supprimé avec succès");
     }
 }

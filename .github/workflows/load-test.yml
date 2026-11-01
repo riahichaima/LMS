@@ -1,0 +1,63 @@
+# Test de charge (k6) contre staging ou production : temps de réponse et taux d'erreur sous charge.
+# Compte de test facultatif : secrets K6_EMAIL / K6_PASSWORD (étudiant de démonstration).
+name: Test de charge (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: URL publique de l'API (ex. https://api.mon-lms.com)
+        required: true
+      app_url:
+        description: URL publique du site (facultatif)
+        required: false
+        default: ''
+      vus:
+        description: Nombre d'utilisateurs simultanés
+        required: true
+        default: '30'
+      duration:
+        description: Durée de la charge stable
+        required: true
+        default: '2m'
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    name: k6 — ${{ inputs.vus }} utilisateurs pendant ${{ inputs.duration }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: grafana/setup-k6-action@v1
+      - name: Lancer le test
+        env:
+          API_URL: ${{ inputs.api_url }}
+          APP_URL: ${{ inputs.app_url }}
+          VUS: ${{ inputs.vus }}
+          DURATION: ${{ inputs.duration }}
+          LMS_EMAIL: ${{ secrets.K6_EMAIL }}
+          LMS_PASSWORD: ${{ secrets.K6_PASSWORD }}
+        run: k6 run --summary-export k6-summary.json deploy/k6/load-test.js
+      - name: Résumé
+        if: always()
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          m = json.load(open('k6-summary.json'))['metrics']
+          d = m['http_req_duration']
+          print('### Test de charge k6')
+          print('| Indicateur | Valeur |')
+          print('|---|---|')
+          print(f"| Requêtes | {m['http_reqs']['count']} ({m['http_reqs']['rate']:.1f}/s) |")
+          print(f"| Temps de réponse médian | {d['med']:.0f} ms |")
+          print(f"| Temps de réponse p95 | {d['p(95)']:.0f} ms |")
+          print(f"| Taux d'erreur | {m['http_req_failed']['value'] * 100:.2f} % |")
+          EOF
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: k6-summary
+          path: k6-summary.json

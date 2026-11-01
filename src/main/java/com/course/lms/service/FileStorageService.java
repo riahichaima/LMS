@@ -41,7 +41,7 @@ public class FileStorageService {
         Files.copy(file.getInputStream(), Paths.get(filePath));
 
         // Créer l'URL de téléchargement
-        String downloadUrl = "http://localhost:8089/api/files/download/" + storedFileName;
+        String downloadUrl = "http://localhost:8090/api/files/download/" + storedFileName;
 
         // Sauvegarder en base de données
         FileStorage fileStorage = new FileStorage(
@@ -55,6 +55,24 @@ public class FileStorageService {
         );
 
         return fileStorageRepository.save(fileStorage);
+    }
+
+    public String storePhysicalFileOnly(MultipartFile file) throws IOException {
+        Path uploadPath = Paths.get(uploadDir);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String originalFileName = file.getOriginalFilename();
+        if (originalFileName == null) {
+            originalFileName = "file";
+        }
+        String extension = getFileExtension(originalFileName);
+        String storedFileName = UUID.randomUUID().toString() + "." + extension;
+        String filePath = uploadPath.resolve(storedFileName).toString();
+
+        Files.copy(file.getInputStream(), Paths.get(filePath));
+        return filePath;
     }
 
     public FileStorage getFileByStoredName(String storedFileName) {

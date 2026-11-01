@@ -34,8 +34,8 @@ public class JwtFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         final String authorizationHeader = request.getHeader("Authorization");
         
-        // Debug: afficher le header Authorization
-        System.out.println("JWT Filter - Authorization header: " + authorizationHeader);
+        // Debug: afficher le path et le header Authorization
+        System.out.println("JWT Filter - Request: " + request.getMethod() + " " + request.getRequestURI() + " - Auth: " + (authorizationHeader != null ? "present" : "absent"));
         
         String username = null;
         String jwt = null;
@@ -49,9 +49,8 @@ public class JwtFilter extends OncePerRequestFilter {
                 username = jwtUtil.extractUsername(jwt);
                 System.out.println("JWT Filter - Extracted username: " + username);
             } catch (Exception e) {
-                // Ignorer les erreurs de JWT pour les endpoints publics
-                logger.debug("JWT token validation failed: " + e.getMessage());
-                System.out.println("JWT Filter - Token validation failed: " + e.getMessage());
+                System.out.println("JWT Filter - Token validation FAILED: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+                e.printStackTrace(System.out);
             }
         } else {
             System.out.println("JWT Filter - No Bearer token found");
@@ -65,7 +64,10 @@ public class JwtFilter extends OncePerRequestFilter {
                 UserDetails userDetails = this.userDetailsService.loadUserByUsername(username);
                 System.out.println("JWT Filter - User loaded: " + userDetails.getUsername());
                 
-                if (jwtUtil.validateToken(jwt, userDetails)) {
+                if (!userDetails.isEnabled()) {
+                    System.out.println("JWT Filter - Account is disabled for: " + username);
+                    // On ne définit pas l'authentification si le compte est désactivé
+                } else if (jwtUtil.validateToken(jwt, userDetails)) {
                     System.out.println("JWT Filter - Token validated successfully");
                     UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken = 
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());

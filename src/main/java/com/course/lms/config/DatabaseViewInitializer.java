@@ -1,11 +1,13 @@
 package com.course.lms.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(prefix = "lms.database.views", name = "enabled", havingValue = "true", matchIfMissing = false)
 public class DatabaseViewInitializer implements CommandLineRunner {
 
     @Autowired

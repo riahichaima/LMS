@@ -40,14 +40,15 @@ public class UserService {
         user.setEmail(request.getEmail());
         user.setPassword(encodedPassword);
         user.setRole(studentRole);
+        user.setEnabled(true);
         
         User savedUser = userRepository.save(user);
         
-        return new UserResponse(
-                savedUser.getId(),
-                savedUser.getName(),
-                savedUser.getEmail(),
-                savedUser.getRole().getName()
-        );
+        UserResponse response = new UserResponse();
+        response.setId(savedUser.getId());
+        response.setName(savedUser.getName());
+        response.setEmail(savedUser.getEmail());
+        response.setRole(savedUser.getRole().getName());
+        return response;
     }
 }

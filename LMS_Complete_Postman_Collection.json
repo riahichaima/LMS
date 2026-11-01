@@ -1,0 +1,687 @@
+{
+	"info": {
+		"_postman_id": "lms-full-v2",
+		"name": "LMS Complete API & WebSockets Collection v2",
+		"description": "Collection Postman complète avec tous les endpoints : Auth, Cours/Chapitres/Leçons, Quiz/TP IA, Messagerie, WebSocket, Notifications, Fichiers, Admin, Progression",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Authentification",
+			"item": [
+				{
+					"name": "Register ADMIN",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Admin\",\n    \"email\": \"admin@test.com\",\n    \"password\": \"Admin@1234\",\n    \"role\": \"ADMIN\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/admin/register", "host": ["{{baseUrl}}"], "path": ["admin", "register"]}
+					}
+				},
+				{
+					"name": "Register TEACHER",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Professeur Test\",\n    \"email\": \"prof@test.com\",\n    \"password\": \"Prof@1234\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/teacher/register", "host": ["{{baseUrl}}"], "path": ["teacher", "register"]}
+					}
+				},
+				{
+					"name": "Register STUDENT",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\": \"Etudiant Test\",\n    \"email\": \"etu@test.com\",\n    \"password\": \"Etu@1234\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/student/register", "host": ["{{baseUrl}}"], "path": ["student", "register"]}
+					}
+				},
+				{
+					"name": "Vérifier Email (GET)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "{{baseUrl}}/auth/verify?token=TOKEN_DU_LOG", "host": ["{{baseUrl}}"], "path": ["auth", "verify"], "query": [{"key": "token", "value": "TOKEN_DU_LOG"}]}
+					}
+				},
+				{
+					"name": "Login - Récupérer TOKEN JWT",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": ["var jsonData = pm.response.json();", "pm.collectionVariables.set('token', jsonData.token);", "pm.collectionVariables.set('userId', jsonData.user.id);"],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"prof@test.com\",\n    \"password\": \"Prof@1234\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"]}
+					}
+				},
+				{
+					"name": "Mot de passe oublié",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"prof@test.com\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/auth/forgot-password", "host": ["{{baseUrl}}"], "path": ["auth", "forgot-password"]}
+					}
+				},
+				{
+					"name": "Réinitialiser mot de passe",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"TOKEN_DU_LOG_CONSOLE\",\n    \"newPassword\": \"NouveauPass123!\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/auth/reset-password", "host": ["{{baseUrl}}"], "path": ["auth", "reset-password"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Cours Complet (avec Chapitres + Leçons)",
+			"item": [
+				{
+					"name": "Créer cours complet (JSON)",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": ["var jsonData = pm.response.json();", "pm.collectionVariables.set('courseId', jsonData.id);", "if(jsonData.chapters && jsonData.chapters.length>0){ pm.collectionVariables.set('chapterId', jsonData.chapters[0].id); if(jsonData.chapters[0].lessons && jsonData.chapters[0].lessons.length>0) pm.collectionVariables.set('lessonId', jsonData.chapters[0].lessons[0].id); }"],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Mathématiques Niveau 1\",\n  \"description\": \"Cours de maths complet pour débutants\",\n  \"status\": \"PUBLISHED\",\n  \"chapters\": [\n    {\n      \"title\": \"Chapitre 1 - Nombres\",\n      \"description\": \"Introduction aux nombres entiers\",\n      \"orderIndex\": 1,\n      \"lessons\": [\n        {\n          \"title\": \"Leçon 1.1 - Les entiers naturels\",\n          \"description\": \"Découverte des nombres entiers naturels\",\n          \"orderIndex\": 1,\n          \"resources\": [\n            {\n              \"resourceType\": \"TEXT\",\n              \"title\": \"Cours texte\",\n              \"externalUrl\": \"\",\n              \"fileName\": \"\"\n            },\n            {\n              \"resourceType\": \"YOUTUBE_VIDEO\",\n              \"title\": \"Vidéo explicative\",\n              \"externalUrl\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n              \"fileName\": \"\"\n            }\n          ]\n        },\n        {\n          \"title\": \"Leçon 1.2 - Opérations de base\",\n          \"description\": \"Addition et soustraction\",\n          \"orderIndex\": 2,\n          \"resources\": [\n            {\n              \"resourceType\": \"PDF\",\n              \"title\": \"Fiche d'exercices\",\n              \"externalUrl\": \"\",\n              \"fileName\": \"exercices.pdf\"\n            }\n          ]\n        }\n      ]\n    },\n    {\n      \"title\": \"Chapitre 2 - Géométrie\",\n      \"description\": \"Notions de géométrie de base\",\n      \"orderIndex\": 2,\n      \"lessons\": [\n        {\n          \"title\": \"Leçon 2.1 - Les figures planes\",\n          \"description\": \"Carrés, rectangles, triangles\",\n          \"orderIndex\": 1,\n          \"resources\": [\n            {\n              \"resourceType\": \"WEB_PAGE\",\n              \"title\": \"Cours interactif\",\n              \"externalUrl\": \"https://example.com/geometrie\",\n              \"fileName\": \"\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses"]}
+					}
+				},
+				{
+					"name": "Modifier cours complet (PUT avec JSON)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Mathématiques Niveau 1 - Version 2\",\n  \"description\": \"Cours mis à jour\",\n  \"status\": \"PUBLISHED\",\n  \"chapters\": [\n    {\n      \"title\": \"Chapitre 1 - Nombres (mis à jour)\",\n      \"description\": \"Introduction aux nombres\",\n      \"orderIndex\": 1,\n      \"lessons\": [\n        {\n          \"title\": \"Leçon 1.1 - Les entiers naturels\",\n          \"description\": \"Contenu mis à jour\",\n          \"orderIndex\": 1,\n          \"resources\": [\n            {\n              \"resourceType\": \"TEXT\",\n              \"title\": \"Nouveau contenu texte\",\n              \"externalUrl\": \"\",\n              \"fileName\": \"\"\n            }\n          ]\n        }\n      ]\n    }\n  ]\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses/{{courseId}}", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses", "{{courseId}}"]}
+					}
+				},
+				{
+					"name": "Créer cours avec fichier (Multipart)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "course", "value": "{\"title\":\"Cours avec PDF\",\"description\":\"Test upload\",\"status\":\"DRAFT\",\"chapters\":[{\"title\":\"Chap 1\",\"orderIndex\":1,\"lessons\":[{\"title\":\"Leçon 1\",\"orderIndex\":1,\"resources\":[{\"resourceType\":\"PDF\",\"title\":\"Mon PDF\",\"fileName\":\"document.pdf\"}]}]}]}", "type": "text"},
+								{"key": "files", "type": "file", "src": "/chemin/vers/document.pdf"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses/full", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses", "full"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Consultation Cours/Chapitres/Leçons",
+			"item": [
+				{
+					"name": "Liste tous les cours (public)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/courses", "host": ["{{baseUrl}}"], "path": ["api", "courses"]}
+					}
+				},
+				{
+					"name": "Détail cours par ID",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/courses/{{courseId}}", "host": ["{{baseUrl}}"], "path": ["api", "courses", "{{courseId}}"]}
+					}
+				},
+				{
+					"name": "Chapitres d'un cours",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/courses/{{courseId}}/chapters", "host": ["{{baseUrl}}"], "path": ["api", "courses", "{{courseId}}", "chapters"]}
+					}
+				},
+				{
+					"name": "Leçons d'un chapitre",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/chapters/{{chapterId}}/lessons", "host": ["{{baseUrl}}"], "path": ["api", "chapters", "{{chapterId}}", "lessons"]}
+					}
+				},
+				{
+					"name": "Détail leçon",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/lessons/{{lessonId}}", "host": ["{{baseUrl}}"], "path": ["api", "lessons", "{{lessonId}}"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Génération IA Quiz/TP",
+			"item": [
+				{
+					"name": "Générer Quiz + TP (TEACHER)",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": ["var jsonData = pm.response.json();", "if(jsonData.generatedQuizzes && jsonData.generatedQuizzes.length>0){ pm.collectionVariables.set('quizId', jsonData.generatedQuizzes[0].quizId); }", "if(jsonData.generatedAssignments && jsonData.generatedAssignments.length>0){ pm.collectionVariables.set('assignmentId', jsonData.generatedAssignments[0].assignmentId); }"],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"chapterIds\": [{{chapterId}}],\n  \"generateQuiz\": true,\n  \"generateAssignment\": true,\n  \"quizQuestionCount\": 5,\n  \"assignmentExerciseCount\": 3,\n  \"difficultyLevels\": [\"BEGINNER\", \"INTERMEDIATE\", \"ADVANCED\"],\n  \"teacherId\": {{userId}}\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/assessments/generate", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "generate"]}
+					}
+				},
+				{
+					"name": "Quiz par chapitre (BEGINNER)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/assessments/quizzes/chapter/{{chapterId}}?difficultyLevel=BEGINNER", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "quizzes", "chapter", "{{chapterId}}"], "query": [{"key": "difficultyLevel", "value": "BEGINNER"}]}
+					}
+				},
+				{
+					"name": "Quiz par leçon (INTERMEDIATE)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/assessments/quizzes/lesson/{{lessonId}}?difficultyLevel=INTERMEDIATE", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "quizzes", "lesson", "{{lessonId}}"], "query": [{"key": "difficultyLevel", "value": "INTERMEDIATE"}]}
+					}
+				},
+				{
+					"name": "TP par chapitre (ADVANCED)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/assessments/assignments/chapter/{{chapterId}}?difficultyLevel=ADVANCED", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "assignments", "chapter", "{{chapterId}}"], "query": [{"key": "difficultyLevel", "value": "ADVANCED"}]}
+					}
+				}
+			]
+		},
+		{
+			"name": "5. Soumission Quiz/TP & Correction IA",
+			"item": [
+				{
+					"name": "Soumettre Quiz (STUDENT)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token_student}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"1\": \"Réponse A\",\n  \"2\": \"Vrai\",\n  \"3\": \"42\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/assessments/quizzes/{{quizId}}/submit?studentId={{studentId}}", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "quizzes", "{{quizId}}", "submit"], "query": [{"key": "studentId", "value": "{{studentId}}"}]}
+					}
+				},
+				{
+					"name": "Soumettre TP (STUDENT)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token_student}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"submissionId\": 0,\n  \"assignmentId\": {{assignmentId}},\n  \"studentAnswer\": \"Voici ma réponse détaillée au TP...\",\n  \"assignmentContent\": \"Sujet: Créer une fonction qui calcule la somme de deux nombres\",\n  \"studentId\": {{studentId}}\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/assessments/submissions/correct", "host": ["{{baseUrl}}"], "path": ["api", "assessments", "submissions", "correct"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "6. Inscription Étudiant & Progression",
+			"item": [
+				{
+					"name": "S'inscrire à un cours (STUDENT)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_student}}"}],
+						"url": {"raw": "{{baseUrl}}/api/student/enroll/{{courseId}}", "host": ["{{baseUrl}}"], "path": ["api", "student", "enroll", "{{courseId}}"]}
+					}
+				},
+				{
+					"name": "Mes inscriptions (STUDENT)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_student}}"}],
+						"url": {"raw": "{{baseUrl}}/api/student/enrollments", "host": ["{{baseUrl}}"], "path": ["api", "student", "enrollments"]}
+					}
+				},
+				{
+					"name": "Mettre à jour progression",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_student}}"}],
+						"url": {"raw": "{{baseUrl}}/api/student/enrollments/1/progress?progressPercentage=50", "host": ["{{baseUrl}}"], "path": ["api", "student", "enrollments", "1", "progress"], "query": [{"key": "progressPercentage", "value": "50"}]}
+					}
+				},
+				{
+					"name": "Analyse progression IA",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_student}}"}],
+						"url": {"raw": "{{baseUrl}}/api/progress/analyze/{{studentId}}/course/{{courseId}}", "host": ["{{baseUrl}}"], "path": ["api", "progress", "analyze", "{{studentId}}", "course", "{{courseId}}"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "7. Messagerie & WebSocket",
+			"item": [
+				{
+					"name": "Envoyer message (REST)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"receiverId\": {{studentId}},\n  \"content\": \"Bonjour étudiant ! Avez-vous des questions sur le cours ?\"\n}"
+						},
+						"url": {"raw": "{{baseUrl}}/api/messages", "host": ["{{baseUrl}}"], "path": ["api", "messages"]}
+					}
+				},
+				{
+					"name": "Messages reçus",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/received", "host": ["{{baseUrl}}"], "path": ["api", "messages", "received"]}
+					}
+				},
+				{
+					"name": "Messages envoyés",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/sent", "host": ["{{baseUrl}}"], "path": ["api", "messages", "sent"]}
+					}
+				},
+				{
+					"name": "Conversation avec utilisateur",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/conversation/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["api", "messages", "conversation", "{{studentId}}"]}
+					}
+				},
+				{
+					"name": "Non-lus compteur",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/unread-count", "host": ["{{baseUrl}}"], "path": ["api", "messages", "unread-count"]}
+					}
+				},
+				{
+					"name": "Marquer message lu",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/1/read", "host": ["{{baseUrl}}"], "path": ["api", "messages", "1", "read"]}
+					}
+				},
+				{
+					"name": "Mes contacts",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/messages/contacts", "host": ["{{baseUrl}}"], "path": ["api", "messages", "contacts"]}
+					}
+				},
+				{
+					"name": "WebSocket STOMP - Connexion",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {"raw": "ws://localhost:8090/ws/websocket", "host": ["ws:localhost:8090"], "path": ["ws", "websocket"]},
+						"description": "URL WebSocket: ws://localhost:8090/ws/websocket\n\nDans Postman: File → New → WebSocket Request → STOMP\n\nÉtapes :\n1. Connect: ws://localhost:8090/ws/websocket (SANS SockJS)\n\nOU via SockJS : http://localhost:8090/ws\n\n2. Subscribe: /user/{userId}/queue/messages (messages privés)\n   Subscribe: /topic/public (chat public)\n   Subscribe: /topic/notifications (notifications)\n\n3. Send to: /app/chat.send\n   Body STOMP:\n   {\n     \"receiverId\": 2,\n     \"content\": \"Hello via WebSocket!\"\n   }\n\nPour WebSocket via SockJS (navigateur):\n  var socket = new SockJS('http://localhost:8090/ws');\n  var stomp = Stomp.over(socket);\n  stomp.connect({}, function(frame) { ... });"
+					}
+				}
+			]
+		},
+		{
+			"name": "8. Notifications",
+			"item": [
+				{
+					"name": "Mes notifications",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/notifications", "host": ["{{baseUrl}}"], "path": ["api", "notifications"]}
+					}
+				},
+				{
+					"name": "Notifications non-lues",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/notifications/unread", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "unread"]}
+					}
+				},
+				{
+					"name": "Compteur non-lues",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/notifications/unread-count", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "unread-count"]}
+					}
+				},
+				{
+					"name": "Marquer notification lue",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/notifications/1/read", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "1", "read"]}
+					}
+				},
+				{
+					"name": "Tout marquer lu",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["api", "notifications", "read-all"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "9. Fichiers",
+			"item": [
+				{
+					"name": "Upload fichier (Multipart)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "file", "src": "/chemin/vers/fichier.pdf"}]
+						},
+						"url": {"raw": "{{baseUrl}}/api/files/upload", "host": ["{{baseUrl}}"], "path": ["api", "files", "upload"]}
+					}
+				},
+				{
+					"name": "Mes fichiers",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/files/my-files", "host": ["{{baseUrl}}"], "path": ["api", "files", "my-files"]}
+					}
+				},
+				{
+					"name": "Download fichier",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/files/download/nom_fichier_stocke", "host": ["{{baseUrl}}"], "path": ["api", "files", "download", "nom_fichier_stocke"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "10. LMS_AI - Upload & Chat",
+			"item": [
+				{
+					"name": "Upload texte/PDF vers AI",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "file", "src": "/chemin/vers/document.pdf"}]
+						},
+						"url": {"raw": "{{lmsAiUrl}}/api/content/upload/pdf", "host": ["{{lmsAiUrl}}"], "path": ["api", "content", "upload", "pdf"]}
+					}
+				},
+				{
+					"name": "Upload vidéo locale vers AI",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "file", "src": "/chemin/vers/video.mp4"}]
+						},
+						"url": {"raw": "{{lmsAiUrl}}/api/content/upload/video", "host": ["{{lmsAiUrl}}"], "path": ["api", "content", "upload", "video"]}
+					}
+				},
+				{
+					"name": "Ingérer URL YouTube",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"title\": \"Ma vidéo YouTube\"\n}"
+						},
+						"url": {"raw": "{{lmsAiUrl}}/api/content/ingest/url", "host": ["{{lmsAiUrl}}"], "path": ["api", "content", "ingest", "url"]}
+					}
+				},
+				{
+					"name": "Poser question à l'IA",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"contentId\": 1,\n  \"question\": \"Quels sont les concepts clés de ce cours ?\",\n  \"level\": \"beginner\"\n}"
+						},
+						"url": {"raw": "{{lmsAiUrl}}/api/chat/ask", "host": ["{{lmsAiUrl}}"], "path": ["api", "chat", "ask"]}
+					}
+				},
+				{
+					"name": "Upload vidéo via LMS Spring (proxy)",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{"key": "file", "type": "file", "src": "/chemin/vers/video.mp4"}
+							]
+						},
+						"url": {"raw": "{{baseUrl}}/api/ai/video/upload", "host": ["{{baseUrl}}"], "path": ["api", "ai", "video", "upload"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "11. Administration",
+			"item": [
+				{
+					"name": "Liste utilisateurs (ADMIN)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_admin}}"}],
+						"url": {"raw": "{{baseUrl}}/api/admin/users", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users"]}
+					}
+				},
+				{
+					"name": "Statistiques (ADMIN)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_admin}}"}],
+						"url": {"raw": "{{baseUrl}}/api/admin/statistics", "host": ["{{baseUrl}}"], "path": ["api", "admin", "statistics"]}
+					}
+				},
+				{
+					"name": "Activer utilisateur (ADMIN)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_admin}}"}],
+						"url": {"raw": "{{baseUrl}}/api/admin/users/1/activate", "host": ["{{baseUrl}}"], "path": ["api", "admin", "users", "1", "activate"]}
+					}
+				},
+				{
+					"name": "Assigner formateur à cours (ADMIN)",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_admin}}"}],
+						"url": {"raw": "{{baseUrl}}/api/admin/courses/{{courseId}}/assign-teacher/1", "host": ["{{baseUrl}}"], "path": ["api", "admin", "courses", "{{courseId}}", "assign-teacher", "1"]}
+					}
+				},
+				{
+					"name": "Liste des cours (ADMIN)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token_admin}}"}],
+						"url": {"raw": "{{baseUrl}}/api/admin/courses", "host": ["{{baseUrl}}"], "path": ["api", "admin", "courses"]}
+					}
+				}
+			]
+		},
+		{
+			"name": "12. Teacher - Gestion cours",
+			"item": [
+				{
+					"name": "Mes cours (TEACHER)",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses"]}
+					}
+				},
+				{
+					"name": "Supprimer cours",
+					"request": {
+						"method": "DELETE",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses/{{courseId}}", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses", "{{courseId}}"]}
+					}
+				},
+				{
+					"name": "Étudiants inscrits à mon cours",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Bearer {{token}}"}],
+						"url": {"raw": "{{baseUrl}}/api/teacher/courses/{{courseId}}/enrollments", "host": ["{{baseUrl}}"], "path": ["api", "teacher", "courses", "{{courseId}}", "enrollments"]}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8090",
+			"type": "string"
+		},
+		{
+			"key": "lmsAiUrl",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_student",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_admin",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "userId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "studentId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "courseId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "chapterId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "lessonId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "quizId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "assignmentId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

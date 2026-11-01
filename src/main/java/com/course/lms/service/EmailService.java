@@ -1,7 +1,9 @@
 package com.course.lms.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
@@ -11,8 +13,14 @@ public class EmailService {
     @Autowired(required = false) // required=false car on gère l'option A où JavaMailSender n'est pas dispo
     private JavaMailSender mailSender;
 
+    // Le frontend Angular utilise le routage par hash (#/...)
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
+
+    // Envoi en arrière-plan : la requête (inscription, mot de passe oublié...) répond sans attendre le serveur SMTP
+    @Async("taskExecutor")
     public void sendVerificationEmail(String to, String token) {
-        String verificationUrl = "http://localhost:8089/auth/verify?token=" + token;
+        String verificationUrl = frontendUrl + "/#/verify-email?token=" + token;
         String subject = "Veuillez vérifier votre inscription";
         String content = "Bonjour !\n\nMerci de vous être inscrit. "
                 + "Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email :\n"
@@ -22,8 +30,9 @@ public class EmailService {
         sendEmail(to, subject, content);
     }
 
+    @Async("taskExecutor")
     public void sendPasswordResetEmail(String to, String token) {
-        String resetUrl = "http://localhost:8089/auth/reset-password?token=" + token;
+        String resetUrl = frontendUrl + "/#/reset-password?token=" + token;
         String subject = "Réinitialisation de votre mot de passe";
         String content = "Bonjour !\n\nVous avez demandé à réinitialiser votre mot de passe. "
                 + "Veuillez cliquer sur le lien ci-dessous pour créer un nouveau mot de passe (valable 15 minutes) :\n"
@@ -31,6 +40,7 @@ public class EmailService {
 
         sendEmail(to, subject, content);
     }
+
 
     private void sendEmail(String to, String subject, String content) {
         if (mailSender != null) {

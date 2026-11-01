@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secrets et données locales (ne jamais publier) ###
+.env
+uploads/
+*.log

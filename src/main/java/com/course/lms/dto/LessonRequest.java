@@ -1,39 +1,38 @@
 package com.course.lms.dto;
 
-import com.course.lms.model.LessonContentType;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import java.util.List;
 
 public class LessonRequest {
+
+    private Long id; // Renseigné lors d'une modification : leçon existante à conserver
 
     @NotBlank(message = "Le titre de la leçon est obligatoire")
     private String title;
 
-    @NotNull(message = "Le type de contenu est obligatoire")
-    private LessonContentType contentType;
-
-    // Pour les liens externes (YouTube, site web)
-    private String contentUrl;
-    
-    // Pour les fichiers uploadés (PDF, vidéo du PC)
-    private Long fileId;
-
     private String description;
 
-    @NotNull(message = "L'ID du chapitre parent est obligatoire")
-    private Long chapterId;
+    private Long chapterId; // Optionnel car inclus dans ChapterRequest
+    private Integer orderIndex;
+    
+    private List<LessonResourceRequest> resources;
 
     // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public LessonContentType getContentType() { return contentType; }
-    public void setContentType(LessonContentType contentType) { this.contentType = contentType; }
-    public String getContentUrl() { return contentUrl; }
-    public void setContentUrl(String contentUrl) { this.contentUrl = contentUrl; }
-    public Long getFileId() { return fileId; }
-    public void setFileId(Long fileId) { this.fileId = fileId; }
+    
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    
     public Long getChapterId() { return chapterId; }
     public void setChapterId(Long chapterId) { this.chapterId = chapterId; }
+
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+
+    public List<LessonResourceRequest> getResources() { return resources; }
+    public void setResources(List<LessonResourceRequest> resources) { this.resources = resources; }
 }

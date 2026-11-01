@@ -1,6 +1,9 @@
 package com.course.lms.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "lessons")
@@ -13,27 +16,43 @@ public class Lesson {
     @Column(nullable = false)
     private String title;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "content_type", nullable = false)
-    private LessonContentType contentType;
-
-    @Column(name = "content_url", nullable = false)
-    private String contentUrl;
-
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "order_index")
+    private Integer orderIndex;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chapter_id", nullable = false)
     private Chapter chapter;
 
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id ASC")
+    private List<LessonResource> resources = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
     // Constructors
     public Lesson() {}
 
-    public Lesson(String title, LessonContentType contentType, String contentUrl, String description, Chapter chapter) {
+    public Lesson(String title, String description, Chapter chapter) {
         this.title = title;
-        this.contentType = contentType;
-        this.contentUrl = contentUrl;
         this.description = description;
         this.chapter = chapter;
     }
@@ -43,12 +62,16 @@ public class Lesson {
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public LessonContentType getContentType() { return contentType; }
-    public void setContentType(LessonContentType contentType) { this.contentType = contentType; }
-    public String getContentUrl() { return contentUrl; }
-    public void setContentUrl(String contentUrl) { this.contentUrl = contentUrl; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public Integer getOrderIndex() { return orderIndex; }
+    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public Chapter getChapter() { return chapter; }
     public void setChapter(Chapter chapter) { this.chapter = chapter; }
+    public List<LessonResource> getResources() { return resources; }
+    public void setResources(List<LessonResource> resources) { this.resources = resources; }
 }

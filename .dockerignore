@@ -1,0 +1,16 @@
+# Seul le code source part dans l'image : ni secrets, ni fichiers des utilisateurs, ni builds locaux
+.git
+.github
+.idea
+.vscode
+.mvn/wrapper/maven-wrapper.jar
+target
+uploads
+deploy
+.env
+.env.*
+*.log
+*.md
+*Postman_Collection.json
+Dockerfile
+.dockerignore

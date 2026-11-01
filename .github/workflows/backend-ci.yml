@@ -1,0 +1,88 @@
+# CI du backend : compilation, tests JUnit sur une vraie base MySQL 8.4, couverture JaCoCo,
+# analyse SonarCloud (facultative : variable SONAR_PROJECT_KEY + secret SONAR_TOKEN).
+name: Backend CI
+
+on:
+  push:
+    branches: [LMS-Backend-Spring]
+    paths-ignore: ['**.md', 'deploy/**', '*Postman_Collection.json']
+  pull_request:
+    branches: [LMS-Backend-Spring]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build + tests (Maven, JUnit, MySQL 8.4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: lms_db
+          MYSQL_ROOT_PASSWORD: ci-root-password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root-password --silent"
+          --health-interval=10s --health-timeout=5s --health-retries=18
+    env:
+      # Valeurs de test uniquement (base jetable du runner), jamais utilisées en production
+      DB_URL: jdbc:mysql://127.0.0.1:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: root
+      DB_PASSWORD: ci-root-password
+      JWT_SECRET: ci-only-jwt-secret-0123456789abcdefghijklmnopqrstuvwxyz-0123456789
+      SUPER_ADMIN_PASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # historique complet pour SonarCloud
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Compilation + tests + couverture
+        run: bash mvnw -B -ntp verify
+
+      - name: Résumé des tests
+        if: always()
+        run: |
+          total=0; failed=0
+          for f in target/surefire-reports/TEST-*.xml; do
+            [ -f "$f" ] || continue
+            t=$(grep -o 'tests="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            e=$(grep -o 'errors="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            k=$(grep -o 'failures="[0-9]*"' "$f" | head -1 | grep -o '[0-9]*')
+            total=$((total + t)); failed=$((failed + e + k))
+          done
+          echo "### Tests backend : $((total - failed))/${total} réussis" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Rapports (tests + couverture)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-test-reports
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+          retention-days: 14
+
+      - name: SonarCloud (qualité + couverture)
+        if: vars.SONAR_PROJECT_KEY != '' && github.event_name != 'pull_request'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >-
+          bash mvnw -B -ntp org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+          -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
