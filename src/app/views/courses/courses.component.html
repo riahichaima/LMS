@@ -2,8 +2,10 @@
   <c-col>
     <h2 class="mb-4">Cours Disponibles</h2>
 
-    <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
-      {{ errorMessage() }}
+    <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+    <c-alert color="warning" *ngIf="isStudent && !paymentsEnabled()" class="mb-3">
+      Le paiement en ligne n'est pas encore configuré : les cours payants ne peuvent pas être achetés pour le moment.
     </c-alert>
 
     <div *ngIf="loading()" class="text-center py-5">
@@ -17,27 +19,55 @@
     </div>
 
     <c-row *ngIf="!loading() && courses().length > 0">
-      <c-col lg="4" md="6" *ngFor="let course of courses()">
-        <c-card class="mb-4">
-          <c-card-header>
+      <c-col lg="4" md="6" class="mb-4" *ngFor="let course of courses()">
+        <c-card class="h-100">
+          <c-card-header class="d-flex justify-content-between align-items-start gap-2">
             <strong>{{ course.title }}</strong>
-            <c-badge color="info" class="ms-2" *ngIf="course.level">{{ course.level }}</c-badge>
+            <c-badge [color]="course.pricingType === 'PAID' ? 'primary' : 'success'">
+              {{ course.pricingType === 'PAID' ? 'PAID' : 'FREE' }}
+            </c-badge>
           </c-card-header>
-          <c-card-body>
+          <c-card-body class="d-flex flex-column">
+            <div class="d-flex align-items-center gap-2 mb-2 small" *ngIf="course.id">
+              <ng-container *ngIf="ratings().get(course.id) as rt; else noRating">
+                <app-star-rating [value]="rt.average" [size]="15" />
+                <span class="fw-semibold">{{ rt.average }}</span>
+                <span class="text-body-secondary">({{ rt.count }} avis)</span>
+              </ng-container>
+              <ng-template #noRating><span class="text-body-secondary">Pas encore noté</span></ng-template>
+            </div>
             <p class="text-body-secondary">{{ course.description }}</p>
             <div *ngIf="course.teacherName" class="mb-2">
-              <small class="text-body-secondary">Enseignant: {{ course.teacherName }}</small>
-            </div>
-            <div *ngIf="course.category" class="mb-2">
-              <c-badge color="secondary">{{ course.category }}</c-badge>
-            </div>
-            <div class="d-flex justify-content-between align-items-center mt-3">
-              <small class="text-body-secondary">
-                {{ course.chaptersCount || 0 }} chapitres | {{ course.lessonsCount || 0 }} leçons
+              <small class="text-body-secondary">Enseignant :
+                <a *ngIf="course.teacherId; else plainName" [routerLink]="['/profile', course.teacherId]">{{ course.teacherName }}</a>
+                <ng-template #plainName>{{ course.teacherName }}</ng-template>
               </small>
-              <button cButton color="primary" size="sm" (click)="enroll(course.id!)">
-                S'inscrire
-              </button>
+            </div>
+            <small class="text-body-secondary mb-3">
+              {{ course.chapters?.length || 0 }} chapitres · {{ lessonCount(course) }} leçons
+            </small>
+
+            <div class="d-flex justify-content-between align-items-center mt-auto">
+              <span class="fs-5 fw-bold" [class.text-success]="course.pricingType !== 'PAID'">
+                {{ course.pricingType === 'PAID' ? (course.price | currency:'USD') : 'Gratuit' }}
+              </span>
+
+              <ng-container *ngIf="isStudent">
+                <a *ngIf="isEnrolled(course)" cButton color="success" variant="outline" size="sm" [routerLink]="['/learn', course.id]">
+                  <svg cIcon name="cilCheck" class="me-1"></svg> Accéder
+                </a>
+                <ng-container *ngIf="!isEnrolled(course)">
+                  <button *ngIf="course.pricingType !== 'PAID'" cButton color="success" size="sm" class="text-white"
+                          (click)="enroll(course)" [disabled]="busyId() === course.id">
+                    Enroll Now
+                  </button>
+                  <button *ngIf="course.pricingType === 'PAID'" cButton color="primary" size="sm"
+                          (click)="buy(course)" [disabled]="busyId() === course.id || !paymentsEnabled()">
+                    <c-spinner *ngIf="busyId() === course.id" size="sm" class="me-1"></c-spinner>
+                    Buy Now
+                  </button>
+                </ng-container>
+              </ng-container>
             </div>
           </c-card-body>
         </c-card>

@@ -2,6 +2,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
+  AlertComponent,
   CardComponent,
   CardBodyComponent,
   CardHeaderComponent,
@@ -10,13 +11,14 @@ import {
   ButtonDirective,
   BadgeComponent,
   TableDirective,
-  ProgressBarComponent,
-  ProgressComponent
+  ProgressComponent,
+  SpinnerComponent
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
 import { AuthService, User } from '../../services/auth.service';
 import { AdminService, AdminStatistics, UserWithRoleDetails } from '../../services/admin.service';
-import { CourseService, Course, Enrollment } from '../../services/course.service';
+import { LearningService, StudentStatistics } from '../../services/learning.service';
+import { TrackingOverview, TrackingService, scoreColor } from '../../services/tracking.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -32,8 +34,9 @@ import { CourseService, Course, Enrollment } from '../../services/course.service
     ButtonDirective,
     BadgeComponent,
     TableDirective,
-    ProgressBarComponent,
     ProgressComponent,
+    AlertComponent,
+    SpinnerComponent,
     IconDirective
   ],
   templateUrl: './dashboard.component.html'
@@ -46,16 +49,19 @@ export class DashboardComponent implements OnInit {
   adminStats = signal<AdminStatistics | null>(null);
   recentUsers = signal<UserWithRoleDetails[]>([]);
 
-  // Teacher Data
-  teacherCourses = signal<Course[]>([]);
+  // Teacher Data (suivi pédagogique)
+  tracking = signal<TrackingOverview | null>(null);
+  trackingError = signal('');
 
-  // Student Data
-  studentEnrollments = signal<Enrollment[]>([]);
+  // Student Data (tableau de bord et statistiques fusionnés)
+  stats = signal<StudentStatistics | null>(null);
+  statsError = signal('');
 
   constructor(
     public authService: AuthService,
     private adminService: AdminService,
-    private courseService: CourseService
+    private trackingService: TrackingService,
+    private learningService: LearningService
   ) {}
 
   ngOnInit(): void {
@@ -78,27 +84,31 @@ export class DashboardComponent implements OnInit {
         error: () => this.loading.set(false)
       });
     } else if (this.authService.isTeacher()) {
-      this.courseService.getTeacherCourses().subscribe({
-        next: (courses) => {
-          this.teacherCourses.set(courses);
+      this.trackingService.getOverview().subscribe({
+        next: (overview) => {
+          this.tracking.set(overview);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false)
+        error: () => {
+          this.loading.set(false);
+          this.trackingError.set('Impossible de charger le suivi pédagogique. Vérifiez que le backend est démarré.');
+        }
       });
     } else {
-      this.courseService.getMyEnrollments().subscribe({
-        next: (enrollments) => {
-          this.studentEnrollments.set(enrollments);
+      this.learningService.getStatistics().subscribe({
+        next: (s) => {
+          this.stats.set(s);
           this.loading.set(false);
         },
-        error: () => this.loading.set(false)
+        error: () => {
+          this.loading.set(false);
+          this.statsError.set('Impossible de charger vos statistiques. Vérifiez que le backend est démarré.');
+        }
       });
     }
   }
 
-  get AverageStudentProgress(): number {
-    if (this.studentEnrollments().length === 0) return 0;
-    const sum = this.studentEnrollments().reduce((acc, curr) => acc + (curr.progressPercentage || 0), 0);
-    return Math.round(sum / this.studentEnrollments().length);
+  scoreColor(value: number | null): string {
+    return scoreColor(value);
   }
 }

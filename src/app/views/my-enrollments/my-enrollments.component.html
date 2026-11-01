@@ -17,13 +17,26 @@
     </div>
 
     <c-row *ngIf="!loading() && enrollments().length > 0">
-      <c-col lg="4" md="6" *ngFor="let enrollment of enrollments()">
-        <c-card class="mb-4">
+      <c-col lg="4" md="6" class="mb-4" *ngFor="let enrollment of enrollments()">
+        <c-card class="h-100">
           <c-card-header>
-            <strong>{{ enrollment.course?.title || 'Cours' }}</strong>
+            <strong>{{ enrollment.courseTitle || enrollment.course?.title || 'Cours' }}</strong>
           </c-card-header>
-          <c-card-body>
-            <p class="text-body-secondary">{{ enrollment.course?.description }}</p>
+          <c-card-body class="d-flex flex-column">
+            <p class="text-body-secondary" *ngIf="enrollment.course?.description">{{ enrollment.course?.description }}</p>
+
+            <div class="d-flex align-items-center gap-2 small mb-2">
+              <ng-container *ngIf="ratings().get(enrollment.courseId) as rt; else noRating">
+                <app-star-rating [value]="rt.average" [size]="15" />
+                <span class="fw-semibold">{{ rt.average }}</span>
+                <span class="text-body-secondary">({{ rt.count }} avis)</span>
+              </ng-container>
+              <ng-template #noRating><span class="text-body-secondary">Pas encore noté</span></ng-template>
+            </div>
+
+            <div class="mb-1 small text-body-secondary" *ngIf="enrollment.teacherName">
+              Formateur : <a [routerLink]="['/profile', enrollment.teacherId]">{{ enrollment.teacherName }}</a>
+            </div>
             <div class="mb-3">
               <small class="text-body-secondary">
                 Inscrit le: {{ enrollment.enrolledAt | date:'dd/MM/yyyy' }}
@@ -37,12 +50,23 @@
               <c-progress>
                 <c-progress-bar
                   [value]="enrollment.progressPercentage"
-                  [color]="enrollment.completed ? 'success' : 'info'"
+                  [color]="(enrollment.isCompleted || enrollment.completed) ? 'success' : 'info'"
                 />
               </c-progress>
             </div>
-            <div *ngIf="enrollment.completed" class="text-center mt-2">
+            <div *ngIf="enrollment.isCompleted || enrollment.completed" class="text-center mt-2">
               <span class="badge bg-success">Terminé</span>
+            </div>
+
+            <div class="mt-auto pt-3 d-flex flex-column gap-2">
+              <a cButton color="primary" class="w-100" [routerLink]="['/learn', enrollment.courseId]">
+                <svg cIcon name="cilMediaPlay" class="me-1"></svg>
+                {{ enrollment.progressPercentage > 0 ? 'Continuer le cours' : 'Commencer le cours' }}
+              </a>
+              <button cButton color="warning" variant="outline" class="w-100" type="button" (click)="openFeedback(enrollment)">
+                ★ Donner mon avis
+                <span class="small d-block">noter · aimer · commenter · évaluer le formateur</span>
+              </button>
             </div>
           </c-card-body>
         </c-card>
@@ -50,3 +74,16 @@
     </c-row>
   </c-col>
 </c-row>
+
+<!-- Fenêtre « Donner mon avis » : étoiles du cours, évaluation du formateur (%), j'aime / commentaires -->
+<c-modal [visible]="!!feedbackFor()" (visibleChange)="!$event && closeFeedback()" size="lg" alignment="center" id="feedbackModal">
+  <c-modal-header>
+    <h5 cModalTitle>Votre avis · {{ feedbackFor()?.courseTitle }}</h5>
+    <button type="button" class="btn-close" aria-label="Fermer" (click)="closeFeedback()"></button>
+  </c-modal-header>
+  <c-modal-body>
+    @if (feedbackFor(); as e) {
+      <app-course-feedback mode="full" [courseId]="e.courseId" [teacherId]="e.teacherId" [teacherName]="e.teacherName" />
+    }
+  </c-modal-body>
+</c-modal>

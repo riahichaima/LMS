@@ -1,0 +1,74 @@
+<div class="assignment-page">
+  <div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="error()" color="danger" class="mb-3">{{ error() }}</c-alert>
+
+  <ng-container *ngIf="assignment() as a">
+    <a [routerLink]="['/learn', a.courseId]" class="small text-decoration-none">
+      <svg cIcon name="cilArrowLeft" size="sm" class="me-1"></svg>{{ a.courseTitle }}
+    </a>
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-1 mb-4">
+      <h2 class="mb-0">{{ a.title }}</h2>
+      <c-badge color="info">{{ a.exerciseCount }} exercice(s)</c-badge>
+      <c-badge color="secondary">Noté sur {{ a.maxPoints }}</c-badge>
+    </div>
+
+    <!-- Énoncé -->
+    <c-card class="mb-4">
+      <c-card-header><strong>Énoncé</strong></c-card-header>
+      <c-card-body class="md-content" [innerHTML]="a.description | markdown"></c-card-body>
+    </c-card>
+
+    <!-- Réponse -->
+    <c-card class="mb-4" *ngIf="!result()">
+      <c-card-header><strong>Ta réponse</strong></c-card-header>
+      <c-card-body>
+        <p class="small text-body-secondary">
+          Écris ton code (ou ta réponse) pour chaque exercice. Le code de départ est déjà copié ci-dessous.
+        </p>
+        <textarea class="code-editor" [(ngModel)]="answer" (keydown)="onTab($event)" spellcheck="false"
+                  rows="16" aria-label="Votre réponse"></textarea>
+        <button cButton color="primary" class="mt-3" (click)="submit()" [disabled]="submitting() || !answer.trim()">
+          <c-spinner *ngIf="submitting()" size="sm" class="me-1"></c-spinner>
+          {{ submitting() ? 'Correction en cours…' : 'Soumettre pour correction' }}
+        </button>
+      </c-card-body>
+    </c-card>
+
+    <!-- Correction -->
+    <ng-container *ngIf="result() as r">
+      <c-card id="correction" class="mb-4 border-top-3" [class.border-top-success]="r.percent >= 60"
+              [class.border-top-warning]="r.percent < 60">
+        <c-card-header class="d-flex justify-content-between align-items-center">
+          <strong>Correction</strong>
+          <span class="score" [class.text-success]="r.percent >= 60" [class.text-warning]="r.percent < 60">
+            {{ r.points }} / {{ r.maxPoints }}
+          </span>
+        </c-card-header>
+        <c-card-body>
+          <h6>Avis du correcteur IA</h6>
+          <div class="md-content mb-3" [innerHTML]="r.feedback | markdown"></div>
+
+          <ng-container *ngIf="r.errors?.length">
+            <h6>Points à corriger</h6>
+            <ul class="mb-3"><li *ngFor="let e of r.errors">{{ e }}</li></ul>
+          </ng-container>
+
+          <h6>Ta réponse</h6>
+          <pre class="md-code mb-3"><code>{{ r.answer }}</code></pre>
+
+          <ng-container *ngIf="r.aiCorrection">
+            <h6>Ta réponse corrigée</h6>
+            <div class="md-content mb-3" [innerHTML]="r.aiCorrection | markdown"></div>
+          </ng-container>
+
+          <ng-container *ngIf="r.expectedSolution">
+            <h6>Solution de référence</h6>
+            <div class="md-content" [innerHTML]="r.expectedSolution | markdown"></div>
+          </ng-container>
+
+          <button cButton color="secondary" variant="outline" class="mt-3" (click)="retry()">Refaire le TP</button>
+        </c-card-body>
+      </c-card>
+    </ng-container>
+  </ng-container>
+</div>

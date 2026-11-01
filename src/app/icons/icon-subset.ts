@@ -100,13 +100,25 @@ import {
   cilUser,
   cilUserFemale,
   cilUserFollow,
-  cilUserUnfollow
+  cilUserUnfollow,
+  cilChatBubble,
+  cilX,
+  cilSend,
+  cilCheckCircle,
+  cilArrowLeft,
+  cilChartLine,
+  cilVideo,
+  cilLink,
+  cilThumbUp,
+  cilCloudUpload,
 } from '@coreui/icons';
 
 import { signet } from './signet';
 import { logo } from './logo';
 
 export const iconSubset = {
+  cilCloudUpload,
+  cilThumbUp,
   cibCcAmex,
   cibCcApplePay,
   cibCcMastercard,
@@ -209,11 +221,21 @@ export const iconSubset = {
   cilUserFemale,
   cilUserFollow,
   cilUserUnfollow,
+  cilChatBubble,
+  cilX,
+  cilSend,
+  cilCheckCircle,
+  cilArrowLeft,
+  cilChartLine,
+  cilVideo,
+  cilLink,
   logo,
   signet
 };
 
 export enum IconSubset {
+  cilCloudUpload = 'cilCloudUpload',
+  cilThumbUp = 'cilThumbUp',
   cibCcAmex = 'cibCcAmex',
   cibCcApplePay = 'cibCcApplePay',
   cibCcMastercard = 'cibCcMastercard',
@@ -316,6 +338,14 @@ export enum IconSubset {
   cilUserFemale = 'cilUserFemale',
   cilUserFollow = 'cilUserFollow',
   cilUserUnfollow = 'cilUserUnfollow',
+  cilChatBubble = 'cilChatBubble',
+  cilX = 'cilX',
+  cilSend = 'cilSend',
+  cilCheckCircle = 'cilCheckCircle',
+  cilArrowLeft = 'cilArrowLeft',
+  cilChartLine = 'cilChartLine',
+  cilVideo = 'cilVideo',
+  cilLink = 'cilLink',
   logo = 'logo',
   signet = 'signet'
 }

@@ -36,11 +36,12 @@ export class RegisterComponent {
   email = '';
   password = '';
   confirmPassword = '';
-  role = 'STUDENT';
+  role = signal('STUDENT');
   loading = signal(false);
   errorMessage = signal('');
   // Email du compte créé : affiche l'écran "vérifiez votre boîte mail"
   registeredEmail = signal('');
+  registeredRole = signal('');
   resending = signal(false);
   resendMessage = signal('');
 
@@ -70,10 +71,11 @@ export class RegisterComponent {
       name: this.name,
       email: this.email,
       password: this.password,
-      role: this.role
+      role: this.role()
     }).subscribe({
       next: () => {
         this.loading.set(false);
+        this.registeredRole.set(this.role());
         this.registeredEmail.set(this.email);
       },
       error: (err) => {

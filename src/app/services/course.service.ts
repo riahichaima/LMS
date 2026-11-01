@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export type ResourceType = 'TEXT' | 'PDF' | 'VIDEO' | 'AUDIO' | 'YOUTUBE_VIDEO' | 'WEB_PAGE';
@@ -32,11 +32,16 @@ export interface Chapter {
   lessons: Lesson[];
 }
 
+export type PricingType = 'FREE' | 'PAID';
+
 export interface Course {
   id?: number;
   title: string;
   description: string;
   status?: string;
+  // FREE : inscription directe ; PAID : achat via Stripe (prix en USD)
+  pricingType?: PricingType;
+  price?: number | null;
   category?: string;
   level?: string;
   teacherName?: string;
@@ -49,10 +54,15 @@ export interface Course {
 
 export interface Enrollment {
   id: number;
-  course: Course;
+  courseId: number;
+  courseTitle: string;
+  course?: Course;
   progressPercentage: number;
-  completed: boolean;
+  isCompleted?: boolean;
+  completed?: boolean;
   enrolledAt: string;
+  teacherId?: number | null;
+  teacherName?: string | null;
 }
 
 @Injectable({
@@ -64,8 +74,11 @@ export class CourseService {
   constructor(private http: HttpClient) {}
 
   // Public / General Course List & Details
-  getCourses(): Observable<any> {
-    return this.http.get<any>(`${this.apiUrl}/api/courses`);
+  // Le backend renvoie une page Spring ({ content: [...] }) : on garde la liste des cours
+  getCourses(): Observable<Course[]> {
+    return this.http.get<any>(`${this.apiUrl}/api/courses?size=200`).pipe(
+      map(res => (Array.isArray(res) ? res : res?.content ?? []))
+    );
   }
 
   getCourse(id: number): Observable<Course> {

@@ -32,3 +32,26 @@
 //  --scrollbar-thumb-transition: height ease-out 150ms, width ease-out 150ms;
 //  --scrollbar-track-transition: height ease-out 150ms, width ease-out 150ms;
 //}
+
+// Logo LMS dans la barre latérale
+.lms-brand {
+  text-decoration: none;
+}
+
+.lms-brand__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 10px;
+  padding: 4px 14px;
+
+  img {
+    display: block;
+    width: auto;
+  }
+
+  &--narrow {
+    padding: 4px 6px;
+  }
+}

@@ -13,7 +13,11 @@ export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
     }
 
     const currentRole = authService.userRole().replace('ROLE_', '');
-    const isAllowed = allowedRoles.some(role => role.replace('ROLE_', '') === currentRole);
+    // Le super administrateur accède aussi à toutes les pages administrateur
+    const isAllowed = allowedRoles.some(role => {
+      const allowed = role.replace('ROLE_', '');
+      return allowed === currentRole || (allowed === 'ADMIN' && currentRole === 'SUPER_ADMIN');
+    });
 
     if (isAllowed) {
       return true;

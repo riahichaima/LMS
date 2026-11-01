@@ -27,6 +27,7 @@
               <th>Titre du Cours</th>
               <th>Description</th>
               <th>Chapitres</th>
+              <th>Prix</th>
               <th>Statut</th>
               <th class="text-end">Actions</th>
             </tr>
@@ -37,6 +38,10 @@
               <td class="fw-semibold">{{ c.title }}</td>
               <td>{{ c.description }}</td>
               <td>{{ c.chaptersCount || c.chapters?.length || 0 }} Chapitres</td>
+              <td class="text-nowrap">
+                <c-badge [color]="c.pricingType === 'PAID' ? 'primary' : 'success'">{{ c.pricingType === 'PAID' ? 'PAID' : 'FREE' }}</c-badge>
+                <span *ngIf="c.pricingType === 'PAID'" class="ms-1 fw-semibold">{{ c.price | currency:'USD' }}</span>
+              </td>
               <td>
                 <c-badge [color]="c.status === 'PUBLISHED' ? 'success' : 'warning'">
                   {{ c.status || 'PUBLISHED' }}
@@ -52,7 +57,7 @@
               </td>
             </tr>
             <tr *ngIf="courses().length === 0">
-              <td colspan="6" class="text-center py-3 text-muted">
+              <td colspan="7" class="text-center py-3 text-muted">
                 Vous n'avez pas encore créé de cours. Cliquez sur "Créer un Nouveau Cours" pour commencer.
               </td>
             </tr>
@@ -78,6 +83,25 @@
     <div class="mb-3">
       <label class="form-label fw-bold">Description :</label>
       <textarea cFormControl rows="3" [(ngModel)]="courseDescription" placeholder="Description générale du cours..."></textarea>
+    </div>
+
+    <!-- Tarification -->
+    <div class="row g-3 mb-3 align-items-end">
+      <div class="col-md-6">
+        <label class="form-label fw-bold">Accès au cours :</label>
+        <select cSelect [(ngModel)]="pricingType">
+          <option value="FREE">FREE — gratuit, inscription directe</option>
+          <option value="PAID">PAID — payant (paiement Stripe)</option>
+        </select>
+      </div>
+      <div class="col-md-6" *ngIf="pricingType === 'PAID'">
+        <label class="form-label fw-bold">Prix (USD) :</label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="number" cFormControl min="0.5" max="10000" step="0.01" [(ngModel)]="price" placeholder="49.99" />
+        </div>
+        <small class="text-body-secondary">Vous recevez 60 % de chaque vente, la plateforme 40 %.</small>
+      </div>
     </div>
 
     <hr class="my-4" />

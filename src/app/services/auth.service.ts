@@ -92,14 +92,20 @@ export class AuthService {
 
   // Page d'accueil selon le rôle de l'utilisateur connecté
   getHomeRoute(): string {
+    if (this.isSuperAdmin()) return '/super-admin';
     if (this.isAdmin()) return '/admin/users';
     if (this.isTeacher()) return '/teacher/courses';
     return '/courses';
   }
 
+  // Le super administrateur a tous les droits d'un administrateur
   isAdmin(): boolean {
-    const role = this.userRole();
-    return role === 'ADMIN' || role === 'ROLE_ADMIN';
+    const role = this.userRole().replace('ROLE_', '');
+    return role === 'ADMIN' || role === 'SUPER_ADMIN';
+  }
+
+  isSuperAdmin(): boolean {
+    return this.userRole().replace('ROLE_', '') === 'SUPER_ADMIN';
   }
 
   isTeacher(): boolean {
@@ -145,6 +151,12 @@ export class AuthService {
   private setUser(user: User): void {
     localStorage.setItem('lms_user', JSON.stringify(user));
     this.currentUserSignal.set(user);
+  }
+
+  /** Après modification du profil : le nouveau nom s'affiche partout sans se reconnecter. */
+  updateCurrentUserName(name: string): void {
+    const user = this.currentUserSignal();
+    if (user) this.setUser({ ...user, name });
   }
 
   private getStoredUser(): User | null {

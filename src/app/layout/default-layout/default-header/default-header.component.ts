@@ -1,9 +1,9 @@
-import { NgTemplateOutlet } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { CommonModule, NgTemplateOutlet } from '@angular/common';
+import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterLink } from '@angular/router';
 
 import {
-  AvatarComponent,
   BadgeComponent,
   BreadcrumbRouterComponent,
   ColorModeService,
@@ -17,18 +17,26 @@ import {
   HeaderComponent,
   HeaderNavComponent,
   HeaderTogglerDirective,
-  NavItemComponent,
   NavLinkDirective,
   SidebarToggleDirective
 } from '@coreui/angular';
 
 import { IconDirective } from '@coreui/icons-angular';
 import { AuthService } from '../../../services/auth.service';
+import { MessagingService, NotificationView } from '../../../services/messaging.service';
+import { ProfileService } from '../../../services/profile.service';
+import { AvatarComponent as UserAvatarComponent } from '../../../shared/avatar.component';
+
+interface Toast {
+  id: number;
+  notification: NotificationView;
+}
 
 @Component({
   selector: 'app-default-header',
   templateUrl: './default-header.component.html',
-  imports: [ContainerComponent, HeaderTogglerDirective, SidebarToggleDirective, IconDirective, HeaderNavComponent, NavItemComponent, NavLinkDirective, RouterLink, RouterLinkActive, NgTemplateOutlet, BreadcrumbRouterComponent, DropdownComponent, DropdownToggleDirective, AvatarComponent, DropdownMenuDirective, DropdownHeaderDirective, DropdownItemDirective, BadgeComponent, DropdownDividerDirective]
+  styleUrl: './default-header.component.scss',
+  imports: [CommonModule, ContainerComponent, HeaderTogglerDirective, SidebarToggleDirective, IconDirective, HeaderNavComponent, NavLinkDirective, RouterLink, NgTemplateOutlet, BreadcrumbRouterComponent, DropdownComponent, DropdownToggleDirective, UserAvatarComponent, DropdownMenuDirective, DropdownHeaderDirective, DropdownItemDirective, BadgeComponent, DropdownDividerDirective]
 })
 export class DefaultHeaderComponent extends HeaderComponent {
 
@@ -47,91 +55,77 @@ export class DefaultHeaderComponent extends HeaderComponent {
   });
 
   readonly authService = inject(AuthService);
+  readonly messaging = inject(MessagingService);
+  readonly profileService = inject(ProfileService);
   readonly currentUser = this.authService.currentUserSignal;
+  readonly sidebarId = input('sidebar1');
+
+  /** La messagerie interne concerne les étudiants et les formateurs. */
+  readonly canMessage = computed(() => {
+    const role = this.currentUser()?.role;
+    return role === 'STUDENT' || role === 'TEACHER';
+  });
+  readonly latestNotifications = computed(() => this.messaging.notifications().slice(0, 8));
+
+  readonly toasts = signal<Toast[]>([]);
+  private toastSeq = 0;
+  private readonly router = inject(Router);
+
+  private readonly typeIcons: Record<string, string> = {
+    MESSAGE: 'cilEnvelopeClosed',
+    ENROLLMENT: 'cilUserFollow',
+    PAYMENT: 'cilCreditCard',
+    SALE: 'cilDollar',
+    WITHDRAWAL: 'cilDollar',
+    ADMIN_REQUEST: 'cilUserFollow',
+    RATING: 'cilStar',
+    REACTION: 'cilThumbUp',
+    COMMENT: 'cilCommentSquare',
+    COMMENT_REPLY: 'cilCommentSquare',
+    NEW_COURSE: 'cilBook',
+    NEW_TEACHER: 'cilUser',
+    TEACHER_RATING: 'cilStar'
+  };
 
   constructor() {
     super();
+    // Toast pour chaque notification reçue en temps réel (sauf message d'une conversation déjà ouverte)
+    this.messaging.incoming$.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe(n => {
+      if (n.type === 'MESSAGE' && this.router.url.startsWith('/messages') && this.router.url.includes(`with=${n.relatedId}`)) {
+        this.messaging.markNotificationRead(n);
+        return;
+      }
+      const toast = { id: ++this.toastSeq, notification: n };
+      this.toasts.update(list => [...list, toast].slice(-3));
+      setTimeout(() => this.dismiss(toast.id), 6000);
+    });
   }
 
   logout(): void {
     this.authService.logout();
   }
 
-  readonly sidebarId = input('sidebar1');
+  iconFor(n: NotificationView): string {
+    return this.typeIcons[n.type] ?? 'cilBell';
+  }
 
-  public newMessages = [
-    {
-      id: 0,
-      from: 'Jessica Williams',
-      avatar: '7.jpg',
-      status: 'success',
-      title: 'Urgent: System Maintenance Tonight',
-      time: 'Just now',
-      link: 'apps/email/inbox/message',
-      message: 'Attention team, we\'ll be conducting critical system maintenance tonight from 10 PM to 2 AM. Plan accordingly...'
-    },
-    {
-      id: 1,
-      from: 'Richard Johnson',
-      avatar: '6.jpg',
-      status: 'warning',
-      title: 'Project Update: Milestone Achieved',
-      time: '5 minutes ago',
-      link: 'apps/email/inbox/message',
-      message: 'Kudos on hitting sales targets last quarter! Let\'s keep the momentum. New goals, new victories ahead...'
-    },
-    {
-      id: 2,
-      from: 'Angela Rodriguez',
-      avatar: '5.jpg',
-      status: 'danger',
-      title: 'Social Media Campaign Launch',
-      time: '1:52 PM',
-      link: 'apps/email/inbox/message',
-      message: 'Exciting news! Our new social media campaign goes live tomorrow. Brace yourselves for engagement...'
-    },
-    {
-      id: 3,
-      from: 'Jane Lewis',
-      avatar: '4.jpg',
-      status: 'info',
-      title: 'Inventory Checkpoint',
-      time: '4:03 AM',
-      link: 'apps/email/inbox/message',
-      message: 'Team, it\'s time for our monthly inventory check. Accurate counts ensure smooth operations. Let\'s nail it...'
-    },
-    {
-      id: 4,
-      from: 'Ryan Miller',
-      avatar: '3.jpg',
-      status: 'info',
-      title: 'Customer Feedback Results',
-      time: '3 days ago',
-      link: 'apps/email/inbox/message',
-      message: 'Our latest customer feedback is in. Let\'s analyze and discuss improvements for an even better service...'
-    }
-  ];
+  open(n: NotificationView, toastId?: number): void {
+    this.messaging.markNotificationRead(n);
+    if (toastId) this.dismiss(toastId);
+    const link = this.messaging.linkFor(n);
+    void this.router.navigate([link.path], { queryParams: link.query });
+  }
 
-  public newNotifications = [
-    { id: 0, title: 'New user registered', icon: 'cilUserFollow', color: 'success' },
-    { id: 1, title: 'User deleted', icon: 'cilUserUnfollow', color: 'danger' },
-    { id: 2, title: 'Sales report is ready', icon: 'cilChartPie', color: 'info' },
-    { id: 3, title: 'New client', icon: 'cilBasket', color: 'primary' },
-    { id: 4, title: 'Server overloaded', icon: 'cilSpeedometer', color: 'warning' }
-  ];
+  dismiss(id: number): void {
+    this.toasts.update(list => list.filter(t => t.id !== id));
+  }
 
-  public newStatus = [
-    { id: 0, title: 'CPU Usage', value: 25, color: 'info', details: '348 Processes. 1/4 Cores.' },
-    { id: 1, title: 'Memory Usage', value: 70, color: 'warning', details: '11444GB/16384MB' },
-    { id: 2, title: 'SSD 1 Usage', value: 90, color: 'danger', details: '243GB/256GB' }
-  ];
-
-  public newTasks = [
-    { id: 0, title: 'Upgrade NPM', value: 0, color: 'info' },
-    { id: 1, title: 'ReactJS Version', value: 25, color: 'danger' },
-    { id: 2, title: 'VueJS Version', value: 50, color: 'warning' },
-    { id: 3, title: 'Add new layouts', value: 75, color: 'info' },
-    { id: 4, title: 'Angular Version', value: 100, color: 'success' }
-  ];
-
+  ago(iso: string): string {
+    const minutes = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (minutes < 1) return "À l'instant";
+    if (minutes < 60) return `Il y a ${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `Il y a ${hours} h`;
+    return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
 }

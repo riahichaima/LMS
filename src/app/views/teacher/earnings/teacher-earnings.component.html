@@ -1,0 +1,150 @@
+<c-row>
+  <c-col xs="12">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h4 class="mb-1">My Earnings</h4>
+        <span class="text-body-secondary small">Vous recevez 60 % de chaque vente confirmée. Portefeuille et retraits simulés (mode test).</span>
+      </div>
+      <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
+        <svg cIcon name="cilReload"></svg>
+      </button>
+    </div>
+
+    <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+    <div *ngIf="loading() && !data()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+
+    <ng-container *ngIf="data() as d">
+      <!-- Indicateurs -->
+      <c-row class="mb-2">
+        <c-col sm="6" xl class="mb-3">
+          <c-card class="h-100"><c-card-body>
+            <div class="text-body-secondary small">Total Sales</div>
+            <div class="fs-3 fw-bold">{{ d.totalSales }}</div>
+            <div class="small text-body-secondary">{{ d.totalRevenue | currency:'USD' }} encaissés</div>
+          </c-card-body></c-card>
+        </c-col>
+        <c-col sm="6" xl class="mb-3">
+          <c-card class="h-100"><c-card-body>
+            <div class="text-body-secondary small">Total Earnings</div>
+            <div class="fs-3 fw-bold text-primary">{{ d.totalEarnings | currency:'USD' }}</div>
+          </c-card-body></c-card>
+        </c-col>
+        <c-col sm="6" xl class="mb-3">
+          <c-card class="h-100 border-success"><c-card-body>
+            <div class="text-body-secondary small">Available Balance</div>
+            <div class="fs-3 fw-bold text-success">{{ d.availableBalance | currency:'USD' }}</div>
+          </c-card-body></c-card>
+        </c-col>
+        <c-col sm="6" xl class="mb-3">
+          <c-card class="h-100"><c-card-body>
+            <div class="text-body-secondary small">Pending Balance</div>
+            <div class="fs-3 fw-bold text-warning">{{ d.pendingBalance | currency:'USD' }}</div>
+            <div class="small text-body-secondary">retraits en cours</div>
+          </c-card-body></c-card>
+        </c-col>
+        <c-col sm="6" xl class="mb-3">
+          <c-card class="h-100"><c-card-body>
+            <div class="text-body-secondary small">Total Withdrawn</div>
+            <div class="fs-3 fw-bold">{{ d.totalWithdrawn | currency:'USD' }}</div>
+          </c-card-body></c-card>
+        </c-col>
+      </c-row>
+
+      <c-row>
+        <!-- Ventes par cours -->
+        <c-col lg="7" class="mb-4">
+          <c-card class="h-100">
+            <c-card-header><strong>Ventes par cours</strong></c-card-header>
+            <c-card-body>
+              <table cTable [hover]="true" [responsive]="true" class="mb-0">
+                <thead>
+                  <tr><th>Cours</th><th class="text-end">Ventes</th><th class="text-end">Chiffre d'affaires</th><th class="text-end">Vos gains (60 %)</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let c of d.salesByCourse">
+                    <td class="fw-semibold">{{ c.courseTitle }}</td>
+                    <td class="text-end">{{ c.sales }}</td>
+                    <td class="text-end">{{ c.revenue | currency:'USD' }}</td>
+                    <td class="text-end text-primary fw-semibold">{{ c.earnings | currency:'USD' }}</td>
+                  </tr>
+                  <tr *ngIf="d.salesByCourse.length === 0">
+                    <td colspan="4" class="text-center text-body-secondary py-3">Aucune vente pour le moment.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </c-card-body>
+          </c-card>
+        </c-col>
+
+        <!-- Demande de retrait -->
+        <c-col lg="5" class="mb-4">
+          <c-card class="h-100">
+            <c-card-header><strong>Demander un retrait</strong></c-card-header>
+            <c-card-body>
+              <p class="small text-body-secondary">
+                Minimum {{ d.minWithdrawal | currency:'USD' }}. Le montant est réservé, puis validé par un administrateur ;
+                le transfert est ensuite simulé (aucun virement réel).
+              </p>
+              <div class="input-group mb-2">
+                <span class="input-group-text">$</span>
+                <input type="number" cFormControl min="0" step="0.01" [(ngModel)]="withdrawalAmount" [placeholder]="d.availableBalance" />
+                <button cButton color="primary" (click)="requestWithdrawal()"
+                        [disabled]="submitting() || !withdrawalAmount || d.availableBalance < d.minWithdrawal">Demander</button>
+              </div>
+              <small class="text-body-secondary">Disponible : {{ d.availableBalance | currency:'USD' }}</small>
+            </c-card-body>
+          </c-card>
+        </c-col>
+      </c-row>
+
+      <!-- Historique des retraits -->
+      <c-card class="mb-4">
+        <c-card-header><strong>Mes demandes de retrait</strong></c-card-header>
+        <c-card-body>
+          <table cTable [hover]="true" [responsive]="true" class="mb-0">
+            <thead>
+              <tr><th>#</th><th>Date</th><th class="text-end">Montant</th><th>Statut</th><th>Note / Référence</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let w of d.withdrawals">
+                <td>{{ w.id }}</td>
+                <td>{{ w.requestedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-end fw-semibold">{{ w.amount | currency:'USD' }}</td>
+                <td><c-badge [color]="statusColor(w.status)">{{ statusLabel(w.status) }}</c-badge></td>
+                <td class="small text-body-secondary">{{ w.transferReference || w.adminNote || '—' }}</td>
+              </tr>
+              <tr *ngIf="d.withdrawals.length === 0">
+                <td colspan="5" class="text-center text-body-secondary py-3">Aucune demande de retrait.</td>
+              </tr>
+            </tbody>
+          </table>
+        </c-card-body>
+      </c-card>
+
+      <!-- Dernières ventes -->
+      <c-card class="mb-4">
+        <c-card-header><strong>Dernières ventes</strong></c-card-header>
+        <c-card-body>
+          <table cTable [hover]="true" [responsive]="true" class="mb-0">
+            <thead>
+              <tr><th>Date</th><th>Cours</th><th>Étudiant</th><th class="text-end">Prix</th><th class="text-end">Vos gains</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let s of d.recentSales">
+                <td>{{ s.paidAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ s.courseTitle }}</td>
+                <td>{{ s.studentName }}</td>
+                <td class="text-end">{{ s.amount | currency:'USD' }}</td>
+                <td class="text-end text-primary">{{ s.teacherAmount | currency:'USD' }}</td>
+              </tr>
+              <tr *ngIf="d.recentSales.length === 0">
+                <td colspan="5" class="text-center text-body-secondary py-3">Aucune vente.</td>
+              </tr>
+            </tbody>
+          </table>
+        </c-card-body>
+      </c-card>
+    </ng-container>
+  </c-col>
+</c-row>

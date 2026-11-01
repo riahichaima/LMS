@@ -7,14 +7,19 @@
   visible
 >
   <c-sidebar-header class="border-bottom">
-    <c-sidebar-brand [routerLink]="[]">
-      <svg [class]="{icon: false}" cIcon class="sidebar-brand-full" height="32" name="logo" title="CoreUI Logo"></svg>
-      <svg cIcon class="sidebar-brand-narrow" height="32" name="signet" title="CoreUI Logo"></svg>
+    <!-- Logo LMS sur fond blanc pour rester lisible sur la barre latérale sombre -->
+    <c-sidebar-brand [routerLink]="[]" class="lms-brand">
+      <span class="lms-brand__badge sidebar-brand-full">
+        <img src="assets/images/lms-logo-mark.png" alt="LMS" height="40" />
+      </span>
+      <span class="lms-brand__badge lms-brand__badge--narrow sidebar-brand-narrow">
+        <img src="assets/images/lms-logo-icon.png" alt="LMS" height="26" />
+      </span>
     </c-sidebar-brand>
   </c-sidebar-header>
 
   <ng-scrollbar pointerEventsMethod="scrollbar" visibility="hover">
-    <c-sidebar-nav [navItems]="navItems" dropdownMode="close" compact />
+    <c-sidebar-nav [navItems]="navItems()" dropdownMode="close" compact />
   </ng-scrollbar>
 
   @if (!sidebar1.narrow) {
@@ -42,3 +47,8 @@
   <!--app footer-->
   <app-default-footer />
 </div>
+
+<!--tuteur IA flottant (étudiants) : explications et résumés téléchargeables-->
+@if (showGlobalChatbot()) {
+  <app-course-chatbot />
+}

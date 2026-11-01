@@ -47,6 +47,8 @@
                 </c-badge>
               </td>
               <td class="text-end">
+                <span *ngIf="u.role === 'SUPER_ADMIN'" class="text-body-secondary small">Compte protégé</span>
+                <ng-container *ngIf="u.role !== 'SUPER_ADMIN'">
                 <button
                   cButton
                   [color]="u.enabled !== false ? 'warning' : 'success'"
@@ -76,6 +78,7 @@
                 >
                   <svg cIcon name="cilTrash"></svg>
                 </button>
+                </ng-container>
               </td>
             </tr>
             <tr *ngIf="users().length === 0">
@@ -100,8 +103,11 @@
     <select cSelect [(ngModel)]="selectedRole" class="form-select">
       <option value="STUDENT">STUDENT (Étudiant)</option>
       <option value="TEACHER">TEACHER (Enseignant)</option>
-      <option value="ADMIN">ADMIN (Administrateur)</option>
+      <option value="ADMIN" *ngIf="isSuperAdmin">ADMIN (Administrateur)</option>
     </select>
+    <small class="text-body-secondary d-block mt-2" *ngIf="!isSuperAdmin">
+      Seul le super administrateur peut attribuer le rôle administrateur.
+    </small>
   </c-modal-body>
   <c-modal-footer>
     <button cButton color="secondary" (click)="roleModalVisible.set(false)">Annuler</button>

@@ -1,0 +1,291 @@
+<div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+<c-alert *ngIf="error()" color="danger">{{ error() }}</c-alert>
+<c-alert *ngIf="notice()" color="success" [dismissible]="true" (visibleChange)="notice.set('')">{{ notice() }}</c-alert>
+
+<ng-container *ngIf="profile() as p">
+  <!-- ═════════ Identité ═════════ -->
+  <c-card class="mb-4">
+    <c-card-body>
+      <div class="d-flex flex-wrap align-items-center gap-4">
+        <app-avatar [name]="p.name" [url]="p.avatarUrl" [size]="104" />
+
+        <div class="flex-grow-1">
+          <h2 class="mb-1">{{ p.name }}</h2>
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <c-badge [color]="p.role === 'TEACHER' ? 'primary' : p.role === 'STUDENT' ? 'info' : 'dark'">{{ roleLabels[p.role] || p.role }}</c-badge>
+            <span class="small text-body-secondary" *ngIf="p.memberSince; else noDate">
+              Membre {{ seniority(p.memberSince) }} · inscrit le {{ p.memberSince | date:'dd/MM/yyyy' }}
+            </span>
+            <ng-template #noDate><span class="small text-body-secondary">Date d'inscription non disponible</span></ng-template>
+          </div>
+          <div class="small">
+            <span class="text-body-secondary me-1">Prénom :</span><strong>{{ p.firstName || '—' }}</strong>
+            <span class="text-body-secondary ms-3 me-1">Nom :</span><strong>{{ p.lastName || '—' }}</strong>
+          </div>
+          <div class="small text-body-secondary mt-1" *ngIf="p.email">Email : {{ p.email }}</div>
+          <div class="d-flex align-items-center flex-wrap gap-3 mt-2" *ngIf="p.teacher as t">
+            <span *ngIf="t.evaluationCount > 0" class="small">
+              🎯 <strong>{{ t.evaluationAverage | number:'1.0-1' }} %</strong>
+              <span class="text-body-secondary ms-1">({{ t.evaluationCount }} évaluation{{ t.evaluationCount > 1 ? 's' : '' }})</span>
+            </span>
+            <span *ngIf="t.ratingCount > 0" class="small d-inline-flex align-items-center gap-1">
+              <app-star-rating [value]="t.ratingAverage" [size]="16" /> <strong>{{ t.ratingAverage }}/5</strong>
+              <span class="text-body-secondary ms-1">({{ t.ratingCount }} avis sur ses cours)</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="d-flex flex-column gap-2 align-items-stretch">
+          <ng-container *ngIf="p.self">
+            <input #fileInput type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden (change)="onPhoto($event)">
+            <button type="button" class="btn btn-sm btn-primary" (click)="pickPhoto()" [disabled]="uploading()">
+              <svg cIcon name="cilCloudUpload" class="me-1"></svg>{{ uploading() ? 'Envoi…' : (p.avatarUrl ? 'Changer la photo' : 'Ajouter une photo') }}
+            </button>
+            <button *ngIf="p.avatarUrl" type="button" class="btn btn-sm btn-outline-secondary" (click)="removePhoto()" [disabled]="uploading()">Retirer la photo</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="startEdit()">
+              <svg cIcon name="cilPencil" class="me-1"></svg>Modifier prénom / nom
+            </button>
+          </ng-container>
+          <a *ngIf="!p.self && ((p.role === 'TEACHER' && authService.isStudent()) || (p.role === 'STUDENT' && authService.isTeacher()))"
+             class="btn btn-primary" routerLink="/messages" [queryParams]="{ with: p.userId }">
+            <svg cIcon name="cilEnvelopeOpen" class="me-1"></svg>Contacter
+          </a>
+        </div>
+      </div>
+
+      <div *ngIf="photoError()" class="small text-danger mt-2">{{ photoError() }}</div>
+      <div *ngIf="p.self && !editing()" class="small text-body-secondary mt-2">Photo : JPG, PNG, GIF ou WebP, 3 Mo maximum.</div>
+
+      <form *ngIf="editing()" class="row g-2 align-items-end mt-3" (ngSubmit)="saveNames()">
+        <div class="col-sm-4">
+          <label class="form-label small" for="firstName">Prénom *</label>
+          <input id="firstName" name="firstName" class="form-control form-control-sm" maxlength="100" required
+                 [ngModel]="firstName()" (ngModelChange)="firstName.set($event)">
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small" for="lastName">Nom</label>
+          <input id="lastName" name="lastName" class="form-control form-control-sm" maxlength="100"
+                 [ngModel]="lastName()" (ngModelChange)="lastName.set($event)">
+        </div>
+        <div class="col-sm-4 d-flex gap-2">
+          <button type="submit" class="btn btn-sm btn-primary" [disabled]="saving()">{{ saving() ? 'Enregistrement…' : 'Enregistrer' }}</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="editing.set(false)">Annuler</button>
+        </div>
+      </form>
+    </c-card-body>
+  </c-card>
+
+  <!-- ═════════ Étudiant : formateurs et cours suivis ═════════ -->
+  <ng-container *ngIf="p.student as s">
+    <c-alert *ngIf="s.limited" color="info">Vous voyez uniquement les cours que vous donnez à cet étudiant.</c-alert>
+
+    <c-row class="g-3 mb-4">
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-primary h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Cours suivis</div>
+          <div class="fs-2 fw-bold my-1">{{ s.coursesCount }}</div>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-success h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Cours terminés</div>
+          <div class="fs-2 fw-bold my-1">{{ s.completedCount }}</div>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-info h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Progression moyenne</div>
+          <div class="fs-2 fw-bold my-1">{{ s.averageProgress }}%</div>
+          <c-progress [value]="s.averageProgress" [height]="6" color="info"></c-progress>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-warning h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Formateurs suivis</div>
+          <div class="fs-2 fw-bold my-1">{{ s.teachers.length }}</div>
+        </c-card-body></c-card>
+      </c-col>
+    </c-row>
+
+    <c-row class="g-3 mb-4">
+      <c-col lg="5">
+        <c-card class="h-100">
+          <c-card-header><strong>Formateurs suivis</strong></c-card-header>
+          <c-card-body>
+            <div *ngFor="let t of s.teachers; let last = last" class="d-flex align-items-center gap-3 py-2" [class.border-bottom]="!last">
+              <app-avatar [name]="t.name" [url]="t.avatarUrl" [size]="44" />
+              <div style="min-width: 0">
+                <a class="fw-semibold" [routerLink]="['/profile', t.teacherId]">{{ t.name }}</a>
+                <div class="small text-body-secondary text-truncate">{{ t.courses.join(' · ') }}</div>
+              </div>
+            </div>
+            <p *ngIf="s.teachers.length === 0" class="text-body-secondary small mb-0">Aucun formateur pour le moment.</p>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col lg="7">
+        <c-card class="h-100">
+          <c-card-header><strong>Cours suivis</strong></c-card-header>
+          <c-card-body class="p-0">
+            <div class="table-responsive">
+              <table class="table mb-0 align-middle">
+                <thead><tr><th>Cours</th><th style="min-width: 150px">Progression</th><th class="text-end">Statut</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let c of s.courses">
+                    <td>
+                      <a *ngIf="p.self; else plainTitle" class="fw-semibold" [routerLink]="['/learn', c.courseId]">{{ c.title }}</a>
+                      <ng-template #plainTitle><span class="fw-semibold">{{ c.title }}</span></ng-template>
+                      <div class="small text-body-secondary" *ngIf="c.teacherName">
+                        Formateur : <a [routerLink]="['/profile', c.teacherId]">{{ c.teacherName }}</a>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="d-flex align-items-center gap-2">
+                        <c-progress class="flex-grow-1" [value]="c.progress" [height]="8" [color]="c.completed ? 'success' : 'primary'"></c-progress>
+                        <span class="small fw-bold">{{ c.progress }}%</span>
+                      </div>
+                    </td>
+                    <td class="text-end"><c-badge [color]="c.completed ? 'success' : 'primary'">{{ c.completed ? 'Terminé' : 'En cours' }}</c-badge></td>
+                  </tr>
+                  <tr *ngIf="s.courses.length === 0"><td colspan="3" class="text-center text-body-secondary py-3">Aucun cours suivi.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </ng-container>
+
+  <!-- ═════════ Formateur ═════════ -->
+  <ng-container *ngIf="p.teacher as t">
+    <c-row class="g-3 mb-4">
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-primary h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Étudiants</div>
+          <div class="fs-2 fw-bold my-1">{{ t.students }}</div>
+          <small class="text-muted">{{ t.enrollments }} inscription(s) · {{ t.courses }} cours</small>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-success h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Évaluation du formateur</div>
+          <div class="fs-2 fw-bold my-1">{{ t.evaluationCount > 0 ? (t.evaluationAverage | number:'1.0-1') + ' %' : '—' }}</div>
+          <small class="text-muted">{{ t.evaluationCount > 0 ? 'Moyenne de ' + t.evaluationCount + ' évaluation(s) d\'étudiants' : 'Aucune évaluation pour l\'instant' }}</small>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-warning h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Note des cours</div>
+          <div class="fs-2 fw-bold my-1">{{ t.ratingCount > 0 ? t.ratingAverage + '/5' : '—' }}</div>
+          <small class="text-muted" *ngIf="t.ratingCount > 0; else noStars"><app-star-rating [value]="t.ratingAverage" [size]="14" /> {{ t.ratingCount }} avis</small>
+          <ng-template #noStars><small class="text-muted">Aucun avis pour l'instant</small></ng-template>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-info h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Appréciation</div>
+          <div class="fs-2 fw-bold my-1">{{ t.positivePercent !== null ? t.positivePercent + ' %' : '—' }}</div>
+          <small class="text-muted">👍 {{ t.likes }} · 👎 {{ t.dislikes }} (cours et contenus)</small>
+        </c-card-body></c-card>
+      </c-col>
+    </c-row>
+
+    <c-row class="g-3 mb-4">
+      <c-col lg="5">
+        <app-teacher-rating [teacherId]="t.teacherId" [teacherName]="t.name" />
+        <c-card class="mt-3">
+          <c-card-header><strong>Répartition des évaluations</strong></c-card-header>
+          <c-card-body>
+            <div *ngFor="let label of ['0-20 %', '21-40 %', '41-60 %', '61-80 %', '81-100 %']; let i = index"
+                 class="d-flex align-items-center gap-2 small mb-2">
+              <span style="width: 4.5rem">{{ label }}</span>
+              <div class="flex-grow-1 rounded" style="height: 8px; background: var(--cui-tertiary-bg)">
+                <div class="h-100 rounded bg-success" [style.width.%]="pct(t.evaluationBuckets[i], t.evaluationCount)"></div>
+              </div>
+              <span class="text-body-secondary" style="width: 1.5rem; text-align: right">{{ t.evaluationBuckets[i] }}</span>
+            </div>
+            <p class="small text-body-secondary mb-0 mt-2">Évaluation = moyenne exacte des pourcentages donnés par les étudiants.</p>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col lg="7">
+        <c-card class="h-100">
+          <c-card-header><strong>Cours de {{ t.name }}</strong></c-card-header>
+          <c-card-body class="p-0">
+            <div class="table-responsive">
+              <table class="table mb-0 align-middle">
+                <thead><tr><th>Cours</th><th class="text-center">Étudiants</th><th>Note</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let c of t.courseList">
+                    <td>
+                      <span class="fw-semibold">{{ c.title }}</span>
+                      <c-badge [color]="c.pricingType === 'PAID' ? 'warning' : 'success'" class="ms-2">{{ c.pricingType === 'PAID' ? 'Payant' : 'Gratuit' }}</c-badge>
+                    </td>
+                    <td class="text-center">{{ c.students }}</td>
+                    <td>
+                      <ng-container *ngIf="c.ratingCount > 0; else noRate">
+                        <app-star-rating [value]="c.ratingAverage" [size]="14" />
+                        <span class="small ms-1">{{ c.ratingAverage }} ({{ c.ratingCount }})</span>
+                      </ng-container>
+                      <ng-template #noRate><span class="small text-body-secondary">Pas encore noté</span></ng-template>
+                    </td>
+                  </tr>
+                  <tr *ngIf="t.courseList.length === 0"><td colspan="3" class="text-center text-body-secondary py-3">Aucun cours publié.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+
+    <c-row class="g-3 mb-4">
+      <c-col lg="6">
+        <c-card class="h-100">
+          <c-card-header><strong>Dernières évaluations du formateur</strong></c-card-header>
+          <c-card-body>
+            <div *ngFor="let e of t.recentEvaluations; let last = last" class="py-2" [class.border-bottom]="!last">
+              <div class="d-flex justify-content-between gap-2">
+                <span><strong>{{ e.studentName }}</strong> · <span class="text-success fw-bold">{{ e.percent }} %</span></span>
+                <span class="small text-body-secondary">{{ e.date | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <div *ngIf="e.comment" class="small mt-1" style="white-space: pre-wrap">{{ e.comment }}</div>
+            </div>
+            <p *ngIf="t.recentEvaluations.length === 0" class="text-body-secondary small mb-0">Aucune évaluation pour le moment.</p>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col lg="6">
+        <c-card class="h-100">
+          <c-card-header><strong>Derniers avis sur ses cours</strong></c-card-header>
+          <c-card-body>
+            <div *ngFor="let r of t.recentReviews; let last = last" class="py-2" [class.border-bottom]="!last">
+              <div class="d-flex flex-wrap justify-content-between gap-2">
+                <span><strong>{{ r.studentName }}</strong><span class="small text-body-secondary ms-1">· {{ r.courseTitle }}</span></span>
+                <span class="small text-body-secondary">{{ r.date | date:'dd/MM/yyyy' }}</span>
+              </div>
+              <app-star-rating [value]="r.stars" [size]="14" />
+              <div *ngIf="r.comment" class="small mt-1" style="white-space: pre-wrap">{{ r.comment }}</div>
+            </div>
+            <p *ngIf="t.recentReviews.length === 0" class="text-body-secondary small mb-0">Aucun avis pour le moment.</p>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+  </ng-container>
+
+  <!-- ═════════ Administrateur / super administrateur ═════════ -->
+  <c-card *ngIf="isAdminRole()" class="mb-4">
+    <c-card-header><strong>Rôle sur la plateforme</strong></c-card-header>
+    <c-card-body>
+      <p class="mb-1"><strong>{{ roleLabels[p.role] }}</strong></p>
+      <p class="text-body-secondary small mb-0" *ngIf="p.role === 'SUPER_ADMIN'">
+        Valide les demandes de comptes administrateurs, contrôle les finances de la plateforme et dispose de tous les droits d'administration.
+      </p>
+      <p class="text-body-secondary small mb-0" *ngIf="p.role === 'ADMIN'">
+        Gère les utilisateurs, les cours, les finances (retraits) et la supervision de la plateforme.
+      </p>
+    </c-card-body>
+  </c-card>
+</ng-container>

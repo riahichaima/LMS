@@ -13,6 +13,10 @@
           Votre compte a été créé. Un lien de vérification a été envoyé à
           <strong>{{ registeredEmail() }}</strong>. Cliquez dessus pour activer votre compte.
         </p>
+        <c-alert color="warning" *ngIf="registeredRole() === 'ADMIN'" class="mb-3 text-start">
+          Votre compte administrateur doit aussi être validé par le super administrateur.
+          Vous recevrez un email dès qu'il aura pris sa décision.
+        </c-alert>
 
         <c-alert color="info" *ngIf="resendMessage()" class="mb-3">{{ resendMessage() }}</c-alert>
 
@@ -54,6 +58,10 @@
               <option value="ADMIN">Administrateur</option>
             </select>
           </c-input-group>
+
+          <c-alert color="warning" *ngIf="role() === 'ADMIN'" class="mb-3 small">
+            Un compte administrateur doit être validé par le super administrateur avant la première connexion.
+          </c-alert>
 
           <c-input-group class="mb-3">
             <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>

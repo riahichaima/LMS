@@ -1,0 +1,228 @@
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+  <div>
+    <h2 class="mb-0">Suivi pédagogique</h2>
+    <p class="text-body-secondary small mb-0">Progression de vos étudiants, notes aux quiz et TP, participation et export des résultats.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center" *ngIf="courses().length > 0">
+    <select class="form-select" style="min-width: 260px" aria-label="Cours à suivre"
+            [ngModel]="selectedId()" (ngModelChange)="select($event)">
+      <option *ngFor="let c of courses()" [ngValue]="c.courseId">{{ c.title }} ({{ c.students }} étudiant{{ c.students > 1 ? 's' : '' }})</option>
+    </select>
+    <button cButton color="success" class="text-white" (click)="exportCsv()" [disabled]="!detail() || exporting()">
+      <svg cIcon name="cilCloudDownload" class="me-1"></svg>{{ exporting() ? 'Export…' : 'Exporter les résultats (CSV)' }}
+    </button>
+  </div>
+</div>
+
+<div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+<c-alert *ngIf="error()" color="danger">{{ error() }}</c-alert>
+
+<c-card *ngIf="!loading() && courses().length === 0">
+  <c-card-body class="text-center text-body-secondary py-5">
+    Vous n'avez encore aucun cours. <a routerLink="/teacher/courses">Créer un cours dans le studio</a>
+  </c-card-body>
+</c-card>
+
+<div *ngIf="detailLoading()" class="text-center py-4"><c-spinner color="primary" size="sm"></c-spinner> Chargement du suivi…</div>
+
+<ng-container *ngIf="detail() as d">
+  <!-- Indicateurs du cours -->
+  <c-row class="g-3 mb-4">
+    <c-col sm="6" xl="3">
+      <c-card class="h-100"><c-card-body>
+        <div class="text-body-secondary small">Étudiants inscrits</div>
+        <div class="fs-3 fw-bold">{{ d.kpis.students }}</div>
+        <div class="small text-body-secondary">{{ d.kpis.activeLast7Days }} actif(s) ces 7 derniers jours</div>
+      </c-card-body></c-card>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <c-card class="h-100"><c-card-body>
+        <div class="text-body-secondary small">Progression moyenne</div>
+        <div class="fs-3 fw-bold">{{ d.kpis.averageProgress }}%</div>
+        <c-progress [value]="d.kpis.averageProgress" [height]="6" class="mt-1"></c-progress>
+        <div class="small text-body-secondary mt-1">{{ d.kpis.completed }} terminé(s) · {{ d.totalLessons }} leçon(s)</div>
+      </c-card-body></c-card>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <c-card class="h-100"><c-card-body>
+        <div class="text-body-secondary small">Notes moyennes (meilleur essai)</div>
+        <div class="d-flex flex-column gap-1 mt-1">
+          <span>Quiz : <c-badge [color]="scoreColor(d.kpis.quizAverage)">{{ d.kpis.quizAverage !== null ? d.kpis.quizAverage + '%' : '—' }}</c-badge></span>
+          <span>TP : <c-badge [color]="scoreColor(d.kpis.assignmentAverage)">{{ d.kpis.assignmentAverage !== null ? d.kpis.assignmentAverage + '%' : '—' }}</c-badge></span>
+        </div>
+        <div class="small text-body-secondary mt-1">Taux de réussite : {{ d.kpis.passRate !== null ? d.kpis.passRate + '%' : '—' }}</div>
+      </c-card-body></c-card>
+    </c-col>
+    <c-col sm="6" xl="3">
+      <c-card class="h-100"><c-card-body>
+        <div class="text-body-secondary small">Participation</div>
+        <div class="fs-3 fw-bold">{{ d.kpis.participationRate }}%</div>
+        <div class="small text-body-secondary">{{ d.kpis.submissions }} copie(s) rendue(s)</div>
+      </c-card-body></c-card>
+    </c-col>
+  </c-row>
+
+  <!-- Progression des étudiants -->
+  <c-card class="mb-4">
+    <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <strong>Progression des étudiants — {{ d.title }}</strong>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <input type="search" class="form-control form-control-sm" style="width: 220px" placeholder="Rechercher un étudiant…"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Rechercher un étudiant">
+        <select class="form-select form-select-sm" style="width: auto" [ngModel]="sort()" (ngModelChange)="sort.set($event)" aria-label="Trier">
+          <option value="progress">Trier : progression</option>
+          <option value="name">Trier : nom</option>
+          <option value="quiz">Trier : moyenne quiz</option>
+          <option value="tp">Trier : moyenne TP</option>
+          <option value="lastAccess">Trier : dernier accès</option>
+        </select>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="onlyInactive" [ngModel]="onlyInactive()" (ngModelChange)="onlyInactive.set($event)">
+          <label class="form-check-label small" for="onlyInactive">Sans activité</label>
+        </div>
+      </div>
+    </c-card-header>
+    <c-card-body class="p-0">
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Étudiant</th>
+              <th style="min-width: 170px">Progression</th>
+              <th class="text-center">Leçons</th>
+              <th class="text-center">Quiz</th>
+              <th class="text-center">TP</th>
+              <th>Dernier accès</th>
+              <th class="text-center">Participation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of students()">
+              <td>
+                <div class="fw-semibold">{{ s.name }}</div>
+                <div class="small text-body-secondary">{{ s.email }}</div>
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <c-progress class="flex-grow-1" [value]="s.progress" [height]="8" [color]="s.completed ? 'success' : 'primary'"></c-progress>
+                  <span class="small fw-bold" style="width: 2.6rem">{{ s.progress }}%</span>
+                </div>
+              </td>
+              <td class="text-center">{{ s.lessonsCompleted }} / {{ s.totalLessons }}</td>
+              <td class="text-center">
+                <c-badge [color]="scoreColor(s.quizAverage)">{{ s.quizAverage !== null ? s.quizAverage + '%' : '—' }}</c-badge>
+                <div class="small text-body-secondary">{{ s.quizzesTaken }} passé(s)</div>
+              </td>
+              <td class="text-center">
+                <c-badge [color]="scoreColor(s.assignmentAverage)">{{ s.assignmentAverage !== null ? s.assignmentAverage + '%' : '—' }}</c-badge>
+                <div class="small text-body-secondary">{{ s.assignmentsSubmitted }} rendu(s)</div>
+              </td>
+              <td class="small text-body-secondary">{{ s.lastAccessedAt ? (s.lastAccessedAt | date:'dd/MM/yyyy HH:mm') : '—' }}</td>
+              <td class="text-center">
+                <c-badge [color]="s.completed ? 'success' : s.active ? 'info' : 'secondary'">
+                  {{ s.completed ? 'Terminé' : s.active ? 'Actif' : 'Sans activité' }}
+                </c-badge>
+              </td>
+            </tr>
+            <tr *ngIf="students().length === 0">
+              <td colspan="7" class="text-center text-body-secondary py-4">
+                {{ d.students.length === 0 ? "Aucun étudiant n'est encore inscrit à ce cours." : 'Aucun étudiant ne correspond au filtre.' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </c-card-body>
+  </c-card>
+
+  <!-- Statistiques par évaluation -->
+  <c-card class="mb-4">
+    <c-card-header><strong>Statistiques des quiz et TP</strong></c-card-header>
+    <c-card-body class="p-0">
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Type</th><th>Évaluation</th>
+              <th class="text-center">Étudiants</th><th class="text-center">Tentatives</th>
+              <th class="text-center">Moyenne</th><th class="text-center">Meilleure note</th><th class="text-center">Réussite</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of d.assessments">
+              <td><c-badge [color]="a.type === 'QUIZ' ? 'info' : 'primary'">{{ a.type }}</c-badge></td>
+              <td>{{ a.title }}</td>
+              <td class="text-center">{{ a.students }}</td>
+              <td class="text-center">{{ a.attempts }}</td>
+              <td class="text-center"><c-badge [color]="scoreColor(a.averageScore)">{{ a.averageScore !== null ? a.averageScore + '%' : '—' }}</c-badge></td>
+              <td class="text-center">{{ a.bestScore !== null ? a.bestScore + '%' : '—' }}</td>
+              <td class="text-center">
+                {{ a.passRate !== null ? a.passRate + '%' : '—' }}
+                <div class="small text-body-secondary">seuil {{ a.passingScore }}%</div>
+              </td>
+            </tr>
+            <tr *ngIf="d.assessments.length === 0">
+              <td colspan="7" class="text-center text-body-secondary py-3">
+                Aucun quiz ni TP pour ce cours. <a routerLink="/teacher/assessments">Générer avec l'IA</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </c-card-body>
+  </c-card>
+
+  <!-- Avis et commentaires des étudiants -->
+  <c-card class="mb-4" id="feedback">
+    <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <strong>Avis et commentaires des étudiants</strong>
+      <span class="small text-body-secondary" *ngIf="rating() as r">
+        <ng-container *ngIf="r.count > 0; else noRating">
+          <app-star-rating [value]="r.average" [size]="15" /> {{ r.average }}/5 · {{ r.count }} avis · {{ r.satisfactionPercent }} % satisfaits
+        </ng-container>
+        <ng-template #noRating>Pas encore noté</ng-template>
+      </span>
+    </c-card-header>
+    <c-card-body>
+      <c-row class="g-4">
+        <c-col lg="5">
+          <h6 class="text-body-secondary text-uppercase small fw-semibold">Notes ({{ reviews().length }})</h6>
+          <div *ngFor="let r of reviews(); let last = last" class="py-2" [class.border-bottom]="!last">
+            <div class="d-flex justify-content-between gap-2">
+              <strong class="small">{{ r.studentName }}</strong>
+              <span class="small text-body-secondary">{{ r.date | date:'dd/MM/yyyy' }}</span>
+            </div>
+            <app-star-rating [value]="r.stars" [size]="14" />
+            <div *ngIf="r.comment" class="small mt-1" style="white-space: pre-wrap">{{ r.comment }}</div>
+          </div>
+          <p *ngIf="reviews().length === 0" class="small text-body-secondary mb-0">Aucune note pour ce cours.</p>
+        </c-col>
+        <c-col lg="7">
+          <h6 class="text-body-secondary text-uppercase small fw-semibold">Commentaires sur les contenus ({{ comments().length }})</h6>
+          <div *ngFor="let c of comments(); let last = last" class="py-2" [class.border-bottom]="!last">
+            <div class="d-flex flex-wrap justify-content-between gap-2">
+              <span class="small">
+                <strong>{{ c.authorName }}</strong>
+                <c-badge *ngIf="c.fromTeacher" color="primary" class="ms-1">Vous</c-badge>
+                <span class="text-body-secondary"> · {{ c.scope === 'COURSE' ? 'Cours (général)' : c.lessonTitle + ' › ' + c.resourceTitle }}</span>
+              </span>
+              <span class="small text-body-secondary">{{ c.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+            </div>
+            <div class="mt-1" style="white-space: pre-wrap; overflow-wrap: anywhere">{{ c.content }}</div>
+            <div class="d-flex gap-3 mt-1">
+              <button *ngIf="!c.fromTeacher" type="button" class="btn btn-link btn-sm p-0" (click)="startReply(c)">Répondre</button>
+              <button type="button" class="btn btn-link btn-sm p-0 text-danger" (click)="deleteComment(c)">Supprimer</button>
+            </div>
+            <div *ngIf="replyTo() === c.id" class="d-flex gap-2 mt-2 align-items-end">
+              <textarea class="form-control form-control-sm" rows="2" maxlength="1000" placeholder="Votre réponse…"
+                        [ngModel]="replyText()" (ngModelChange)="replyText.set($event)" aria-label="Votre réponse"></textarea>
+              <button type="button" class="btn btn-sm btn-primary" (click)="sendReply(c)" [disabled]="replying() || !replyText().trim()">Envoyer</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" (click)="replyTo.set(null)">Annuler</button>
+            </div>
+          </div>
+          <p *ngIf="comments().length === 0" class="small text-body-secondary mb-0">Aucun commentaire sur les contenus de ce cours.</p>
+        </c-col>
+      </c-row>
+    </c-card-body>
+  </c-card>
+</ng-container>

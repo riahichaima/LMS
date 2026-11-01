@@ -98,157 +98,249 @@
 <!-- 2. TABLEAU DE BORD ENSEIGNANT -->
 <!-- ========================================== -->
 <div *ngIf="authService.isTeacher()">
-  <c-row class="g-3 mb-4">
-    <c-col sm="6" lg="6">
-      <c-card class="border-start border-start-4 border-start-success h-100">
-        <c-card-body>
-          <div class="text-body-secondary text-uppercase fw-semibold small">Mes Cours</div>
-          <div class="fs-2 fw-bold my-2 text-success">{{ teacherCourses().length }}</div>
-          <small class="text-muted">Formations créées et publiées</small>
-        </c-card-body>
-      </c-card>
-    </c-col>
+  <div *ngIf="loading() && !tracking()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="trackingError()" color="danger">{{ trackingError() }}</c-alert>
 
-    <c-col sm="6" lg="6">
-      <c-card class="border-start border-start-4 border-start-primary h-100">
-        <c-card-body>
-          <div class="text-body-secondary text-uppercase fw-semibold small">Actions Rapides</div>
-          <div class="mt-3 d-flex gap-2">
-            <button cButton color="success" class="text-white" routerLink="/teacher/courses">
-              <svg cIcon name="cilPlus" class="me-1"></svg> Studio de Cours
-            </button>
-            <button cButton color="primary" routerLink="/teacher/assessments">
-              <svg cIcon name="cilTask" class="me-1"></svg> Générer Quiz/TP IA
-            </button>
-          </div>
-        </c-card-body>
-      </c-card>
-    </c-col>
-  </c-row>
+  <ng-container *ngIf="tracking() as t">
+    <!-- Indicateurs pédagogiques -->
+    <c-row class="g-3 mb-4">
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-primary h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Étudiants</div>
+            <div class="fs-2 fw-bold my-2 text-primary">{{ t.kpis.students }}</div>
+            <small class="text-muted">{{ t.kpis.courses }} cours · {{ t.kpis.activeLast7Days }} actif(s) cette semaine</small>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-info h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Progression moyenne</div>
+            <div class="fs-2 fw-bold my-2 text-info">{{ t.kpis.averageProgress }}%</div>
+            <c-progress [value]="t.kpis.averageProgress" [height]="6" color="info"></c-progress>
+            <small class="text-muted d-block mt-1">{{ t.kpis.completed }} cours terminé(s) · {{ t.kpis.completionRate }}%</small>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-warning h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Notes moyennes</div>
+            <div class="d-flex flex-column gap-1 mt-2">
+              <span>Quiz : <c-badge [color]="scoreColor(t.kpis.quizAverage)">{{ t.kpis.quizAverage !== null ? t.kpis.quizAverage + '%' : '—' }}</c-badge></span>
+              <span>TP : <c-badge [color]="scoreColor(t.kpis.assignmentAverage)">{{ t.kpis.assignmentAverage !== null ? t.kpis.assignmentAverage + '%' : '—' }}</c-badge></span>
+              <small class="text-muted">Réussite : {{ t.kpis.passRate !== null ? t.kpis.passRate + '%' : '—' }}</small>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-success h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Participation</div>
+            <div class="fs-2 fw-bold my-2 text-success">{{ t.kpis.participationRate }}%</div>
+            <small class="text-muted">{{ t.kpis.submissions }} copie(s) rendue(s) (quiz + TP)</small>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
 
-  <c-row>
-    <c-col xs="12">
-      <c-card class="mb-4">
-        <c-card-header><strong>Mes Formations Récentes</strong></c-card-header>
-        <c-card-body>
-          <table cTable [hover]="true" [responsive]="true">
+    <!-- Statistiques par cours -->
+    <c-card class="mb-4">
+      <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <strong>Mes cours — suivi pédagogique</strong>
+        <div class="d-flex gap-2">
+          <a cButton color="success" size="sm" class="text-white" routerLink="/teacher/courses">
+            <svg cIcon name="cilPlus" class="me-1"></svg> Studio de cours
+          </a>
+          <a cButton color="primary" size="sm" routerLink="/teacher/tracking">
+            <svg cIcon name="cilChartLine" class="me-1"></svg> Suivi détaillé
+          </a>
+        </div>
+      </c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Titre</th>
-                <th>Description</th>
-                <th>Statut</th>
+                <th>Cours</th>
+                <th class="text-center">Étudiants</th>
+                <th style="min-width: 160px">Progression moyenne</th>
+                <th class="text-center">Quiz</th>
+                <th class="text-center">TP</th>
+                <th class="text-center">Participation</th>
+                <th class="text-end">Action</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let c of teacherCourses()">
-                <td>#{{ c.id }}</td>
-                <td class="fw-semibold">{{ c.title }}</td>
-                <td>{{ c.description }}</td>
-                <td><c-badge color="success">{{ c.status || 'PUBLISHED' }}</c-badge></td>
+              <tr *ngFor="let c of t.courses">
+                <td>
+                  <span class="fw-semibold">{{ c.title }}</span>
+                  <c-badge [color]="c.pricingType === 'PAID' ? 'warning' : 'success'" class="ms-2">{{ c.pricingType === 'PAID' ? 'Payant' : 'Gratuit' }}</c-badge>
+                  <div class="small text-body-secondary">{{ c.assessments }} évaluation(s) · {{ c.completed }} terminé(s)</div>
+                </td>
+                <td class="text-center">{{ c.students }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <c-progress class="flex-grow-1" [value]="c.averageProgress" [height]="8"></c-progress>
+                    <span class="small fw-bold">{{ c.averageProgress }}%</span>
+                  </div>
+                </td>
+                <td class="text-center"><c-badge [color]="scoreColor(c.quizAverage)">{{ c.quizAverage !== null ? c.quizAverage + '%' : '—' }}</c-badge></td>
+                <td class="text-center"><c-badge [color]="scoreColor(c.assignmentAverage)">{{ c.assignmentAverage !== null ? c.assignmentAverage + '%' : '—' }}</c-badge></td>
+                <td class="text-center">{{ c.participationRate }}%</td>
+                <td class="text-end">
+                  <a cButton color="primary" variant="outline" size="sm" routerLink="/teacher/tracking" [queryParams]="{ course: c.courseId }">Étudiants</a>
+                </td>
               </tr>
-              <tr *ngIf="teacherCourses().length === 0">
-                <td colspan="4" class="text-center py-3 text-muted">
-                  Aucun cours créé. Cliquez sur "Studio de Cours" pour publier votre première formation !
+              <tr *ngIf="t.courses.length === 0">
+                <td colspan="7" class="text-center py-3 text-muted">
+                  Aucun cours créé. Cliquez sur « Studio de cours » pour publier votre première formation !
                 </td>
               </tr>
             </tbody>
           </table>
-        </c-card-body>
-      </c-card>
-    </c-col>
-  </c-row>
+        </div>
+      </c-card-body>
+    </c-card>
+
+    <!-- Derniers résultats des étudiants -->
+    <c-card class="mb-4">
+      <c-card-header><strong>Derniers résultats de vos étudiants</strong></c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead><tr><th>Type</th><th>Évaluation</th><th>Étudiant</th><th>Cours</th><th>Date</th><th class="text-end">Note</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of t.recentSubmissions">
+                <td><c-badge [color]="r.type === 'QUIZ' ? 'info' : 'primary'">{{ r.type }}</c-badge></td>
+                <td>{{ r.title }}</td>
+                <td>{{ r.studentName }}</td>
+                <td class="text-body-secondary">{{ r.courseTitle }}</td>
+                <td class="text-body-secondary">{{ r.submittedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-end"><c-badge [color]="scoreColor(r.percent)">{{ r.percent }}%</c-badge></td>
+              </tr>
+              <tr *ngIf="t.recentSubmissions.length === 0">
+                <td colspan="6" class="text-center text-body-secondary py-3">Aucun quiz ni TP rendu pour le moment.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </c-card-body>
+    </c-card>
+  </ng-container>
 </div>
 
 <!-- ========================================== -->
 <!-- 3. TABLEAU DE BORD ÉTUDIANT -->
 <!-- ========================================== -->
 <div *ngIf="authService.isStudent()">
-  <c-row class="g-3 mb-4">
-    <c-col sm="6" lg="4">
-      <c-card class="border-start border-start-4 border-start-primary h-100">
-        <c-card-body>
-          <div class="text-body-secondary text-uppercase fw-semibold small">Mes Inscriptions</div>
-          <div class="fs-2 fw-bold my-2 text-primary">{{ studentEnrollments().length }}</div>
-          <small class="text-muted">Cours suivis actuellement</small>
-        </c-card-body>
-      </c-card>
-    </c-col>
+  <div *ngIf="loading() && !stats()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="statsError()" color="danger">{{ statsError() }}</c-alert>
 
-    <c-col sm="6" lg="4">
-      <c-card class="border-start border-start-4 border-start-info h-100">
-        <c-card-body>
-          <div class="text-body-secondary text-uppercase fw-semibold small">Progression Moyenne</div>
-          <div class="fs-2 fw-bold my-2 text-info">{{ AverageStudentProgress }}%</div>
-          <c-progress class="mt-2" [height]="6">
-            <c-progress-bar [value]="AverageStudentProgress" color="info"></c-progress-bar>
-          </c-progress>
-        </c-card-body>
-      </c-card>
-    </c-col>
+  <ng-container *ngIf="stats() as s">
+    <!-- Indicateurs -->
+    <c-row class="g-3 mb-4">
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-info h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Avancement moyen</div>
+            <div class="fs-2 fw-bold my-2 text-info">{{ s.averageProgress }}%</div>
+            <c-progress [value]="s.averageProgress" [height]="6" color="info"></c-progress>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-primary h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Cours suivis</div>
+            <div class="fs-2 fw-bold my-2 text-primary">{{ s.coursesEnrolled }}</div>
+            <small class="text-success">{{ s.coursesCompleted }} terminé(s)</small>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-success h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Leçons terminées</div>
+            <div class="fs-2 fw-bold my-2 text-success">{{ s.lessonsCompleted }} <span class="fs-6 text-body-secondary">/ {{ s.totalLessons }}</span></div>
+            <small class="text-muted">Sur l'ensemble de vos cours</small>
+          </c-card-body>
+        </c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-warning h-100">
+          <c-card-body>
+            <div class="text-body-secondary text-uppercase fw-semibold small">Moyennes</div>
+            <div class="d-flex flex-column gap-1 mt-2">
+              <span>Quiz : <c-badge [color]="scoreColor(s.quizAverage)">{{ s.quizAverage !== null ? s.quizAverage + '%' : '—' }}</c-badge>
+                <small class="text-body-secondary"> ({{ s.quizzesTaken }} passé(s))</small></span>
+              <span>TP : <c-badge [color]="scoreColor(s.assignmentAverage)">{{ s.assignmentAverage !== null ? s.assignmentAverage + '%' : '—' }}</c-badge>
+                <small class="text-body-secondary"> ({{ s.assignmentsSubmitted }} rendu(s))</small></span>
+            </div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
 
-    <c-col sm="6" lg="4">
-      <c-card class="border-start border-start-4 border-start-success h-100">
-        <c-card-body>
-          <div class="text-body-secondary text-uppercase fw-semibold small">Assistant IA</div>
-          <div class="mt-3">
-            <a cButton color="success" class="text-white w-100" routerLink="/ai-assistant">
-              <svg cIcon name="cilLightbulb" class="me-1"></svg> Poser une question à l'IA
+    <!-- Avancement par cours -->
+    <c-card class="mb-4">
+      <c-card-header class="d-flex justify-content-between align-items-center">
+        <strong>Mes cours & avancement</strong>
+        <a cButton color="primary" size="sm" routerLink="/courses">Explorer le catalogue</a>
+      </c-card-header>
+      <c-card-body>
+        <p *ngIf="s.courses.length === 0" class="text-body-secondary mb-0">
+          Vous n'êtes inscrit à aucun cours pour l'instant. Parcourez le catalogue pour vous inscrire !
+        </p>
+        <div *ngFor="let c of s.courses; let last = last" class="py-3" [class.border-bottom]="!last">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div>
+              <strong>{{ c.title }}</strong>
+              <c-badge [color]="c.isCompleted ? 'success' : 'primary'" class="ms-2">{{ c.isCompleted ? 'Terminé' : 'En cours' }}</c-badge>
+              <div class="small text-body-secondary">
+                {{ c.lessonsCompleted }} / {{ c.totalLessons }} leçons
+                · Quiz : {{ c.quizAverage !== null ? c.quizAverage + '%' : '—' }}
+                · TP : {{ c.assignmentAverage !== null ? c.assignmentAverage + '%' : '—' }}
+                <span *ngIf="c.lastAccessedAt"> · Dernier accès : {{ c.lastAccessedAt | date:'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+            <a cButton color="primary" size="sm" [routerLink]="['/learn', c.courseId]">
+              <svg cIcon name="cilMediaPlay" class="me-1"></svg> {{ c.progressPercentage > 0 ? 'Continuer' : 'Commencer' }}
             </a>
           </div>
-        </c-card-body>
-      </c-card>
-    </c-col>
-  </c-row>
+          <div class="d-flex align-items-center gap-2">
+            <c-progress class="flex-grow-1" [value]="c.progressPercentage" [height]="10"
+                        [color]="c.isCompleted ? 'success' : 'primary'"></c-progress>
+            <span class="small fw-bold" style="width: 3rem">{{ c.progressPercentage }}%</span>
+          </div>
+        </div>
+      </c-card-body>
+    </c-card>
 
-  <c-row>
-    <c-col xs="12">
-      <c-card class="mb-4">
-        <c-card-header class="d-flex justify-content-between align-items-center">
-          <strong>Mes Cours & Avancement</strong>
-          <a cButton color="primary" size="sm" routerLink="/courses">Explorer le Catalogue</a>
-        </c-card-header>
-        <c-card-body>
-          <table cTable [hover]="true" [responsive]="true">
-            <thead>
-              <tr>
-                <th>Formation</th>
-                <th>Progression</th>
-                <th>Statut</th>
-                <th class="text-end">Action</th>
-              </tr>
-            </thead>
+    <!-- Derniers résultats -->
+    <c-card class="mb-4">
+      <c-card-header><strong>Derniers résultats</strong></c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead><tr><th>Type</th><th>Évaluation</th><th>Cours</th><th>Date</th><th class="text-end">Note</th></tr></thead>
             <tbody>
-              <tr *ngFor="let e of studentEnrollments()">
-                <td class="fw-semibold">{{ e.course.title }}</td>
-                <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <c-progress class="flex-grow-1" [height]="8">
-                      <c-progress-bar [value]="e.progressPercentage" color="primary"></c-progress-bar>
-                    </c-progress>
-                    <span class="small fw-bold">{{ e.progressPercentage }}%</span>
-                  </div>
-                </td>
-                <td>
-                  <c-badge [color]="e.completed ? 'success' : 'primary'">
-                    {{ e.completed ? 'Terminé' : 'En cours' }}
-                  </c-badge>
-                </td>
-                <td class="text-end">
-                  <a cButton color="primary" size="sm" [routerLink]="['/assessments', e.course.id]">
-                    <svg cIcon name="cilTask" class="me-1"></svg> Quiz & TP
-                  </a>
-                </td>
+              <tr *ngFor="let r of s.recentResults">
+                <td><c-badge [color]="r.type === 'QUIZ' ? 'info' : 'primary'">{{ r.type }}</c-badge></td>
+                <td>{{ r.title }}</td>
+                <td class="text-body-secondary">{{ r.courseTitle }}</td>
+                <td class="text-body-secondary">{{ r.submittedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-end"><c-badge [color]="scoreColor(r.percent)">{{ r.percent }}%</c-badge></td>
               </tr>
-              <tr *ngIf="studentEnrollments().length === 0">
-                <td colspan="4" class="text-center py-3 text-muted">
-                  Vous n'êtes inscrit à aucun cours pour l'instant. Parcourez le catalogue pour vous inscrire !
-                </td>
+              <tr *ngIf="s.recentResults.length === 0">
+                <td colspan="5" class="text-center text-body-secondary py-3">Aucun quiz ni TP passé pour le moment.</td>
               </tr>
             </tbody>
           </table>
-        </c-card-body>
-      </c-card>
-    </c-col>
-  </c-row>
+        </div>
+      </c-card-body>
+    </c-card>
+  </ng-container>
 </div>

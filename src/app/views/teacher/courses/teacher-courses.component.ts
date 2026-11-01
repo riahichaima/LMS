@@ -21,7 +21,7 @@ import {
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
 import { environment } from '../../../../environments/environment';
-import { CourseService, Course, Chapter, Lesson, LessonResource, ResourceType } from '../../../services/course.service';
+import { CourseService, Course, Chapter, Lesson, LessonResource, ResourceType, PricingType } from '../../../services/course.service';
 import { AiService } from '../../../services/ai.service';
 
 @Component({
@@ -64,6 +64,9 @@ export class TeacherCoursesComponent implements OnInit {
   courseTitle = '';
   courseDescription = '';
   courseStatus = 'PUBLISHED';
+  // Tarification : gratuit ou payant (prix en USD, vérifié par le backend)
+  pricingType: PricingType = 'FREE';
+  price: number | null = null;
   chapters: Chapter[] = [];
 
   // Files selected for upload
@@ -96,6 +99,8 @@ export class TeacherCoursesComponent implements OnInit {
     this.courseTitle = '';
     this.courseDescription = '';
     this.courseStatus = 'PUBLISHED';
+    this.pricingType = 'FREE';
+    this.price = null;
     this.chapters = [];
     this.selectedFilesMap.clear();
     this.createModalVisible.set(true);
@@ -173,6 +178,8 @@ export class TeacherCoursesComponent implements OnInit {
         this.courseTitle = full.title;
         this.courseDescription = full.description || '';
         this.courseStatus = full.status || 'PUBLISHED';
+        this.pricingType = full.pricingType || 'FREE';
+        this.price = full.price ?? null;
         this.chapters = (full.chapters || []).map((ch, i) => ({
           id: ch.id,
           title: ch.title,
@@ -212,10 +219,17 @@ export class TeacherCoursesComponent implements OnInit {
       return;
     }
 
+    if (this.pricingType === 'PAID' && (this.price == null || this.price < 0.5)) {
+      this.errorMessage.set('Indiquez un prix d\'au moins 0,50 $ pour un cours payant.');
+      return;
+    }
+
     const coursePayload: Course = {
       title: this.courseTitle,
       description: this.courseDescription,
       status: this.courseStatus,
+      pricingType: this.pricingType,
+      price: this.pricingType === 'PAID' ? this.price : null,
       chapters: this.chapters
     };
 

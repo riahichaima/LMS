@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { User } from './auth.service';
 import { Course } from './course.service';
@@ -11,7 +11,20 @@ export interface UserWithRoleDetails {
   email: string;
   role: string;
   enabled: boolean;
+  approvalStatus?: ApprovalStatus | null;
   createdAt?: string;
+}
+
+// Une demande refusée supprime le compte : il n'y a pas de statut « refusé »
+export type ApprovalStatus = 'PENDING' | 'APPROVED';
+
+// Compte administrateur vu par le super administrateur
+export interface AdminAccount {
+  id: number;
+  name: string;
+  email: string;
+  enabled: boolean;
+  approvalStatus: ApprovalStatus;
 }
 
 export interface AdminStatistics {
@@ -28,8 +41,24 @@ export class AdminService {
 
   constructor(private http: HttpClient) {}
 
+  // Le backend renvoie le rôle sous forme d'objet { roleId, roleName } : on garde son nom
   getUsers(): Observable<UserWithRoleDetails[]> {
-    return this.http.get<UserWithRoleDetails[]>(`${this.apiUrl}/api/admin/users`);
+    return this.http.get<any[]>(`${this.apiUrl}/api/admin/users`).pipe(
+      map(users => users.map(u => ({ ...u, role: typeof u.role === 'string' ? u.role : u.role?.roleName || '' })))
+    );
+  }
+
+  getAdminAccounts(): Observable<AdminAccount[]> {
+    return this.http.get<AdminAccount[]>(`${this.apiUrl}/api/super-admin/admins`);
+  }
+
+  approveAdmin(id: number): Observable<AdminAccount> {
+    return this.http.put<AdminAccount>(`${this.apiUrl}/api/super-admin/admins/${id}/approve`, {});
+  }
+
+  // Demande refusée : le compte est supprimé
+  rejectAdmin(id: number): Observable<{ id: number; deleted: boolean }> {
+    return this.http.delete<{ id: number; deleted: boolean }>(`${this.apiUrl}/api/super-admin/admins/${id}`);
   }
 
   getUserById(id: number): Observable<UserWithRoleDetails> {

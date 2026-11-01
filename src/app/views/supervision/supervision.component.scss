@@ -1,0 +1,66 @@
+.activity-chart {
+  position: relative;
+  height: 300px;
+}
+
+.activity-table {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.role-row + .role-row { margin-top: 12px; }
+
+.role-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--cui-tertiary-bg);
+  overflow: hidden;
+}
+
+.role-bar {
+  height: 100%;
+  min-width: 4px;
+  border-radius: 4px;
+  background: var(--cui-primary);
+}
+
+.mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--cui-tertiary-bg);
+  font-size: 0.8rem;
+  color: var(--cui-secondary-color);
+
+  strong { font-size: 1.35rem; color: var(--cui-body-color); }
+  c-badge { align-self: flex-start; }
+}
+
+.mini-link {
+  width: 100%;
+  border: 1px solid transparent;
+  text-align: left;
+
+  &:hover { border-color: var(--cui-primary); }
+}
+
+.log-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+
+  select { width: auto; min-width: 150px; }
+  input[type='search'] { flex: 1 1 220px; }
+  input[type='date'] { width: auto; }
+}
+
+.log-row { cursor: pointer; }
+
+.log-detail td {
+  background: var(--cui-tertiary-bg);
+  overflow-wrap: anywhere;
+}

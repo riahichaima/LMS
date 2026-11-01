@@ -20,6 +20,7 @@ import {
   ModalFooterComponent
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
+import { AuthService } from '../../../services/auth.service';
 import { AdminService, UserWithRoleDetails } from '../../../services/admin.service';
 
 @Component({
@@ -58,7 +59,11 @@ export class AdminUsersComponent implements OnInit {
   selectedRole = '';
   roleModalVisible = signal(false);
 
-  constructor(private adminService: AdminService) {}
+  readonly isSuperAdmin: boolean;
+
+  constructor(private adminService: AdminService, authService: AuthService) {
+    this.isSuperAdmin = authService.isSuperAdmin();
+  }
 
   ngOnInit(): void {
     this.loadUsers();
@@ -86,7 +91,7 @@ export class AdminUsersComponent implements OnInit {
           this.successMessage.set(`Compte de ${user.name} désactivé.`);
           this.loadUsers();
         },
-        error: () => this.errorMessage.set("Échec de la désactivation du compte.")
+        error: (err) => this.errorMessage.set(err.error?.message || "Échec de la désactivation du compte.")
       });
     } else {
       this.adminService.activateUser(user.id).subscribe({
@@ -94,7 +99,7 @@ export class AdminUsersComponent implements OnInit {
           this.successMessage.set(`Compte de ${user.name} activé avec succès.`);
           this.loadUsers();
         },
-        error: () => this.errorMessage.set("Échec de l'activation du compte.")
+        error: (err) => this.errorMessage.set(err.error?.message || "Échec de l'activation du compte.")
       });
     }
   }
@@ -114,7 +119,7 @@ export class AdminUsersComponent implements OnInit {
         this.roleModalVisible.set(false);
         this.loadUsers();
       },
-      error: () => this.errorMessage.set("Échec de l'attribution du rôle.")
+      error: (err) => this.errorMessage.set(err.error?.message || "Échec de l'attribution du rôle.")
     });
   }
 
@@ -125,13 +130,14 @@ export class AdminUsersComponent implements OnInit {
           this.successMessage.set(`Utilisateur ${user.name} supprimé.`);
           this.loadUsers();
         },
-        error: () => this.errorMessage.set("Impossible de supprimer cet utilisateur.")
+        error: (err) => this.errorMessage.set(err.error?.message || "Impossible de supprimer cet utilisateur.")
       });
     }
   }
 
   getRoleBadgeColor(role: string): string {
     const r = role?.toUpperCase() || '';
+    if (r.includes('SUPER_ADMIN')) return 'dark';
     if (r.includes('ADMIN')) return 'danger';
     if (r.includes('TEACHER')) return 'warning';
     return 'info';

@@ -15,3 +15,44 @@
 .select-week .calendar-row.current {
   cursor: pointer;
 }
+
+// Textes générés par l'IA (TP, corrections, tuteur) rendus par le pipe markdown
+.md-content {
+  p { margin-bottom: 0.5rem; }
+  ul, ol { padding-left: 1.25rem; margin-bottom: 0.5rem; }
+  .md-heading { margin: 0.75rem 0 0.4rem; font-weight: 700; }
+  > :last-child { margin-bottom: 0; }
+}
+
+.md-code {
+  position: relative;
+  background: #1e1e2e;
+  color: #e6e6f0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 0.25rem 0 0.75rem;
+
+  &[data-lang]::before {
+    content: attr(data-lang);
+    position: absolute;
+    top: 4px;
+    right: 10px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    opacity: 0.6;
+  }
+
+  code { color: inherit; background: none; padding: 0; }
+}
+
+.md-inline {
+  background: var(--cui-tertiary-bg);
+  color: var(--cui-danger);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}

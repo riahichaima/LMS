@@ -1,3 +1,6 @@
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ButtonModule, CardModule, FormModule, GridModule } from '@coreui/angular';
@@ -14,7 +17,7 @@ describe('RegisterComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
     imports: [CardModule, FormModule, GridModule, ButtonModule, IconModule, RegisterComponent],
-    providers: [IconSetService]
+    providers: [IconSetService, provideRouter([]), provideHttpClient(), provideHttpClientTesting()]
 })
     .compileComponents();
   });

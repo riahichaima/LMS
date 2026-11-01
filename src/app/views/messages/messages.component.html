@@ -1,0 +1,115 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div>
+    <h2 class="mb-0">Messagerie</h2>
+    <p class="text-body-secondary small mb-0">
+      {{ authService.isStudent() ? 'Échangez avec les formateurs de vos cours.' : 'Échangez avec les étudiants inscrits à vos cours.' }}
+    </p>
+  </div>
+  <span class="live-status" [class.on]="realtime.connected()">
+    <span class="dot"></span>{{ realtime.connected() ? 'Temps réel actif' : 'Connexion temps réel…' }}
+  </span>
+</div>
+
+<div class="messenger" [class.has-selection]="selectedId() !== null">
+  <!-- Contacts -->
+  <aside class="contacts">
+    <div class="contacts-search">
+      <input type="search" class="form-control form-control-sm" placeholder="Rechercher un nom ou un cours…"
+             [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Rechercher un contact">
+    </div>
+
+    <div class="contacts-list">
+      <div *ngIf="contactsLoading()" class="p-4 text-center text-body-secondary small">Chargement…</div>
+
+      <div *ngIf="!contactsLoading() && contacts().length === 0" class="p-4 text-center text-body-secondary small">
+        <ng-container *ngIf="authService.isStudent(); else noStudents">
+          Inscrivez-vous à un cours pour pouvoir écrire à son formateur.
+          <div class="mt-2"><a routerLink="/courses">Parcourir le catalogue</a></div>
+        </ng-container>
+        <ng-template #noStudents>Aucun étudiant n'est encore inscrit à vos cours.</ng-template>
+      </div>
+
+      <button type="button" *ngFor="let c of filtered()" class="contact" [class.active]="c.userId === selectedId()"
+              (click)="select(c.userId)">
+        <app-avatar [name]="c.name" [url]="c.avatarUrl" [size]="40" />
+        <span class="contact-main">
+          <span class="d-flex justify-content-between gap-2">
+            <strong class="text-truncate">{{ c.name }}</strong>
+            <small class="text-body-secondary flex-shrink-0">{{ shortDate(c.lastMessageAt) }}</small>
+          </span>
+          <span class="d-flex justify-content-between gap-2 align-items-center">
+            <small class="preview text-truncate" [class.fw-semibold]="c.unreadCount > 0">
+              <ng-container *ngIf="c.lastMessage; else courseList">{{ c.lastFromMe ? 'Vous : ' : '' }}{{ c.lastMessage }}</ng-container>
+              <ng-template #courseList>{{ roleLabel(c.role) }} · {{ c.courses.join(', ') }}</ng-template>
+            </small>
+            <span *ngIf="c.unreadCount > 0" class="unread">{{ c.unreadCount }}</span>
+          </span>
+        </span>
+      </button>
+
+      <div *ngIf="!contactsLoading() && contacts().length > 0 && filtered().length === 0" class="p-3 text-center text-body-secondary small">
+        Aucun contact ne correspond à « {{ search() }} ».
+      </div>
+    </div>
+  </aside>
+
+  <!-- Conversation -->
+  <section class="conversation">
+    <ng-container *ngIf="selected() as c; else emptyState">
+      <header class="conv-header">
+        <button type="button" class="btn btn-sm btn-link back d-md-none" (click)="back()" aria-label="Retour aux contacts">
+          <svg cIcon name="cilArrowLeft"></svg>
+        </button>
+        <app-avatar [name]="c.name" [url]="c.avatarUrl" [size]="40" />
+        <div class="min-w-0">
+          <a [routerLink]="['/profile', c.userId]" class="fw-semibold text-reset">{{ c.name }}</a>
+          <div class="small text-body-secondary text-truncate">
+            {{ roleLabel(c.role) }}<ng-container *ngIf="c.courses.length"> · {{ c.courses.join(', ') }}</ng-container>
+          </div>
+        </div>
+      </header>
+
+      <div class="conv-body" #scrollArea>
+        <div *ngIf="conversationLoading()" class="text-center text-body-secondary small py-4">Chargement de l'historique…</div>
+        <div *ngIf="!conversationLoading() && messages().length === 0" class="text-center text-body-secondary small py-5">
+          Aucun message pour l'instant. Écrivez le premier !
+        </div>
+
+        <ng-container *ngFor="let g of days()">
+          <div class="day"><span>{{ g.label }}</span></div>
+          <div *ngFor="let m of g.messages" class="msg" [class.mine]="m.senderId === me()">
+            <div class="bubble">
+              <div class="text">{{ m.content }}</div>
+              <div class="meta">
+                {{ time(m.sentAt) }}
+                <ng-container *ngIf="m.id === lastMineId()"> · {{ m.read ? 'Lu' : 'Envoyé' }}</ng-container>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <div *ngIf="error()" class="px-3 pt-2 small text-danger">{{ error() }}</div>
+
+      <form class="composer" (ngSubmit)="send()">
+        <textarea rows="2" [ngModel]="draft()" (ngModelChange)="draft.set($event)" name="draft"
+                  [maxlength]="maxLength" placeholder="Écrivez votre message… (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"
+                  (keydown)="onKeydown($event)" [disabled]="sending()" aria-label="Votre message"></textarea>
+        <div class="d-flex flex-column align-items-end justify-content-between gap-1">
+          <small class="text-body-secondary">{{ draft().length }}/{{ maxLength }}</small>
+          <button type="submit" class="btn btn-primary" [disabled]="sending() || !draft().trim()">
+            <svg cIcon name="cilSend" class="me-1"></svg>Envoyer
+          </button>
+        </div>
+      </form>
+    </ng-container>
+
+    <ng-template #emptyState>
+      <div class="empty">
+        <svg cIcon name="cilChatBubble" size="3xl"></svg>
+        <p class="mt-3 mb-0">Sélectionnez une conversation pour afficher l'historique.</p>
+        <div *ngIf="error()" class="small text-danger mt-2">{{ error() }}</div>
+      </div>
+    </ng-template>
+  </section>
+</div>
