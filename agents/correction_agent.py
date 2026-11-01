@@ -37,7 +37,7 @@ class CorrectionAgent(BaseAgent):
         """Corriger une réponse de TP. Retourne {score, feedback, errors, correction}."""
         if response_type == "code":
             prompt = CODE_CORRECTION_PROMPT.format(
-                question=question, student_code=student_answer, expected_code=expected_answer, language="python"
+                question=question, student_code=student_answer, expected_code=expected_answer, language=""
             )
         else:
             prompt = TEXT_CORRECTION_PROMPT.format(

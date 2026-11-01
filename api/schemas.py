@@ -60,3 +60,19 @@ class QuestionRequest(BaseModel):
 class URLIngestRequest(BaseModel):
     url: str
     title: Optional[str] = None
+
+
+# ── Chatbot du cours (page étudiant, via Spring Boot) ──
+
+class ChatMessage(BaseModel):
+    role: str  # "user" ou "assistant"
+    content: str
+
+
+class CourseChatRequest(BaseModel):
+    course_title: str = "Cours"
+    lesson_title: Optional[str] = None  # leçon ouverte par l'étudiant (sinon : tout le cours)
+    lesson_descriptions: list[Optional[str]] = []
+    resource_details: list[ResourceDetail] = []
+    messages: list[ChatMessage] = []
+    action: str = "chat"  # "chat" ou "summary"

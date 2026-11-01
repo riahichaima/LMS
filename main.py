@@ -33,6 +33,12 @@ app.include_router(content_routes.router, prefix="/api/content", tags=["Assistan
 app.include_router(chat_routes.router, prefix="/api/chat", tags=["Assistant — questions"])
 
 
+@app.get("/api/live", tags=["System"])
+def liveness():
+    """Health check léger (Docker, hébergeurs) : n'appelle pas le modèle Azure."""
+    return {"status": "ok"}
+
+
 @app.get("/api/health", tags=["System"])
 def health_check():
     info = describe_provider()

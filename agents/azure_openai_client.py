@@ -35,10 +35,10 @@ class AzureOpenAIClient:
             try:
                 with httpx.Client(timeout=settings.AZURE_TIMEOUT) as client:
                     response = client.post(url, headers=self.headers, **kwargs)
-            except httpx.ConnectError:
-                raise ConnectionError(f"Impossible de joindre Azure OpenAI ({self.endpoint}).")
-            except httpx.TimeoutException:
-                raise TimeoutError("La requête Azure OpenAI a expiré.")
+            except httpx.ConnectError as e:
+                raise ConnectionError(f"Impossible de joindre Azure OpenAI ({self.endpoint}).") from e
+            except httpx.TimeoutException as e:
+                raise TimeoutError("La requête Azure OpenAI a expiré.") from e
             if response.status_code in RETRY_STATUS and attempt < MAX_ATTEMPTS:
                 delay = 2 * attempt
                 logger.warning("Azure OpenAI %s, nouvel essai dans %d s (%d/%d)", response.status_code, delay, attempt, MAX_ATTEMPTS)
@@ -59,6 +59,10 @@ class AzureOpenAIClient:
             self._url(self.model, "chat/completions", settings.AZURE_OPENAI_API_VERSION), json=payload
         )
         return data["choices"][0]["message"]["content"] or ""
+
+    def chat(self, messages: list[dict], temperature: float = 0.4) -> str:
+        """Conversation multi-tours : messages [{role: system|user|assistant, content}]."""
+        return self._chat(messages, temperature, json_mode=False)
 
     def generate(self, prompt: str, system: str = None, temperature: float = 0.7, json_mode: bool = False) -> str:
         messages = [{"role": "system", "content": system}] if system else []

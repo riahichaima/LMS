@@ -1,0 +1,15 @@
+# Outils de qualité du service IA (les dépendances sont dans requirements*.txt)
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+extend-exclude = ["venv", "uploads"]
+
+[tool.ruff.lint]
+# Erreurs réelles (pyflakes), style de base, imports, bugs probables
+select = ["E", "F", "W", "I", "B"]
+# B008 : File(...) / Depends(...) en valeur par défaut = style FastAPI
+ignore = ["E501", "B008"]

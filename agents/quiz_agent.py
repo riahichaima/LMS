@@ -43,22 +43,52 @@ class QuizAgent(BaseAgent):
         return questions[:count]
 
     def generate_tp(self, content: str, level: str, count: int = 3) -> list[dict]:
-        """Retourne une liste d'exercices : {question, expected_solution, type}."""
+        """Retourne une liste d'exercices complets.
+
+        `question` (énoncé + exemples + code de départ) et `expected_solution` (code + explication)
+        sont en Markdown avec des blocs ```langage, prêts à être affichés à l'étudiant.
+        """
         prompt = TP_GENERATION_PROMPT.format(
             content=content[: settings.max_content_chars], level=level,
             level_guidance=LEVEL_GUIDANCE.get(level, ""), count=count,
         )
         parsed = self._parse_json_response(self._call_llm(prompt, temperature=0.5, json_mode=True))
         raw = parsed.get("exercises", []) if isinstance(parsed, dict) else parsed or []
-        return [
-            {
-                "question": str(ex["question"]).strip(),
-                "expected_solution": str(ex.get("expected_solution", "")).strip(),
-                "type": "code" if ex.get("type") == "code" else "text",
-            }
-            for ex in raw
-            if isinstance(ex, dict) and ex.get("question")
-        ][:count]
+        return [ex for ex in (self._clean_exercise(r) for r in raw) if ex][:count]
+
+    @staticmethod
+    def _clean_exercise(raw) -> dict | None:
+        if not isinstance(raw, dict):
+            return None
+        statement = str(raw.get("statement") or raw.get("question") or "").strip()
+        if not statement:
+            return None
+        title = str(raw.get("title", "")).strip()
+        language = str(raw.get("language", "")).strip().lower()
+        starter = str(raw.get("starter_code", "")).strip()
+        solution_code = str(raw.get("solution_code", "")).strip()
+        explanation = str(raw.get("solution_explanation") or raw.get("expected_solution") or "").strip()
+        examples = [str(e).strip() for e in raw.get("examples") or [] if str(e).strip()]
+
+        question = [f"**{title}**", ""] if title else []
+        question.append(statement)
+        if examples:
+            question += ["", "Exemples :", f"```{language}", *examples, "```"]
+        if starter:
+            question += ["", "Code de départ :", f"```{language}", starter, "```"]
+
+        solution = []
+        if solution_code:
+            solution += [f"```{language}", solution_code, "```", ""]
+        solution.append(explanation)
+
+        return {
+            "title": title,
+            "question": "\n".join(question).strip(),
+            "expected_solution": "\n".join(solution).strip(),
+            "language": language,
+            "type": "code" if raw.get("type") == "code" or solution_code else "text",
+        }
 
     @staticmethod
     def _clean_question(raw) -> dict | None:

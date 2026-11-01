@@ -1,0 +1,139 @@
+# Déploiement d'UNE image (backend, frontend ou ai) dans UN environnement (staging ou production).
+# Workflow réutilisable, appelé par les workflows CD. Le même fichier existe dans les 3 branches.
+#
+# Chaque cible n'est utilisée que si ses secrets / variables existent dans l'environnement GitHub :
+#   • Serveur Docker (VPS, VM Azure, serveur de l'école…) : secrets DEPLOY_SSH_HOST, DEPLOY_SSH_USER, DEPLOY_SSH_KEY
+#       variables facultatives DEPLOY_SSH_PORT (22), DEPLOY_PATH (/opt/lms)
+#   • Render (service « image Docker ») : secret RENDER_HOOK_<SERVICE>   ex. RENDER_HOOK_BACKEND
+#   • Azure Web App for Containers    : secret AZURE_CREDENTIALS + variable AZURE_WEBAPP_<SERVICE>
+#   • Test de fumée après déploiement : variable HEALTH_URL_<SERVICE>   ex. https://api.mon-lms.com/readyz
+name: Déploiement (réutilisable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: staging ou production
+        required: true
+        type: string
+      service:
+        description: Nom du service docker compose (backend, frontend, ai)
+        required: true
+        type: string
+      service-key:
+        description: Le même nom en MAJUSCULES (BACKEND, FRONTEND, AI)
+        required: true
+        type: string
+      image:
+        description: Image sans tag (ghcr.io/<compte>/lms-backend)
+        required: true
+        type: string
+      tag:
+        description: Tag de l'image à déployer
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: ${{ inputs.service }} → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      IMAGE_REF: ${{ inputs.image }}:${{ inputs.tag }}
+      HAS_SSH: ${{ secrets.DEPLOY_SSH_HOST != '' }}
+      HAS_RENDER: ${{ secrets[format('RENDER_HOOK_{0}', inputs.service-key)] != '' }}
+      HAS_AZURE: ${{ secrets.AZURE_CREDENTIALS != '' && vars[format('AZURE_WEBAPP_{0}', inputs.service-key)] != '' }}
+      HEALTH_URL: ${{ vars[format('HEALTH_URL_{0}', inputs.service-key)] }}
+    steps:
+      - name: Cibles configurées
+        run: |
+          {
+            echo "### Déploiement de \`${IMAGE_REF}\` (${{ inputs.environment }})"
+            echo "| Cible | Configurée |"
+            echo "|---|---|"
+            echo "| Serveur Docker (SSH) | ${HAS_SSH} |"
+            echo "| Render | ${HAS_RENDER} |"
+            echo "| Azure Web App | ${HAS_AZURE} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$HAS_SSH" != "true" ] && [ "$HAS_RENDER" != "true" ] && [ "$HAS_AZURE" != "true" ]; then
+            echo "::notice::Aucune cible configurée pour '${{ inputs.environment }}' : l'image est publiée, rien n'est déployé."
+          fi
+
+      # ── Serveur avec Docker : mise à jour d'un seul service, retour arrière automatique si le health check échoue ──
+      - name: Serveur Docker (SSH + docker compose)
+        if: env.HAS_SSH == 'true'
+        uses: appleboy/ssh-action@v1
+        env:
+          SERVICE: ${{ inputs.service }}
+          TAG_VAR: ${{ inputs.service-key }}_TAG
+          NEW_TAG: ${{ inputs.tag }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/lms' }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ vars.DEPLOY_SSH_PORT || 22 }}
+          envs: SERVICE,TAG_VAR,NEW_TAG,DEPLOY_PATH,GHCR_USER,GHCR_TOKEN
+          script: |
+            set -eu
+            cd "$DEPLOY_PATH"
+            if [ -n "$GHCR_TOKEN" ]; then echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin; fi
+            PREV_TAG=$(grep "^${TAG_VAR}=" .env | cut -d= -f2- || true)
+            set_tag() {
+              if grep -q "^${TAG_VAR}=" .env; then sed -i "s|^${TAG_VAR}=.*|${TAG_VAR}=$1|" .env; else echo "${TAG_VAR}=$1" >> .env; fi
+            }
+            set_tag "$NEW_TAG"
+            docker compose pull "$SERVICE"
+            if docker compose up -d --no-deps --wait --wait-timeout 300 "$SERVICE"; then
+              echo "✅ $SERVICE déployé en version $NEW_TAG"
+              docker image prune -f >/dev/null
+            else
+              echo "❌ $SERVICE ne démarre pas correctement : retour à la version ${PREV_TAG:-précédente}"
+              docker compose logs --tail 80 "$SERVICE" || true
+              if [ -n "$PREV_TAG" ]; then set_tag "$PREV_TAG"; docker compose up -d --no-deps "$SERVICE"; fi
+              exit 1
+            fi
+
+      # ── Render : le hook redéploie le service avec l'image indiquée ──
+      - name: Render (deploy hook)
+        if: env.HAS_RENDER == 'true'
+        env:
+          HOOK: ${{ secrets[format('RENDER_HOOK_{0}', inputs.service-key)] }}
+        run: |
+          IMG=$(python3 -c 'import urllib.parse,os;print(urllib.parse.quote(os.environ["IMAGE_REF"], safe=""))')
+          curl -fsS -X POST "${HOOK}&imgURL=${IMG}" -o /dev/null
+          echo "Render : déploiement de ${IMAGE_REF} demandé."
+
+      # ── Azure Web App for Containers ──
+      - name: Connexion Azure
+        if: env.HAS_AZURE == 'true'
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Azure Web App
+        if: env.HAS_AZURE == 'true'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars[format('AZURE_WEBAPP_{0}', inputs.service-key)] }}
+          images: ${{ env.IMAGE_REF }}
+
+      # ── Test de fumée : le service répond après le déploiement ──
+      - name: Test de fumée
+        if: env.HEALTH_URL != ''
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 10 "$HEALTH_URL" -o /dev/null; then
+              echo "✅ ${HEALTH_URL} répond (tentative $i)"
+              echo "Test de fumée : ✅ ${HEALTH_URL}" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::${HEALTH_URL} ne répond pas après 5 minutes"
+          exit 1

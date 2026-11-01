@@ -8,3 +8,8 @@ __pycache__/
 
 # Fichiers temporaires, contenus indexés, cache des vidéos
 uploads/
+
+# Caches des outils de test
+.pytest_cache/
+.ruff_cache/
+*.log

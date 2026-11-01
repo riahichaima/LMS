@@ -40,7 +40,7 @@ def upload_document(file: UploadFile = File(...)):
     try:
         text = path.read_text(encoding="utf-8", errors="replace") if name.endswith(TEXT_EXTENSIONS) else extract_from_pdf(str(path))
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Erreur d'extraction : {e}")
+        raise HTTPException(status_code=422, detail=f"Erreur d'extraction : {e}") from e
     finally:
         shutil.rmtree(path.parent, ignore_errors=True)
 
@@ -64,7 +64,7 @@ def upload_video(file: UploadFile = File(...)):
     try:
         text = analyze_video(str(path))
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Erreur d'analyse vidéo : {e}")
+        raise HTTPException(status_code=422, detail=f"Erreur d'analyse vidéo : {e}") from e
     finally:
         shutil.rmtree(path.parent, ignore_errors=True)
 
@@ -86,7 +86,7 @@ def ingest_url(request: URLIngestRequest):
     try:
         text = analyze_youtube(request.url) if youtube else extract_from_url(request.url)
     except Exception as e:
-        raise HTTPException(status_code=422, detail=f"Erreur d'ingestion : {e}")
+        raise HTTPException(status_code=422, detail=f"Erreur d'ingestion : {e}") from e
 
     content = save_content(request.title or request.url[:100], "youtube" if youtube else "web", text, request.url)
     return {

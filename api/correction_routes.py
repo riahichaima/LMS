@@ -23,7 +23,7 @@ def correct_tp(request: TPCorrectionRequest):
             level=request.level,
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur de correction : {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur de correction : {e}") from e
 
 
 @router.post("/correct-quiz")
