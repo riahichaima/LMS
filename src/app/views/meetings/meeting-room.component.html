@@ -1,0 +1,184 @@
+<div class="room">
+  <header class="room-bar">
+    <a routerLink="/meetings" class="back" aria-label="Retour aux réunions">‹</a>
+    <div class="title-block">
+      <h1 class="room-title">{{ meeting()?.title || 'Réunion' }}</h1>
+      <div class="room-sub">
+        @if (meeting(); as m) {
+          <span class="me-2">{{ m.courseTitle }}</span>
+          <span class="me-2">·</span>
+        }
+        <span>{{ clock() }}</span>
+      </div>
+    </div>
+    @if (recorders().length) {
+      <span class="rec-badge" role="status">
+        <span class="rec-dot"></span>
+        <span class="ms-1">REC {{ recording() ? formatSeconds(recordSeconds()) : '' }}</span>
+        <span class="ms-1 d-none d-md-inline">· enregistré par {{ recorders().join(', ') }}</span>
+      </span>
+    }
+    <span class="count ms-2" title="Participants">
+      <svg cIcon name="cilPeople" size="sm"></svg>
+      <span class="ms-1">{{ tileCount() }}</span>
+    </span>
+  </header>
+
+  @if (error()) {
+    <div class="alert alert-danger m-3 mb-0 d-flex align-items-center justify-content-between">
+      <span>{{ error() }}</span>
+      @if (!joined()) { <a routerLink="/meetings" class="btn btn-sm btn-outline-danger ms-2">Retour</a> }
+    </div>
+  }
+  @if (mediaWarning()) {
+    <div class="alert alert-warning m-3 mb-0 py-2 d-flex justify-content-between align-items-center">
+      <span>{{ mediaWarning() }}</span>
+      <button type="button" class="btn-close" aria-label="Fermer" (click)="mediaWarning.set('')"></button>
+    </div>
+  }
+  @if (notice()) {
+    <div class="alert alert-success m-3 mb-0 py-2 d-flex justify-content-between align-items-center">
+      <span>{{ notice() }}</span>
+      <button type="button" class="btn-close" aria-label="Fermer" (click)="notice.set('')"></button>
+    </div>
+  }
+  @if (uploadProgress() !== null) {
+    <div class="upload m-3 mb-0">
+      <div class="small mb-1">Envoi de l'enregistrement… {{ uploadProgress() }} %</div>
+      <div class="progress" role="progressbar" [attr.aria-valuenow]="uploadProgress()" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar progress-bar-striped progress-bar-animated" [style.width.%]="uploadProgress()"></div>
+      </div>
+    </div>
+  }
+
+  <div class="room-body">
+    <section class="stage" #stage [attr.data-count]="tileCount()">
+      <!-- Moi -->
+      <div class="tile self" [attr.data-name]="(self()?.name || 'Moi') + ' (vous)'"
+           [attr.data-initials]="initials(self()?.name)" [attr.data-video]="(camOn() || sharing()) && localStream() ? 'on' : 'off'">
+        <video [appSrcObject]="localStream()" autoplay playsinline [muted]="true" [class.mirror]="!sharing()"
+               [class.hidden]="!(camOn() || sharing()) || !localStream()"></video>
+        @if (!(camOn() || sharing()) || !localStream()) {
+          <div class="ph"><app-avatar [name]="self()?.name" [url]="self()?.avatarUrl" [size]="72" /></div>
+        }
+        <div class="label">
+          @if (!micOn()) { <svg cIcon name="cilVolumeOff" size="sm" class="me-1 text-danger"></svg> }
+          <span>{{ self()?.name || 'Moi' }} (vous)</span>
+          @if (sharing()) { <span class="tag ms-1">écran</span> }
+        </div>
+      </div>
+
+      <!-- Participants distants -->
+      @for (p of peers(); track p.userId) {
+        <div class="tile" [attr.data-name]="p.name" [attr.data-initials]="initials(p.name)"
+             [attr.data-video]="p.video && p.stream ? 'on' : 'off'">
+          <video [appSrcObject]="p.stream" autoplay playsinline [class.hidden]="!p.video || !p.stream"></video>
+          @if (!p.video || !p.stream) {
+            <div class="ph"><app-avatar [name]="p.name" [url]="p.avatarUrl" [size]="72" /></div>
+          }
+          @if (p.connection === 'connecting' || p.connection === 'new') {
+            <span class="conn">connexion…</span>
+          } @else if (p.connection === 'failed' || p.connection === 'disconnected') {
+            <span class="conn bad">connexion perdue</span>
+          }
+          <div class="label">
+            @if (!p.audio) { <svg cIcon name="cilVolumeOff" size="sm" class="me-1 text-danger"></svg> }
+            <span>{{ p.name }}</span>
+            @if (p.role === 'TEACHER') { <span class="tag ms-1">formateur</span> }
+            @if (p.screen) { <span class="tag ms-1">écran</span> }
+            @if (p.recording) { <span class="tag rec ms-1">REC</span> }
+          </div>
+        </div>
+      }
+    </section>
+
+    @if (chatOpen()) {
+      <aside class="panel" aria-label="Chat de la réunion">
+        <div class="panel-head">
+          <strong>Chat</strong>
+          <button type="button" class="btn-close btn-close-white" aria-label="Fermer le chat" (click)="toggleChat()"></button>
+        </div>
+        <div class="chat-list" #chatList>
+          @for (m of messages(); track m.id) {
+            <div class="msg" [class.mine]="m.userId === self()?.userId">
+              <div class="meta">
+                <span class="me-1">{{ m.userId === self()?.userId ? 'Vous' : m.name }}</span>
+                <span>{{ m.at | date: 'HH:mm' }}</span>
+              </div>
+              <div class="bubble">{{ m.text }}</div>
+            </div>
+          } @empty {
+            <p class="empty">Aucun message. Les messages sont visibles par tous les participants.</p>
+          }
+        </div>
+        <form class="chat-form" (ngSubmit)="sendChat()">
+          <textarea rows="1" class="form-control form-control-sm" placeholder="Écrire un message…" maxlength="1000"
+                    [ngModel]="draft()" (ngModelChange)="draft.set($event)" name="draft" (keydown)="onChatKey($event)"
+                    aria-label="Message"></textarea>
+          <button type="submit" class="btn btn-sm btn-primary ms-2" [disabled]="!draft().trim() || !joined()">Envoyer</button>
+        </form>
+      </aside>
+    }
+
+    @if (peopleOpen()) {
+      <aside class="panel" aria-label="Participants">
+        <div class="panel-head">
+          <strong>Participants ({{ tileCount() }})</strong>
+          <button type="button" class="btn-close btn-close-white" aria-label="Fermer" (click)="togglePeople()"></button>
+        </div>
+        <ul class="people">
+          <li>
+            <app-avatar [name]="self()?.name" [url]="self()?.avatarUrl" [size]="32" />
+            <span class="ms-2 flex-grow-1">{{ self()?.name }} (vous)</span>
+            @if (!micOn()) { <svg cIcon name="cilVolumeOff" size="sm" class="text-danger"></svg> }
+          </li>
+          @for (p of peers(); track p.userId) {
+            <li>
+              <app-avatar [name]="p.name" [url]="p.avatarUrl" [size]="32" />
+              <span class="ms-2 flex-grow-1">{{ p.name }} @if (p.role === 'TEACHER') { <small class="text-info">· formateur</small> }</span>
+              @if (p.recording) { <span class="tag rec me-1">REC</span> }
+              @if (!p.audio) { <svg cIcon name="cilVolumeOff" size="sm" class="text-danger"></svg> }
+            </li>
+          }
+        </ul>
+      </aside>
+    }
+  </div>
+
+  <footer class="controls" aria-label="Commandes de la réunion">
+    <button type="button" class="ctl" [class.off]="!micOn()" (click)="toggleMic()" [attr.aria-pressed]="micOn()"
+            [title]="micOn() ? 'Couper le micro' : 'Activer le micro'">
+      <svg cIcon [name]="micOn() ? 'cilMicrophone' : 'cilVolumeOff'"></svg>
+      <span class="ctl-label">Micro</span>
+    </button>
+    <button type="button" class="ctl" [class.off]="!camOn()" (click)="toggleCam()" [attr.aria-pressed]="camOn()"
+            [title]="camOn() ? 'Couper la caméra' : 'Activer la caméra'">
+      <svg cIcon name="cilVideo"></svg>
+      <span class="ctl-label">Caméra</span>
+    </button>
+    <button type="button" class="ctl" [class.active]="sharing()" (click)="toggleShare()" [attr.aria-pressed]="sharing()"
+            [title]="sharing() ? 'Arrêter le partage' : 'Partager l\'écran'">
+      <svg cIcon name="cilScreenDesktop"></svg>
+      <span class="ctl-label">{{ sharing() ? 'Arrêter' : 'Écran' }}</span>
+    </button>
+    <button type="button" class="ctl" [class.recording]="recording()" (click)="toggleRecord()" [attr.aria-pressed]="recording()"
+            [disabled]="!joined() || uploadProgress() !== null"
+            [title]="recording() ? 'Arrêter et sauvegarder l\'enregistrement' : 'Enregistrer la réunion'">
+      <svg cIcon [name]="recording() ? 'cilMediaStop' : 'cilMediaRecord'"></svg>
+      <span class="ctl-label">{{ recording() ? 'Stop' : 'Enregistrer' }}</span>
+    </button>
+    <button type="button" class="ctl" [class.active]="chatOpen()" (click)="toggleChat()" title="Chat">
+      <svg cIcon name="cilChatBubble"></svg>
+      <span class="ctl-label">Chat</span>
+      @if (unread()) { <span class="dot-count">{{ unread() }}</span> }
+    </button>
+    <button type="button" class="ctl" [class.active]="peopleOpen()" (click)="togglePeople()" title="Participants">
+      <svg cIcon name="cilPeople"></svg>
+      <span class="ctl-label">Participants</span>
+    </button>
+    <button type="button" class="ctl leave" (click)="leave()" title="Quitter la réunion">
+      <svg cIcon name="cilExitToApp"></svg>
+      <span class="ctl-label">Quitter</span>
+    </button>
+  </footer>
+</div>

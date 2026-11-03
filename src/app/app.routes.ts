@@ -159,6 +159,18 @@ export const routes: Routes = [
         canActivate: [roleGuard(['STUDENT', 'TEACHER'])],
         data: { title: 'Messagerie' }
       },
+      {
+        path: 'meetings',
+        loadComponent: () => import('./views/meetings/meetings.component').then(m => m.MeetingsComponent),
+        canActivate: [roleGuard(['STUDENT', 'TEACHER', 'ADMIN'])],
+        data: { title: 'Réunions' }
+      },
+      {
+        path: 'meetings/:id/room',
+        loadComponent: () => import('./views/meetings/meeting-room.component').then(m => m.MeetingRoomComponent),
+        canActivate: [roleGuard(['STUDENT', 'TEACHER', 'ADMIN'])],
+        data: { title: 'Salle de réunion' }
+      },
       // Les statistiques sont fusionnées dans le tableau de bord étudiant
       { path: 'my-statistics', redirectTo: 'dashboard' },
       // Anciennes adresses de la page d'évaluations (quiz/TP fictifs) : renvoyées vers le cours

@@ -1,0 +1,292 @@
+<div class="meetings-page">
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="h4 mb-1">Réunions en visio</h2>
+      <p class="text-body-secondary mb-0 small">
+        @if (isTeacher()) {
+          Planifiez une réunion : vos étudiants sont notifiés tout de suite puis reçoivent un rappel 1 h avant.
+        } @else {
+          Les réunions de vos formateurs. Vous recevez un rappel 1 h avant chaque réunion.
+        }
+      </p>
+    </div>
+    @if (isTeacher() && tab() === 'meetings') {
+      <button type="button" class="btn btn-primary mt-2 mt-md-0" (click)="openCreate()">
+        <svg cIcon name="cilPlus" class="me-1"></svg>
+        <span>Nouvelle réunion</span>
+      </button>
+    }
+  </div>
+
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'meetings'" (click)="setTab('meetings')">
+        <svg cIcon name="cilCalendar" class="me-1"></svg>
+        <span>Calendrier</span>
+        @if (liveCount()) { <span class="badge bg-danger ms-1">{{ liveCount() }} en cours</span> }
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'recordings'" (click)="setTab('recordings')">
+        <svg cIcon name="cilMediaRecord" class="me-1"></svg>
+        <span>Enregistrements</span>
+      </button>
+    </li>
+  </ul>
+
+  @if (error()) {
+    <div class="alert alert-danger d-flex justify-content-between align-items-center">
+      <span>{{ error() }}</span>
+      <button type="button" class="btn-close" aria-label="Fermer" (click)="error.set('')"></button>
+    </div>
+  }
+  @if (success()) {
+    <div class="alert alert-success d-flex justify-content-between align-items-center">
+      <span>{{ success() }}</span>
+      <button type="button" class="btn-close" aria-label="Fermer" (click)="success.set('')"></button>
+    </div>
+  }
+
+  @if (tab() === 'meetings') {
+    <div class="layout">
+      <!-- Calendrier du mois -->
+      <section class="box cal-box">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <button type="button" class="btn btn-sm btn-ghost-secondary" (click)="shiftMonth(-1)" aria-label="Mois précédent">‹</button>
+          <strong class="text-capitalize">{{ monthLabel() }}</strong>
+          <div>
+            <button type="button" class="btn btn-sm btn-outline-secondary me-1" (click)="goToday()">Aujourd'hui</button>
+            <button type="button" class="btn btn-sm btn-ghost-secondary" (click)="shiftMonth(1)" aria-label="Mois suivant">›</button>
+          </div>
+        </div>
+        <div class="cal" role="grid">
+          @for (w of weekDays; track w) { <div class="cal-head">{{ w }}</div> }
+          @for (d of calendar(); track d.key) {
+            <button type="button" class="cal-day" role="gridcell"
+                    [class.out]="!d.inMonth" [class.today]="d.today" [class.selected]="selectedDay() === d.key"
+                    [class.has]="d.meetings.length" (click)="selectDay(d)" (dblclick)="planOn(d)"
+                    [attr.aria-label]="d.date.toLocaleDateString('fr-FR') + (d.meetings.length ? ' : ' + d.meetings.length + ' réunion(s)' : '')">
+              <span class="num">{{ d.date.getDate() }}</span>
+              @for (m of d.meetings.slice(0, 2); track m.id) {
+                <span class="chip" [class.live]="m.status === 'LIVE'" [class.ended]="m.status === 'ENDED'" [title]="m.title">
+                  {{ time(m.startAt) }} {{ m.title }}
+                </span>
+              }
+              @if (d.meetings.length > 2) { <span class="more">+{{ d.meetings.length - 2 }}</span> }
+            </button>
+          }
+        </div>
+        @if (isTeacher()) {
+          <p class="small text-body-secondary mt-2 mb-0">Astuce : double-cliquez sur un jour pour y planifier une réunion.</p>
+        }
+      </section>
+
+      <!-- Listes -->
+      <section class="lists">
+        @if (selectedDay()) {
+          <div class="d-flex align-items-center mb-2">
+            <span class="text-capitalize fw-semibold">{{ selectedDayLabel() }}</span>
+            <button type="button" class="btn btn-sm btn-link" (click)="selectedDay.set(null)">Tout afficher</button>
+          </div>
+        }
+
+        @if (loading()) {
+          <div class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></div>
+        } @else {
+          <h3 class="h6 text-uppercase text-body-secondary">À venir et en cours</h3>
+          @for (m of upcoming(); track m.id) {
+            <ng-container *ngTemplateOutlet="meetingItem; context: { $implicit: m }" />
+          } @empty {
+            <p class="text-body-secondary small">
+              Aucune réunion prévue{{ selectedDay() ? ' ce jour-là' : '' }}.
+              @if (isTeacher()) { <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="openCreate()">Planifier une réunion</button> }
+            </p>
+          }
+
+          @if (past().length) {
+            <h3 class="h6 text-uppercase text-body-secondary mt-4">Terminées</h3>
+            @for (m of past(); track m.id) {
+              <ng-container *ngTemplateOutlet="meetingItem; context: { $implicit: m }" />
+            }
+          }
+        }
+      </section>
+    </div>
+  } @else {
+    <!-- Enregistrements -->
+    <section class="box">
+      <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
+        <p class="small text-body-secondary mb-2 mb-md-0">Toutes les réunions enregistrées par les formateurs et les étudiants.</p>
+        @if (meetingsWithRecordings().length > 1) {
+          <select class="form-select form-select-sm w-auto" [ngModel]="recordingFilter() ?? ''" (ngModelChange)="filterRecordings($event)"
+                  aria-label="Filtrer par réunion">
+            <option value="">Toutes les réunions</option>
+            @for (m of meetingsWithRecordings(); track m.id) { <option [value]="m.id">{{ m.title }}</option> }
+          </select>
+        }
+      </div>
+
+      @if (player(); as p) {
+        <div class="player mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>{{ p.recording.meetingTitle }}</strong>
+            <button type="button" class="btn-close" aria-label="Fermer le lecteur" (click)="closePlayer()"></button>
+          </div>
+          <video [src]="p.url" controls autoplay class="w-100 rounded"></video>
+        </div>
+      }
+
+      @if (recordingsLoading()) {
+        <div class="text-center py-4"><span class="spinner-border spinner-border-sm"></span></div>
+      } @else {
+        <div class="rec-list">
+          @for (r of filteredRecordings(); track r.id) {
+            <div class="rec-item">
+              <div class="rec-icon"><svg cIcon name="cilMediaPlay"></svg></div>
+              <div class="flex-grow-1" style="min-width: 0">
+                <div class="fw-semibold text-truncate">{{ r.meetingTitle }}</div>
+                <div class="small text-body-secondary">
+                  <span class="me-1">{{ r.courseTitle }}</span>
+                  <span class="me-1">·</span>
+                  <span class="me-1">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+                  <span class="me-1">·</span>
+                  <span class="me-1">{{ duration(r.durationSeconds) }}</span>
+                  <span class="me-1">·</span>
+                  <span>{{ size(r.sizeBytes) }}</span>
+                </div>
+                <div class="small text-body-secondary">Enregistré par {{ r.recordedByName }}</div>
+              </div>
+              <div class="rec-actions">
+                <button type="button" class="btn btn-sm btn-primary" (click)="play(r)" [disabled]="playerLoading() === r.id">
+                  @if (playerLoading() === r.id) { <span class="spinner-border spinner-border-sm"></span> }
+                  @else { <svg cIcon name="cilMediaPlay" size="sm" class="me-1"></svg><span>Lire</span> }
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" (click)="download(r)" title="Télécharger">
+                  <svg cIcon name="cilCloudDownload" size="sm"></svg>
+                </button>
+                @if (r.canDelete) {
+                  <button type="button" class="btn btn-sm btn-outline-danger ms-1" (click)="deleteRecording(r)" title="Supprimer">
+                    <svg cIcon name="cilTrash" size="sm"></svg>
+                  </button>
+                }
+              </div>
+            </div>
+          } @empty {
+            <div class="text-center text-body-secondary py-5">
+              <svg cIcon name="cilMediaRecord" size="3xl" class="mb-2 opacity-50"></svg>
+              <p class="mb-0">Aucun enregistrement pour l'instant.</p>
+              <p class="small">Pendant une réunion, cliquez sur « Enregistrer » : la vidéo arrive ici à la fin.</p>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>
+
+<ng-template #meetingItem let-m>
+  <article class="meeting" [class.live]="m.status === 'LIVE'" [class.ended]="m.status === 'ENDED'">
+    <div class="date-block">
+      <span class="day">{{ m.startAt | date: 'dd' }}</span>
+      <span class="mon">{{ monthShort(m.startAt) }}</span>
+    </div>
+    <div class="flex-grow-1" style="min-width: 0">
+      <div class="d-flex align-items-center flex-wrap">
+        <span class="status me-2" [ngClass]="'st-' + m.status">{{ statusLabel(m) }}</span>
+        <strong class="text-truncate">{{ m.title }}</strong>
+      </div>
+      <div class="small text-body-secondary">
+        <svg cIcon name="cilClock" size="sm" class="me-1"></svg>
+        <span class="me-1">{{ time(m.startAt) }} – {{ time(m.endAt) }}</span>
+        @if (relative(m)) { <span class="me-1">({{ relative(m) }})</span> }
+        <span class="me-1">·</span>
+        <span class="me-1">{{ m.courseTitle }}</span>
+        @if (!isTeacher()) { <span class="me-1">·</span><span>{{ m.teacherName }}</span> }
+      </div>
+      @if (m.description) { <div class="small mt-1 desc">{{ m.description }}</div> }
+      <div class="small mt-1">
+        @if (m.participantsOnline) {
+          <span class="text-success me-2"><svg cIcon name="cilPeople" size="sm" class="me-1"></svg>{{ m.participantsOnline }} dans la salle</span>
+        }
+        @if (m.recordingCount) {
+          <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="showRecordings(m)">
+            {{ m.recordingCount }} enregistrement{{ m.recordingCount > 1 ? 's' : '' }}
+          </button>
+        }
+      </div>
+    </div>
+    <div class="actions">
+      @if (m.canJoin) {
+        <button type="button" class="btn btn-sm" [class.btn-danger]="m.status === 'LIVE'" [class.btn-success]="m.status !== 'LIVE'" (click)="join(m)">
+          <svg cIcon name="cilVideo" size="sm" class="me-1"></svg><span>Rejoindre</span>
+        </button>
+      } @else if (m.status === 'SCHEDULED') {
+        <span class="small text-body-secondary text-nowrap">Salle ouverte à {{ time(m.joinOpensAt) }}</span>
+      }
+      @if (m.canEdit && m.status === 'SCHEDULED') {
+        <div class="mt-1">
+          <button type="button" class="btn btn-sm btn-outline-secondary" (click)="openEdit(m)">Modifier</button>
+          <button type="button" class="btn btn-sm btn-outline-danger ms-1" (click)="cancelMeeting(m)">Annuler</button>
+        </div>
+      }
+    </div>
+  </article>
+</ng-template>
+
+<!-- Planifier / modifier une réunion -->
+@if (formOpen()) {
+  <div class="overlay" (click)="formOpen.set(false)">
+    <form class="dialog" (click)="$event.stopPropagation()" (ngSubmit)="save()" role="dialog" aria-modal="true" aria-labelledby="meeting-form-title">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="h5 mb-0" id="meeting-form-title">{{ form().id ? 'Modifier la réunion' : 'Nouvelle réunion' }}</h3>
+        <button type="button" class="btn-close" aria-label="Fermer" (click)="formOpen.set(false)"></button>
+      </div>
+
+      @if (!form().id && !courses().length) {
+        <div class="alert alert-warning py-2">Vous devez d'abord créer un cours : la réunion est envoyée aux étudiants inscrits à ce cours.</div>
+      }
+
+      <div class="mb-3">
+        <label class="form-label" for="mt-course">Cours</label>
+        <select id="mt-course" class="form-select" name="courseId" [ngModel]="form().courseId" (ngModelChange)="patchForm({ courseId: +$event })"
+                [disabled]="!!form().id" required>
+          @for (c of courses(); track c.id) { <option [ngValue]="c.id">{{ c.title }}</option> }
+        </select>
+        <div class="form-text">Les étudiants inscrits à ce cours sont notifiés.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="mt-title">Sujet de la réunion</label>
+        <input id="mt-title" class="form-control" name="title" maxlength="150" required placeholder="Ex. : Correction du TP 2"
+               [ngModel]="form().title" (ngModelChange)="patchForm({ title: $event })">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="mt-desc">Description <span class="text-body-secondary">(facultatif)</span></label>
+        <textarea id="mt-desc" class="form-control" name="description" rows="3" maxlength="2000" placeholder="Ordre du jour, documents à préparer…"
+                  [ngModel]="form().description" (ngModelChange)="patchForm({ description: $event })"></textarea>
+      </div>
+      <div class="form-grid mb-3">
+        <div>
+          <label class="form-label" for="mt-start">Date et heure</label>
+          <input id="mt-start" type="datetime-local" class="form-control" name="startLocal" required [min]="minStart()"
+                 [ngModel]="form().startLocal" (ngModelChange)="patchForm({ startLocal: $event })">
+        </div>
+        <div>
+          <label class="form-label" for="mt-duration">Durée</label>
+          <select id="mt-duration" class="form-select" name="duration" [ngModel]="form().durationMinutes" (ngModelChange)="patchForm({ durationMinutes: +$event })">
+            @for (d of durations; track d) { <option [ngValue]="d">{{ durationLabel(d) }}</option> }
+          </select>
+        </div>
+      </div>
+
+      @if (formError()) { <div class="alert alert-danger py-2">{{ formError() }}</div> }
+
+      <div class="d-flex justify-content-end">
+        <button type="button" class="btn btn-outline-secondary me-2" (click)="formOpen.set(false)">Fermer</button>
+        <button type="submit" class="btn btn-primary" [disabled]="saving() || (!form().id && !courses().length)">
+          @if (saving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+          <span>{{ form().id ? 'Enregistrer' : 'Planifier et notifier' }}</span>
+        </button>
+      </div>
+    </form>
+  </div>
+}

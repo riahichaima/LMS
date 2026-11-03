@@ -90,6 +90,11 @@ export const teacherNavItems: INavData[] = [
     iconComponent: { name: 'cil-chat-bubble' }
   },
   {
+    name: 'Réunions',
+    url: '/meetings',
+    iconComponent: { name: 'cil-video' }
+  },
+  {
     name: 'Assistant IA Multi-Agents',
     url: '/ai-assistant',
     iconComponent: { name: 'cil-lightbulb' }
@@ -116,6 +121,11 @@ export const studentNavItems: INavData[] = [
     name: 'Messagerie',
     url: '/messages',
     iconComponent: { name: 'cil-chat-bubble' }
+  },
+  {
+    name: 'Réunions',
+    url: '/meetings',
+    iconComponent: { name: 'cil-video' }
   },
   {
     name: 'Assistant IA Multi-Agents',

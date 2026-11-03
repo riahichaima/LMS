@@ -84,7 +84,11 @@ export class DefaultHeaderComponent extends HeaderComponent {
     COMMENT_REPLY: 'cilCommentSquare',
     NEW_COURSE: 'cilBook',
     NEW_TEACHER: 'cilUser',
-    TEACHER_RATING: 'cilStar'
+    TEACHER_RATING: 'cilStar',
+    MEETING: 'cilVideo',
+    MEETING_CANCELLED: 'cilVideo',
+    MEETING_REMINDER: 'cilClock',
+    RECORDING: 'cilMediaRecord'
   };
 
   constructor() {

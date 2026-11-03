@@ -111,12 +111,24 @@ import {
   cilLink,
   cilThumbUp,
   cilCloudUpload,
+  cilMicrophone,
+  cilScreenDesktop,
+  cilMediaStop,
+  cilExitToApp,
+  cilClock,
+  cilVolumeOff,
 } from '@coreui/icons';
 
 import { signet } from './signet';
 import { logo } from './logo';
 
 export const iconSubset = {
+  cilMicrophone,
+  cilScreenDesktop,
+  cilMediaStop,
+  cilExitToApp,
+  cilClock,
+  cilVolumeOff,
   cilCloudUpload,
   cilThumbUp,
   cibCcAmex,
@@ -234,6 +246,12 @@ export const iconSubset = {
 };
 
 export enum IconSubset {
+  cilMicrophone = 'cilMicrophone',
+  cilScreenDesktop = 'cilScreenDesktop',
+  cilMediaStop = 'cilMediaStop',
+  cilExitToApp = 'cilExitToApp',
+  cilClock = 'cilClock',
+  cilVolumeOff = 'cilVolumeOff',
   cilCloudUpload = 'cilCloudUpload',
   cilThumbUp = 'cilThumbUp',
   cibCcAmex = 'cibCcAmex',

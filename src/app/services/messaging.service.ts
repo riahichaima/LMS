@@ -147,6 +147,10 @@ export class MessagingService {
       case 'NEW_COURSE': return { path: '/courses' };
       case 'NEW_TEACHER': return n.relatedId ? { path: `/profile/${n.relatedId}` } : { path: '/courses' };
       case 'TEACHER_RATING': return { path: '/profile' };
+      case 'MEETING':
+      case 'MEETING_CANCELLED': return { path: '/meetings' };
+      case 'MEETING_REMINDER': return n.relatedId ? { path: `/meetings/${n.relatedId}/room` } : { path: '/meetings' };
+      case 'RECORDING': return { path: '/meetings', query: { tab: 'recordings' } };
       default: return { path: '/dashboard' };
     }
   }
