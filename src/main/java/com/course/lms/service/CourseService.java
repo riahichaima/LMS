@@ -34,6 +34,9 @@ import java.util.stream.Collectors;
 public class CourseService {
 
     @Autowired
+    private ContentCleanupService contentCleanupService;
+
+    @Autowired
     private CourseRepository courseRepository;
 
     @Autowired
@@ -315,23 +318,13 @@ public class CourseService {
         courseRepository.delete(course);
     }
 
-    // Quiz et TP (et leurs soumissions) rattachés à un chapitre ou à l'une de ses leçons
+    // Leçons terminées, quiz et TP (et leurs copies) rattachés à un chapitre ou à l'une de ses leçons
     private void deleteChapterAssessments(Chapter chapter) {
-        for (Lesson lesson : chapter.getLessons()) {
-            deleteLessonAssessments(lesson.getId());
-        }
-        quizRepository.findByChapterId(chapter.getId()).forEach(this::deleteQuiz);
-        assignmentRepository.deleteAll(assignmentRepository.findByChapterId(chapter.getId()));
+        contentCleanupService.beforeDeletingChapter(chapter);
     }
 
     private void deleteLessonAssessments(Long lessonId) {
-        quizRepository.findByLessonId(lessonId).forEach(this::deleteQuiz);
-        assignmentRepository.deleteAll(assignmentRepository.findByLessonId(lessonId));
-    }
-
-    private void deleteQuiz(com.course.lms.model.Quiz quiz) {
-        submissionRepository.deleteAll(submissionRepository.findByQuizId(quiz.getId()));
-        quizRepository.delete(quiz);
+        lessonRepository.findById(lessonId).ifPresent(l -> contentCleanupService.beforeDeletingLessons(java.util.List.of(l)));
     }
 
     public CourseResponse assignTeacherToCourse(Long courseId, Long teacherId) {
@@ -407,5 +400,8 @@ public class CourseService {
         notificationService.notifyRole("STUDENT", "📚 Nouveau cours : « " + course.getTitle() + " »",
                 teacher + " vient de publier un nouveau cours" + (course.isPaid() ? " (" + course.getPrice() + " $)" : " gratuit") + ".",
                 "NEW_COURSE", course.getId());
+        notificationService.notifyStaff("📚 Nouveau cours publié : « " + course.getTitle() + " »",
+                teacher + " a publié un cours" + (course.isPaid() ? " payant (" + course.getPrice() + " $)" : " gratuit") + ".",
+                "ADMIN_COURSE", course.getId());
     }
 }

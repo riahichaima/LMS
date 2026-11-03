@@ -40,6 +40,17 @@ public class QuizDetailResponse {
     public String getLessonTitle() { return lessonTitle; }
     public void setLessonTitle(String lessonTitle) { this.lessonTitle = lessonTitle; }
 
+    /** true : généré par l'IA ; false : créé à la main par l'enseignant */
+    private Boolean generatedByAi;
+    private java.time.Instant dueAt;
+    private Integer durationMinutes;
+    public java.time.Instant getDueAt() { return dueAt; }
+    public void setDueAt(java.time.Instant dueAt) { this.dueAt = dueAt; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
+    public Boolean getGeneratedByAi() { return generatedByAi; }
+    public void setGeneratedByAi(Boolean generatedByAi) { this.generatedByAi = generatedByAi; }
+
     public String getChapterTitle() { return chapterTitle; }
     public void setChapterTitle(String chapterTitle) { this.chapterTitle = chapterTitle; }
 

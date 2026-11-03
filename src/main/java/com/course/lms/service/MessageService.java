@@ -147,6 +147,11 @@ public class MessageService {
                 users.putIfAbsent(teacher.getId(), teacher);
                 courses.computeIfAbsent(teacher.getId(), k -> new TreeSet<>()).add(e.getCourse().getTitle());
             }
+        } else if (isStaff(me)) {
+            // Administration : tous les étudiants et enseignants (et les autres administrateurs)
+            for (User u : userRepository.findAll()) {
+                if (u.getRole() != null && !u.getId().equals(userId) && u.isEnabled()) users.putIfAbsent(u.getId(), u);
+            }
         } else if (hasRole(me, "TEACHER")) {
             for (Course c : courseRepository.findByTeacherId(userId)) {
                 for (Enrollment e : enrollmentRepository.findByCourseId(c.getId())) {
@@ -187,6 +192,8 @@ public class MessageService {
     @Transactional(readOnly = true)
     public boolean canMessage(User a, User b) {
         if (a.getId().equals(b.getId())) return false;
+        // L'administration peut écrire à tout le monde, et chacun peut lui répondre
+        if (isStaff(a) || isStaff(b)) return true;
         if (hasRole(a, "STUDENT") && hasRole(b, "TEACHER")) {
             return enrollmentRepository.existsStudentTeacherLink(a.getId(), b.getId());
         }
@@ -194,6 +201,10 @@ public class MessageService {
             return enrollmentRepository.existsStudentTeacherLink(b.getId(), a.getId());
         }
         return false;
+    }
+
+    private static boolean isStaff(User u) {
+        return hasRole(u, "ADMIN") || hasRole(u, "SUPER_ADMIN");
     }
 
     private static boolean hasRole(User u, String role) {

@@ -36,6 +36,12 @@ public class StudentLearningController {
         return ResponseEntity.ok(learningService.completeLesson(lessonId, currentEmail()));
     }
 
+    /** Body : { "percent": 70 } — avancement réel d'une ressource (PDF, vidéo, audio, lien). */
+    @PutMapping("/resources/{resourceId}/progress")
+    public ResponseEntity<Map<String, Object>> resourceProgress(@PathVariable Long resourceId, @RequestBody Map<String, Integer> body) {
+        return ResponseEntity.ok(learningService.recordResourceProgress(resourceId, body.get("percent"), currentEmail()));
+    }
+
     @GetMapping("/assignments/{assignmentId}")
     public ResponseEntity<Map<String, Object>> assignment(@PathVariable Long assignmentId) {
         return ResponseEntity.ok(learningService.getAssignment(assignmentId, currentEmail()));

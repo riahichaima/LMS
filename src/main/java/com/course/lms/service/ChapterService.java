@@ -24,6 +24,9 @@ public class ChapterService {
     @Autowired
     private LessonService lessonService;
 
+    @Autowired
+    private ContentCleanupService contentCleanupService;
+
     public ChapterResponse createChapter(ChapterRequest request, String userEmail, boolean isAdmin) {
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
@@ -84,6 +87,7 @@ public class ChapterService {
             throw new RuntimeException("Non autorisé : ce chapitre appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
         }
 
+        contentCleanupService.beforeDeletingChapter(chapter);
         chapterRepository.delete(chapter);
     }
 

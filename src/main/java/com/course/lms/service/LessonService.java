@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 public class LessonService {
 
     @Autowired
+    private ContentCleanupService contentCleanupService;
+
+    @Autowired
     private LessonRepository lessonRepository;
 
     @Autowired
@@ -120,6 +123,7 @@ public class LessonService {
             throw new RuntimeException("Non autorisé : cette leçon appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
         }
 
+        contentCleanupService.beforeDeletingLessons(java.util.List.of(lesson));
         lessonRepository.delete(lesson);
     }
 

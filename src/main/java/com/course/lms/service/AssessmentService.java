@@ -54,6 +54,9 @@ public class AssessmentService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private AssessmentScheduleService scheduleService;
+
     public AssessmentService(@Qualifier("lmsAiWebClient") WebClient webClient) {
         this.webClient = webClient;
     }
@@ -63,6 +66,26 @@ public class AssessmentService {
      * Generates 3 versions for each difficulty level: BEGINNER, INTERMEDIATE, ADVANCED
      */
     public AssessmentGenerationResponse generateAssessments(AssessmentGenerationRequest request) {
+        return generateAssessments(request, null);
+    }
+
+    /** teacherEmail : si renseigné, les chapitres doivent appartenir aux cours de cet enseignant. */
+    public AssessmentGenerationResponse generateAssessments(AssessmentGenerationRequest request, String teacherEmail) {
+        if (request.getChapterIds() == null || request.getChapterIds().isEmpty()) {
+            throw new IllegalArgumentException("Choisissez au moins un chapitre.");
+        }
+        if (teacherEmail != null) {
+            User teacher = userRepository.findByEmail(teacherEmail).orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+            for (Long chapterId : request.getChapterIds()) {
+                Chapter ch = chapterRepository.findById(chapterId).orElseThrow(() -> new IllegalArgumentException("Chapitre introuvable."));
+                if (ch.getCourse().getTeacher() == null || !ch.getCourse().getTeacher().getId().equals(teacher.getId())) {
+                    throw new SecurityException("Ce chapitre appartient au cours d'un autre enseignant.");
+                }
+            }
+        }
+        // Règles de rendu vérifiées avant d'appeler l'IA (pas de génération inutile)
+        scheduleService.validateForFile(request.getDueAt(), request.getQuizDurationMinutes());
+        scheduleService.validateForFile(request.getDueAt(), request.getAssignmentDurationMinutes());
         try {
             AssessmentGenerationResponse response = new AssessmentGenerationResponse();
             response.setGeneratedQuizzes(new ArrayList<>());
@@ -150,6 +173,8 @@ public class AssessmentService {
 
             // Niveaux pour lesquels le modèle n'a rien produit (échec ou timeout) : rien n'est enregistré
             List<String> failed = new ArrayList<>();
+            List<Quiz> savedQuizzes = new ArrayList<>();
+            List<Assignment> savedAssignments = new ArrayList<>();
 
             if (generateQuiz && aiResult.containsKey("quizzes")) {
                 List<Map<String, Object>> quizzes = (List<Map<String, Object>>) aiResult.get("quizzes");
@@ -160,7 +185,7 @@ public class AssessmentService {
                         continue;
                     }
                     Quiz quiz = new Quiz();
-                    quiz.setTitle((String) quizData.get("title"));
+                    quiz.setTitle(scopedTitle("Quiz", (String) quizData.get("difficulty_level"), selectedChapters));
                     quiz.setDifficultyLevel(parseDifficultyLevel((String) quizData.get("difficulty_level")));
                     quiz.setQuestionCount((Integer) quizData.get("question_count"));
                     quiz.setTimeLimitMinutes((Integer) quizData.get("time_limit_minutes"));
@@ -175,6 +200,7 @@ public class AssessmentService {
                     }
                     
                     Quiz savedQuiz = quizRepository.save(quiz);
+                    savedQuizzes.add(savedQuiz);
 
                     // Save questions
                     if (quizData.containsKey("questions")) {
@@ -225,7 +251,7 @@ public class AssessmentService {
                         continue;
                     }
                     Assignment assignment = new Assignment();
-                    assignment.setTitle((String) assignmentData.get("title"));
+                    assignment.setTitle(scopedTitle("TP", (String) assignmentData.get("difficulty_level"), selectedChapters));
                     assignment.setDifficultyLevel(parseDifficultyLevel((String) assignmentData.get("difficulty_level")));
                     assignment.setExerciseCount((Integer) assignmentData.get("exercise_count"));
                     assignment.setTimeLimitHours((Integer) assignmentData.get("time_limit_hours"));
@@ -241,6 +267,7 @@ public class AssessmentService {
                     }
                     
                     Assignment savedAssignment = assignmentRepository.save(assignment);
+                    savedAssignments.add(savedAssignment);
 
                     // Add to response
                     AssessmentGenerationResponse.GeneratedAssignment genAssignment = new AssessmentGenerationResponse.GeneratedAssignment();
@@ -254,6 +281,10 @@ public class AssessmentService {
 
             boolean anyGenerated = !response.getGeneratedQuizzes().isEmpty() || !response.getGeneratedAssignments().isEmpty();
             response.setSuccess(anyGenerated);
+            // Date limite et durée choisies par l'enseignant, puis notification des étudiants inscrits
+            scheduleService.applyAfterGeneration(selectedChapters.isEmpty() ? null : selectedChapters.get(0).getCourse(),
+                    savedQuizzes, savedAssignments, request.getDueAt(),
+                    request.getQuizDurationMinutes(), request.getAssignmentDurationMinutes());
             if (failed.isEmpty()) {
                 response.setMessage("Assessments generated successfully");
             } else if (anyGenerated) {
@@ -300,6 +331,9 @@ public class AssessmentService {
             dto.put("createdAt", assignment.getCreatedAt());
             dto.put("statement", assignment.getDescription());
             dto.put("expectedSolution", assignment.getExpectedSolution());
+            dto.put("generatedByAi", !Boolean.FALSE.equals(assignment.getGeneratedByAi()));
+            dto.put("dueAt", assignment.getDueAt());
+            dto.put("durationMinutes", assignment.getDurationMinutes());
             assignments.add(dto);
         }
         assignments.sort((a, b) -> Long.compare((Long) b.get("id"), (Long) a.get("id")));
@@ -736,6 +770,11 @@ public class AssessmentService {
      */
     @org.springframework.scheduling.annotation.Async("aiTaskExecutor")
     public CompletableFuture<SubmissionCorrectionResponse> correctQuizSubmissionAsync(Long quizId, Long studentId, String studentAnswers) {
+        return CompletableFuture.completedFuture(gradeQuiz(quizId, studentId, studentAnswers));
+    }
+
+    /** Corrige et enregistre une copie de quiz (aussi utilisé pour l'envoi automatique à la fin du temps). */
+    public SubmissionCorrectionResponse gradeQuiz(Long quizId, Long studentId, String studentAnswers) {
         try {
             Quiz quiz = quizRepository.findById(quizId)
                     .orElseThrow(() -> new RuntimeException("Quiz not found"));
@@ -789,13 +828,34 @@ public class AssessmentService {
             response.setDetailedExplanation(submission.getDetailedExplanation());
             response.setRecommendedLevel((String) aiResult.get("recommended_level"));
 
-            return CompletableFuture.completedFuture(response);
+            return response;
 
         } catch (Exception e) {
             SubmissionCorrectionResponse errorResponse = new SubmissionCorrectionResponse();
             errorResponse.setSuccess(false);
-            return CompletableFuture.completedFuture(errorResponse);
+            return errorResponse;
         }
+    }
+
+    // « Quiz Débutant · Chapitre 2 » ou « TP Avancé · Tout le cours » selon le contenu choisi
+    private String scopedTitle(String kind, String level, List<Chapter> chapters) {
+        String label = switch (level == null ? "" : level.toUpperCase()) {
+            case "BEGINNER" -> "Débutant";
+            case "INTERMEDIATE" -> "Intermédiaire";
+            case "ADVANCED" -> "Avancé";
+            default -> level == null ? "" : level;
+        };
+        if (chapters.isEmpty()) return kind + " " + label;
+        String scope;
+        if (chapters.size() == 1) {
+            scope = chapters.get(0).getTitle();
+        } else {
+            Course course = chapters.get(0).getCourse();
+            int total = chapterRepository.findByCourseIdOrderByOrderIndexAsc(course.getId()).size();
+            scope = chapters.size() >= total ? "Tout le cours" : chapters.size() + " chapitres";
+        }
+        String title = kind + " " + label + " · " + scope;
+        return title.length() > 250 ? title.substring(0, 250) : title;
     }
 
     /**
@@ -941,6 +1001,9 @@ public class AssessmentService {
         if (quiz.getChapter() != null) {
             response.setChapterTitle(quiz.getChapter().getTitle());
         }
+        response.setGeneratedByAi(!Boolean.FALSE.equals(quiz.getGeneratedByAi()));
+        response.setDueAt(quiz.getDueAt());
+        response.setDurationMinutes(quiz.getDurationMinutes());
 
         List<Question> questions = questionRepository.findByQuizIdOrderByQuestionOrderAsc(quizId);
         List<com.course.lms.dto.QuizDetailResponse.QuestionDetail> questionDtos = new ArrayList<>();

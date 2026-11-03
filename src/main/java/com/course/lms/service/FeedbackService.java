@@ -64,6 +64,11 @@ public class FeedbackService {
         if (existing.isPresent()) rating.setUpdatedAt(LocalDateTime.now());
         ratingRepository.save(rating);
 
+        if (changed) {
+            notificationService.notifyStaff("⭐ Avis sur un cours : " + request.stars() + "/5",
+                    student.getName() + " a noté « " + course.getTitle() + " »" + (comment != null ? " : « " + comment + " »" : "."),
+                    "ADMIN_FEEDBACK", course.getId());
+        }
         if (changed && course.getTeacher() != null) {
             notificationService.sendNotification(course.getTeacher(),
                     (existing.isEmpty() ? "Nouvelle note : " : "Note modifiée : ") + stars(request.stars()) + " (" + request.stars() + "/5)",
@@ -127,6 +132,9 @@ public class FeedbackService {
         teacherRatingRepository.save(rating);
 
         if (changed) {
+            notificationService.notifyStaff("🎯 Évaluation d'un enseignant : " + request.percent() + " %",
+                    student.getName() + " a évalué " + teacher.getName() + (comment != null ? " : « " + comment + " »" : "."),
+                    "ADMIN_FEEDBACK", teacher.getId());
             notificationService.sendNotification(teacher,
                     (existing.isEmpty() ? "🎯 Nouvelle évaluation : " : "🎯 Évaluation modifiée : ") + request.percent() + " %",
                     student.getName() + " vous a évalué à " + request.percent() + " %"
@@ -182,6 +190,8 @@ public class FeedbackService {
                     like ? "👍 Cours apprécié" : "👎 Cours pas apprécié",
                     student.getName() + (like ? " aime " : " n'aime pas ") + "votre cours « " + course.getTitle() + " ».",
                     "REACTION", course.getId());
+            if (!like) notificationService.notifyStaff("👎 Cours pas apprécié",
+                    student.getName() + " n'aime pas le cours « " + course.getTitle() + " ».", "ADMIN_FEEDBACK", course.getId());
         }
         return courseReactionSummary(course, student);
     }
@@ -265,6 +275,8 @@ public class FeedbackService {
                     like ? "👍 Contenu apprécié" : "👎 Contenu pas apprécié",
                     student.getName() + (like ? " aime " : " n'aime pas ") + "« " + resourceTitle(resource) + " » (" + course.getTitle() + ").",
                     "REACTION", course.getId());
+            if (!like) notificationService.notifyStaff("👎 Contenu pas apprécié",
+                    student.getName() + " n'aime pas « " + resourceTitle(resource) + " » (" + course.getTitle() + ").", "ADMIN_FEEDBACK", course.getId());
         }
         return resourceReactionSummary(resource, student);
     }
@@ -463,6 +475,8 @@ public class FeedbackService {
     // ── Notifications ───────────────────────────────────────────
 
     private void notifyTeacherOfComment(Course course, User author, String where, String content) {
+        notificationService.notifyStaff("💬 Nouveau commentaire de " + author.getName(),
+                "Sur " + where + " : « " + content + " »", "ADMIN_FEEDBACK", course.getId());
         if (course.getTeacher() == null) return;
         notificationService.sendNotification(course.getTeacher(), "💬 Nouveau commentaire de " + author.getName(),
                 "Sur " + where + " : « " + content + " »", "COMMENT", course.getId());

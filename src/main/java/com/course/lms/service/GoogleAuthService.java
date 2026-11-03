@@ -182,6 +182,9 @@ public class GoogleAuthService {
             throw new AdminApprovalException("ADMIN_PENDING",
                     "Votre demande de compte administrateur a été envoyée : le super administrateur doit la valider.");
         }
+        notificationService.notifyStaff("👤 Nouvel utilisateur : " + name,
+                name + " (" + email + ") a créé un compte " + ("TEACHER".equals(roleName) ? "enseignant" : "étudiant") + " avec Google.",
+                "ADMIN_USER", user.getId());
         if ("TEACHER".equals(roleName)) {
             notificationService.notifyRole("STUDENT", "🎓 Nouveau formateur : " + name,
                     name + " rejoint la plateforme. Découvrez bientôt ses cours !", "NEW_TEACHER", user.getId());

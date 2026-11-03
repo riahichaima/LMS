@@ -14,6 +14,18 @@ public class AssessmentGenerationRequest {
     // Types de ressources à utiliser (PDF, VIDEO, AUDIO, YOUTUBE_VIDEO, WEB_PAGE, TEXT). Vide = toutes.
     private List<String> resourceTypes;
 
+    // Rendu : date limite commune et temps de travail (minutes) des quiz / TP générés. Null = sans limite.
+    private java.time.Instant dueAt;
+    private Integer quizDurationMinutes;
+    private Integer assignmentDurationMinutes;
+
+    public java.time.Instant getDueAt() { return dueAt; }
+    public void setDueAt(java.time.Instant dueAt) { this.dueAt = dueAt; }
+    public Integer getQuizDurationMinutes() { return quizDurationMinutes; }
+    public void setQuizDurationMinutes(Integer quizDurationMinutes) { this.quizDurationMinutes = quizDurationMinutes; }
+    public Integer getAssignmentDurationMinutes() { return assignmentDurationMinutes; }
+    public void setAssignmentDurationMinutes(Integer assignmentDurationMinutes) { this.assignmentDurationMinutes = assignmentDurationMinutes; }
+
     public AssessmentGenerationRequest() {}
 
     public List<String> getResourceTypes() { return resourceTypes; }

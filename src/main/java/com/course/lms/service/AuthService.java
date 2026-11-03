@@ -106,6 +106,11 @@ public class AuthService {
                     "ADMIN_REQUEST", savedUser.getId());
         }
 
+        if ("STUDENT".equals(roleName) || "TEACHER".equals(roleName)) {
+            notificationService.notifyStaff("👤 Nouvel utilisateur : " + savedUser.getName(),
+                    savedUser.getName() + " (" + savedUser.getEmail() + ") a créé un compte " + ("TEACHER".equals(roleName) ? "enseignant" : "étudiant") + ".",
+                    "ADMIN_USER", savedUser.getId());
+        }
         sendVerificationToken(savedUser);
 
         UserResponse response = new UserResponse();

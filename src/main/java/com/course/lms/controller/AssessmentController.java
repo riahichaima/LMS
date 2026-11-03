@@ -22,6 +22,12 @@ public class AssessmentController {
     @Autowired
     private com.course.lms.service.CourseAccessService courseAccessService;
 
+    @Autowired
+    private com.course.lms.service.AssessmentScheduleService scheduleService;
+
+    @Autowired
+    private com.course.lms.repository.UserRepository userRepository;
+
     /**
      * Generate assessments (Quiz and/or Assignment) for selected chapters
      * Teacher only endpoint
@@ -29,8 +35,9 @@ public class AssessmentController {
     @PostMapping("/generate")
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<AssessmentGenerationResponse> generateAssessments(
-            @RequestBody AssessmentGenerationRequest request) {
-        return ResponseEntity.ok(assessmentService.generateAssessments(request));
+            @RequestBody AssessmentGenerationRequest request,
+            org.springframework.security.core.Authentication auth) {
+        return ResponseEntity.ok(assessmentService.generateAssessments(request, auth.getName()));
     }
 
     @PostMapping("/generate-quiz")
@@ -93,10 +100,24 @@ public class AssessmentController {
     @PreAuthorize("hasRole('STUDENT')")
     public CompletableFuture<ResponseEntity<SubmissionCorrectionResponse>> submitQuiz(
             @PathVariable Long quizId,
-            @RequestParam Long studentId,
-            @RequestBody String studentAnswers) {
-        return assessmentService.correctQuizSubmissionAsync(quizId, studentId, studentAnswers)
-                .thenApply(response -> ResponseEntity.ok(response));
+            @RequestParam(required = false) Long studentId,
+            @RequestBody String studentAnswers,
+            org.springframework.security.core.Authentication auth) {
+        // L'étudiant est celui du jeton (le paramètre studentId n'est plus utilisé pour l'identité)
+        com.course.lms.model.User student = userRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        if (studentId != null && !studentId.equals(student.getId())) {
+            throw new SecurityException("Tu ne peux rendre un quiz que pour toi-même.");
+        }
+        courseAccessService.requireQuizAccess(quizId);
+        // Date limite / chrono : après la fin du temps, ce sont les réponses enregistrées qui sont corrigées
+        String answers = scheduleService.beginSubmission(student, "QUIZ", quizId, studentAnswers);
+        Long sid = student.getId();
+        return assessmentService.correctQuizSubmissionAsync(quizId, sid, answers)
+                .thenApply(response -> {
+                    if (Boolean.TRUE.equals(response.getSuccess())) scheduleService.markSubmitted(sid, "QUIZ", quizId, false);
+                    return ResponseEntity.ok(response);
+                });
     }
 
     /**
@@ -127,8 +148,11 @@ public class AssessmentController {
      * Student view quiz WITHOUT correct answers
      */
     @GetMapping("/quizzes/{quizId}/view")
-    public ResponseEntity<com.course.lms.dto.QuizStudentResponse> viewQuizForStudent(@PathVariable Long quizId) {
+    public ResponseEntity<com.course.lms.dto.QuizStudentResponse> viewQuizForStudent(@PathVariable Long quizId,
+            org.springframework.security.core.Authentication auth) {
         courseAccessService.requireQuizAccess(quizId);
+        // Quiz minuté : les questions ne sont visibles qu'une fois le chrono lancé
+        userRepository.findByEmail(auth.getName()).ifPresent(u -> scheduleService.requireStartedIfTimed(u, "QUIZ", quizId));
         return ResponseEntity.ok(assessmentService.getQuizForStudent(quizId));
     }
 

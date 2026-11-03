@@ -49,6 +49,15 @@ public class NotificationService {
                 .forEach(u -> sendNotification(u, title, message, type, relatedId));
     }
 
+    /** Notifie toute l'administration : administrateurs et super administrateur. */
+    @Transactional
+    public void notifyStaff(String title, String message, String type, Long relatedId) {
+        userRepository.findAll().stream()
+                .filter(u -> u.getRole() != null && ("ADMIN".equals(u.getRole().getName()) || "SUPER_ADMIN".equals(u.getRole().getName())))
+                .filter(u -> !"PENDING".equals(u.getApprovalStatus()))
+                .forEach(u -> sendNotification(u, title, message, type, relatedId));
+    }
+
     /**
      * Push WebSocket après le commit de la transaction en cours : le client qui recharge
      * ses données en recevant l'événement voit bien la ligne enregistrée.

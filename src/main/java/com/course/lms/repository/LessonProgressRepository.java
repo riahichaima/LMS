@@ -11,6 +11,11 @@ public interface LessonProgressRepository extends JpaRepository<LessonProgress, 
 
     boolean existsByStudentIdAndLessonId(Long studentId, Long lessonId);
 
+    /** Avant la suppression de leçons (la clé étrangère des anciennes bases n'est pas en cascade). */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("delete from LessonProgress lp where lp.lesson.id in :lessonIds")
+    void deleteByLessonIds(@Param("lessonIds") java.util.Collection<Long> lessonIds);
+
     long countByStudentIdAndCourseId(Long studentId, Long courseId);
 
     @Query("select lp.lesson.id from LessonProgress lp where lp.student.id = :studentId and lp.courseId = :courseId")

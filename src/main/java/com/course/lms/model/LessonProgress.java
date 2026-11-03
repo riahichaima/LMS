@@ -21,6 +21,7 @@ public class LessonProgress {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lesson_id", nullable = false)
+    @org.hibernate.annotations.OnDelete(action = org.hibernate.annotations.OnDeleteAction.CASCADE)
     private Lesson lesson;
 
     @Column(name = "course_id", nullable = false)

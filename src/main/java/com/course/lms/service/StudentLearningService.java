@@ -33,6 +33,12 @@ public class StudentLearningService {
     @Autowired private SubmissionRepository submissionRepository;
     @Autowired private LessonProgressRepository lessonProgressRepository;
     @Autowired private CourseService courseService;
+    @Autowired private CourseProgressService progressService;
+    @Autowired private AssessmentFileService assessmentFileService;
+    @Autowired private LessonResourceRepository lessonResourceRepository;
+    @Autowired private AssessmentFileRepository assessmentFileRepository;
+    @Autowired private AssessmentFileSubmissionRepository assessmentFileSubmissionRepository;
+    @Autowired private AssessmentScheduleService scheduleService;
 
     @Autowired
     public StudentLearningService(@Qualifier("lmsAiWebClient") WebClient webClient) {
@@ -59,6 +65,7 @@ public class StudentLearningService {
                 m.put("difficultyLevel", q.getDifficultyLevel().toString());
                 m.put("questionCount", q.getQuestionCount());
                 m.put("bestScore", bestScore(submissionRepository.findByStudentIdAndQuizId(student.getId(), q.getId())));
+                m.put("schedule", scheduleService.summary(student, AssessmentAttempt.QUIZ, q.getId(), q.getDueAt(), q.getDurationMinutes()));
                 return m;
             }).toList());
             item.put("assignments", assignmentRepository.findByChapterId(chapter.getId()).stream().map(a -> {
@@ -68,17 +75,25 @@ public class StudentLearningService {
                 m.put("difficultyLevel", a.getDifficultyLevel().toString());
                 m.put("exerciseCount", a.getExerciseCount());
                 m.put("bestScore", bestScore(submissionRepository.findByStudentIdAndAssignmentId(student.getId(), a.getId())));
+                m.put("schedule", scheduleService.summary(student, AssessmentAttempt.TP, a.getId(), a.getDueAt(), a.getDurationMinutes()));
                 return m;
             }).toList());
             chapterAssessments.add(item);
         }
 
+        Course entity = courseRepository.findById(courseId).orElseThrow(() -> new RuntimeException("Cours non trouvé"));
+        CourseProgressService.Snapshot progress = progressService.refresh(student, entity, enrollment);
+
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("course", course);
         view.put("enrollmentId", enrollment.getId());
-        view.put("progressPercentage", enrollment.getProgressPercentage());
-        view.put("completedLessonIds", lessonProgressRepository.findCompletedLessonIds(student.getId(), courseId));
+        view.put("progressPercentage", progress.coursePercent());
+        view.put("completedLessonIds", new ArrayList<>(progress.completedLessons()));
+        view.put("lessonProgress", progress.lessons());
+        view.put("resourceProgress", progress.resources());
         view.put("assessments", chapterAssessments);
+        view.put("files", assessmentFileService.courseFiles(student, courseId));
+        view.put("serverNow", java.time.Instant.now());
         return view;
     }
 
@@ -94,21 +109,27 @@ public class StudentLearningService {
             lessonProgressRepository.save(new LessonProgress(student, lesson, course.getId()));
         }
 
-        int total = countLessons(course);
-        long done = lessonProgressRepository.countByStudentIdAndCourseId(student.getId(), course.getId());
-        int percentage = total == 0 ? 0 : (int) Math.min(100, Math.round(done * 100.0 / total));
-        enrollment.setProgressPercentage(percentage);
-        enrollment.setLastAccessedAt(LocalDateTime.now());
-        if (percentage >= 100 && !Boolean.TRUE.equals(enrollment.getIsCompleted())) {
-            enrollment.setIsCompleted(true);
-            enrollment.setCompletedAt(LocalDateTime.now());
-        }
-        enrollmentRepository.save(enrollment);
+        return progressResult(progressService.refresh(student, course, enrollment), enrollment);
+    }
 
+    /** Avancement mesuré d'une ressource (pages PDF vues, part de vidéo / audio, lien ouvert). */
+    public Map<String, Object> recordResourceProgress(Long resourceId, Integer percent, String email) {
+        User student = findStudent(email);
+        LessonResource resource = lessonResourceRepository.findById(resourceId)
+                .orElseThrow(() -> new IllegalArgumentException("Ressource introuvable"));
+        Course course = resource.getLesson().getChapter().getCourse();
+        Enrollment enrollment = requireEnrollment(student, course.getId());
+        if (percent == null) throw new IllegalArgumentException("Pourcentage manquant");
+        return progressResult(progressService.recordResource(student, resource, enrollment, percent), enrollment);
+    }
+
+    private Map<String, Object> progressResult(CourseProgressService.Snapshot progress, Enrollment enrollment) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("progressPercentage", percentage);
-        result.put("completedLessonIds", lessonProgressRepository.findCompletedLessonIds(student.getId(), course.getId()));
-        result.put("isCompleted", enrollment.getIsCompleted());
+        result.put("progressPercentage", progress.coursePercent());
+        result.put("completedLessonIds", new ArrayList<>(progress.completedLessons()));
+        result.put("lessonProgress", progress.lessons());
+        result.put("resourceProgress", progress.resources());
+        result.put("isCompleted", Boolean.TRUE.equals(enrollment.getIsCompleted()));
         return result;
     }
 
@@ -121,6 +142,8 @@ public class StudentLearningService {
                 .orElseThrow(() -> new RuntimeException("TP non trouvé"));
         Course course = assignment.getLesson().getChapter().getCourse();
         requireEnrollment(student, course.getId());
+        // TP minuté : l'énoncé n'est visible qu'une fois le chrono lancé
+        scheduleService.requireStartedIfTimed(student, AssessmentAttempt.TP, assignmentId);
 
         Map<String, Object> view = assignmentView(assignment, course);
         submissionRepository.findByStudentIdAndAssignmentId(student.getId(), assignmentId).stream()
@@ -132,14 +155,31 @@ public class StudentLearningService {
     /** Soumet la réponse de l'étudiant, la fait corriger par l'IA et renvoie la correction complète. */
     @SuppressWarnings("unchecked")
     public Map<String, Object> submitAssignment(Long assignmentId, String answer, String email) {
-        if (answer == null || answer.isBlank()) {
-            throw new IllegalArgumentException("La réponse est vide.");
-        }
         User student = findStudent(email);
         Assignment assignment = assignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new RuntimeException("TP non trouvé"));
         Course course = assignment.getLesson().getChapter().getCourse();
         requireEnrollment(student, course.getId());
+        // Date limite / chrono : après la fin du temps, c'est la réponse enregistrée qui est corrigée
+        String effective = scheduleService.beginSubmission(student, AssessmentAttempt.TP, assignmentId, answer);
+        if (effective == null || effective.isBlank()) {
+            throw new IllegalArgumentException("La réponse est vide.");
+        }
+        Map<String, Object> result = correctAndSave(assignment, student, effective);
+        scheduleService.markSubmitted(student.getId(), AssessmentAttempt.TP, assignmentId, false);
+        return result;
+    }
+
+    /** Fin du temps sans validation : la réponse enregistrée (même vide) est corrigée et notée. */
+    public Map<String, Object> autoSubmitAssignment(Long assignmentId, User student, String draft) {
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new IllegalArgumentException("TP non trouvé"));
+        String answer = draft == null || draft.isBlank() ? "(Aucune réponse rendue avant la fin du temps)" : draft;
+        return correctAndSave(assignment, student, answer);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> correctAndSave(Assignment assignment, User student, String answer) {
 
         String statement = notBlank(assignment.getDescription()) ? assignment.getDescription() : assignment.getTitle();
         Map<String, Object> payload = new HashMap<>();
@@ -188,9 +228,31 @@ public class StudentLearningService {
         int totalLessons = 0;
         long lessonsCompleted = 0;
         List<Map<String, Object>> courses = new ArrayList<>();
+        long quizzesTotal = 0, quizzesDone = 0, tpsTotal = 0, tpsDone = 0;
+        Set<Long> doneQuizIds = new HashSet<>();
+        Set<Long> doneAssignmentIds = new HashSet<>();
+        for (Submission s : submissions) {
+            if (s.getQuiz() != null) doneQuizIds.add(s.getQuiz().getId());
+            if (s.getAssignment() != null) doneAssignmentIds.add(s.getAssignment().getId());
+        }
+        Set<Long> doneFileIds = new HashSet<>();
+        for (AssessmentFileSubmission s : assessmentFileSubmissionRepository.findByStudentId(student.getId())) {
+            doneFileIds.add(s.getAssessmentFile().getId());
+        }
         for (Enrollment e : enrollments) {
             Course course = e.getCourse();
+            progressService.refresh(student, course, e);
             int courseLessons = countLessons(course);
+            long cq = 0, cqDone = 0, ct = 0, ctDone = 0;
+            for (Chapter ch : course.getChapters()) {
+                for (Quiz q : quizRepository.findByChapterId(ch.getId())) { cq++; if (doneQuizIds.contains(q.getId())) cqDone++; }
+                for (Assignment a : assignmentRepository.findByChapterId(ch.getId())) { ct++; if (doneAssignmentIds.contains(a.getId())) ctDone++; }
+            }
+            for (AssessmentFile f : assessmentFileRepository.findByCourseIdOrderByCreatedAtAscIdAsc(course.getId())) {
+                boolean done = doneFileIds.contains(f.getId());
+                if (AssessmentFile.QUIZ.equals(f.getType())) { cq++; if (done) cqDone++; } else { ct++; if (done) ctDone++; }
+            }
+            quizzesTotal += cq; quizzesDone += cqDone; tpsTotal += ct; tpsDone += ctDone;
             long done = lessonProgressRepository.countByStudentIdAndCourseId(student.getId(), course.getId());
             totalLessons += courseLessons;
             lessonsCompleted += done;
@@ -204,6 +266,10 @@ public class StudentLearningService {
             c.put("isCompleted", Boolean.TRUE.equals(e.getIsCompleted()));
             c.put("lessonsCompleted", done);
             c.put("totalLessons", courseLessons);
+            c.put("quizzesTotal", cq);
+            c.put("quizzesDone", cqDone);
+            c.put("tpsTotal", ct);
+            c.put("tpsDone", ctDone);
             c.put("quizAverage", averagePercent(courseSubs.stream().filter(s -> s.getQuiz() != null).toList()));
             c.put("assignmentAverage", averagePercent(courseSubs.stream().filter(s -> s.getAssignment() != null).toList()));
             c.put("enrolledAt", e.getEnrolledAt());
@@ -236,6 +302,10 @@ public class StudentLearningService {
         stats.put("assignmentsSubmitted", submissions.stream().filter(s -> s.getAssignment() != null).count());
         stats.put("quizAverage", averagePercent(submissions.stream().filter(s -> s.getQuiz() != null).toList()));
         stats.put("assignmentAverage", averagePercent(submissions.stream().filter(s -> s.getAssignment() != null).toList()));
+        stats.put("quizzesTotal", quizzesTotal);
+        stats.put("quizzesDone", quizzesDone);
+        stats.put("tpsTotal", tpsTotal);
+        stats.put("tpsDone", tpsDone);
         stats.put("courses", courses);
         stats.put("recentResults", recent);
         return stats;

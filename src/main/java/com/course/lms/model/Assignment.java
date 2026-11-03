@@ -50,6 +50,14 @@ public class Assignment {
     
     @Column(name = "generated_by_ai", nullable = false)
     private Boolean generatedByAi = false;
+
+    // Date limite de rendu fixée par l'enseignant (null = sans date limite)
+    @Column(name = "due_at")
+    private java.time.Instant dueAt;
+
+    // Temps de travail une fois commencé, en minutes (null = non minuté)
+    @Column(name = "duration_minutes")
+    private Integer durationMinutes;
     
     @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Submission> submissions = new java.util.ArrayList<>();
@@ -103,6 +111,11 @@ public class Assignment {
     
     public Boolean getGeneratedByAi() { return generatedByAi; }
     public void setGeneratedByAi(Boolean generatedByAi) { this.generatedByAi = generatedByAi; }
+
+    public java.time.Instant getDueAt() { return dueAt; }
+    public void setDueAt(java.time.Instant dueAt) { this.dueAt = dueAt; }
+    public Integer getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     
     public List<Submission> getSubmissions() { return submissions; }
     public void setSubmissions(List<Submission> submissions) { this.submissions = submissions; }
