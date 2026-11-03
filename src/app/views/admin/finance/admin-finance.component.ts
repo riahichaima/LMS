@@ -14,13 +14,17 @@ import { IconDirective } from '@coreui/icons-angular';
 import { FinanceService, FinanceSummary, TeacherWalletView, WithdrawalStatus, WithdrawalView } from '../../../services/finance.service';
 import { PaymentStatus, PaymentView } from '../../../services/payment.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 // « Financial Management » : paiements, commissions, revenus des enseignants et retraits (simulés)
 @Component({
   selector: 'app-admin-finance',
   standalone: true,
   imports: [
     CommonModule, RowComponent, ColComponent, CardComponent, CardBodyComponent, TableDirective, BadgeComponent,
-    ButtonDirective, AlertComponent, IconDirective
+    ButtonDirective, AlertComponent, IconDirective,
+    PageHeaderComponent,
+    StatCardComponent
   ],
   templateUrl: './admin-finance.component.html'
 })

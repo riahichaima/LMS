@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import {
   CardComponent,
   CardBodyComponent,
-  CardHeaderComponent,
   ColComponent,
   RowComponent,
   TableDirective,
@@ -24,6 +23,7 @@ import { environment } from '../../../../environments/environment';
 import { CourseService, Course, Chapter, Lesson, LessonResource, ResourceType, PricingType } from '../../../services/course.service';
 import { AiService } from '../../../services/ai.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 @Component({
   selector: 'app-teacher-courses',
   standalone: true,
@@ -32,7 +32,6 @@ import { AiService } from '../../../services/ai.service';
     FormsModule,
     CardComponent,
     CardBodyComponent,
-    CardHeaderComponent,
     ColComponent,
     RowComponent,
     TableDirective,
@@ -46,7 +45,8 @@ import { AiService } from '../../../services/ai.service';
     ModalBodyComponent,
     ModalFooterComponent,
     FormControlDirective,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './teacher-courses.component.html'
 })

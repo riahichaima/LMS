@@ -1,0 +1,98 @@
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+
+  &__search { flex: 1 1 280px; }
+  &__select { flex: 0 0 190px; width: auto; }
+}
+
+.role-count {
+  min-width: 1.4rem;
+  padding: 0 .35rem;
+  border-radius: 999px;
+  background: rgba(var(--cui-secondary-rgb), .14);
+  font-size: .72rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.active .role-count { background: rgba(255, 255, 255, .25); }
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  min-width: 0;
+
+  &__text { min-width: 0; max-width: 360px; }
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cui-secondary-color);
+
+  &--on { background: var(--cui-success); }
+}
+
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .35rem;
+
+  .btn { display: inline-flex; align-items: center; gap: .3rem; }
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-top: 1rem;
+}
+
+// Mobile : chaque utilisateur devient une carte (libellés à gauche)
+@media (max-width: 768px) {
+  .toolbar__select { flex: 1 1 100%; }
+
+  .users-table {
+    thead { display: none; }
+
+    table, tbody, tr, td { display: block; width: 100%; }
+
+    tr {
+      padding: .75rem 0;
+      border-bottom: 1px solid var(--lms-border, var(--cui-border-color));
+    }
+
+    td {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      padding: .3rem 0 !important;
+      border: 0 !important;
+      text-align: left !important;
+
+      &::before {
+        content: attr(data-label);
+        flex-shrink: 0;
+        font-size: .72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--cui-secondary-color);
+      }
+
+      &[data-label="Utilisateur"]::before { display: none; }
+    }
+
+    .user-cell__text { max-width: 100%; }
+  }
+
+  .actions__label { display: none; }
+}

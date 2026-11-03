@@ -1,25 +1,25 @@
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
-  <div>
-    <h2 class="mb-0">Suivi pédagogique</h2>
-    <p class="text-body-secondary small mb-0">Progression de vos étudiants, notes aux quiz et TP, participation et export des résultats.</p>
-  </div>
-  <div class="d-flex flex-wrap gap-2 align-items-center" *ngIf="courses().length > 0">
-    <select class="form-select" style="min-width: 260px" aria-label="Cours à suivre"
+<app-page-header title="Suivi pédagogique" icon="cilChartLine"
+                 subtitle="Progression de vos étudiants, notes aux quiz et TP, participation et export des résultats.">
+  <ng-container *ngIf="courses().length > 0">
+    <select class="form-select tracking-select" aria-label="Cours à suivre"
             [ngModel]="selectedId()" (ngModelChange)="select($event)">
       <option *ngFor="let c of courses()" [ngValue]="c.courseId">{{ c.title }} ({{ c.students }} étudiant{{ c.students > 1 ? 's' : '' }})</option>
     </select>
-    <button cButton color="success" class="text-white" (click)="exportCsv()" [disabled]="!detail() || exporting()">
-      <svg cIcon name="cilCloudDownload" class="me-1"></svg>{{ exporting() ? 'Export…' : 'Exporter les résultats (CSV)' }}
+    <button type="button" class="btn btn-primary" (click)="exportCsv()" [disabled]="!detail() || exporting()">
+      <svg cIcon name="cilCloudDownload" class="me-1"></svg>{{ exporting() ? 'Export…' : 'Exporter (CSV)' }}
     </button>
-  </div>
-</div>
+  </ng-container>
+</app-page-header>
 
 <div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
 <c-alert *ngIf="error()" color="danger">{{ error() }}</c-alert>
 
 <c-card *ngIf="!loading() && courses().length === 0">
-  <c-card-body class="text-center text-body-secondary py-5">
-    Vous n'avez encore aucun cours. <a routerLink="/teacher/courses">Créer un cours dans le studio</a>
+  <c-card-body>
+    <app-empty-state icon="cilChartLine" title="Vous n'avez encore aucun cours"
+                     text="Le suivi de vos étudiants apparaîtra ici dès votre première formation.">
+      <a class="btn btn-primary btn-sm" routerLink="/teacher/courses">Créer un cours dans le studio</a>
+    </app-empty-state>
   </c-card-body>
 </c-card>
 

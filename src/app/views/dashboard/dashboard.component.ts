@@ -6,11 +6,7 @@ import {
   CardComponent,
   CardBodyComponent,
   CardHeaderComponent,
-  ColComponent,
-  RowComponent,
-  ButtonDirective,
   BadgeComponent,
-  TableDirective,
   ProgressComponent,
   SpinnerComponent
 } from '@coreui/angular';
@@ -19,6 +15,9 @@ import { AuthService, User } from '../../services/auth.service';
 import { AdminService, AdminStatistics, UserWithRoleDetails } from '../../services/admin.service';
 import { LearningService, StudentStatistics } from '../../services/learning.service';
 import { TrackingOverview, TrackingService, scoreColor } from '../../services/tracking.service';
+import { StatCardComponent } from '../../shared/ui/stat-card.component';
+import { EmptyStateComponent } from '../../shared/ui/empty-state.component';
+import { RoleLabelPipe, RoleTonePipe } from '../../shared/ui/labels';
 
 @Component({
   selector: 'app-dashboard',
@@ -29,17 +28,18 @@ import { TrackingOverview, TrackingService, scoreColor } from '../../services/tr
     CardComponent,
     CardBodyComponent,
     CardHeaderComponent,
-    ColComponent,
-    RowComponent,
-    ButtonDirective,
     BadgeComponent,
-    TableDirective,
     ProgressComponent,
     AlertComponent,
     SpinnerComponent,
-    IconDirective
+    IconDirective,
+    StatCardComponent,
+    EmptyStateComponent,
+    RoleLabelPipe,
+    RoleTonePipe
   ],
-  templateUrl: './dashboard.component.html'
+  templateUrl: './dashboard.component.html',
+  styleUrl: './dashboard.component.scss'
 })
 export class DashboardComponent implements OnInit {
   currentUser: User | null = null;

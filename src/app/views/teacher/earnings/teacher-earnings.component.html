@@ -1,14 +1,12 @@
+<app-page-header title="Mes revenus" icon="cilWallet"
+                 subtitle="Vous recevez 60 % de chaque vente confirmée. Portefeuille et retraits simulés (mode test).">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <h4 class="mb-1">My Earnings</h4>
-        <span class="text-body-secondary small">Vous recevez 60 % de chaque vente confirmée. Portefeuille et retraits simulés (mode test).</span>
-      </div>
-      <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
-        <svg cIcon name="cilReload"></svg>
-      </button>
-    </div>
 
     <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
     <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
@@ -16,40 +14,15 @@
 
     <ng-container *ngIf="data() as d">
       <!-- Indicateurs -->
-      <c-row class="mb-2">
-        <c-col sm="6" xl class="mb-3">
-          <c-card class="h-100"><c-card-body>
-            <div class="text-body-secondary small">Total Sales</div>
-            <div class="fs-3 fw-bold">{{ d.totalSales }}</div>
-            <div class="small text-body-secondary">{{ d.totalRevenue | currency:'USD' }} encaissés</div>
-          </c-card-body></c-card>
-        </c-col>
-        <c-col sm="6" xl class="mb-3">
-          <c-card class="h-100"><c-card-body>
-            <div class="text-body-secondary small">Total Earnings</div>
-            <div class="fs-3 fw-bold text-primary">{{ d.totalEarnings | currency:'USD' }}</div>
-          </c-card-body></c-card>
-        </c-col>
-        <c-col sm="6" xl class="mb-3">
-          <c-card class="h-100 border-success"><c-card-body>
-            <div class="text-body-secondary small">Available Balance</div>
-            <div class="fs-3 fw-bold text-success">{{ d.availableBalance | currency:'USD' }}</div>
-          </c-card-body></c-card>
-        </c-col>
-        <c-col sm="6" xl class="mb-3">
-          <c-card class="h-100"><c-card-body>
-            <div class="text-body-secondary small">Pending Balance</div>
-            <div class="fs-3 fw-bold text-warning">{{ d.pendingBalance | currency:'USD' }}</div>
-            <div class="small text-body-secondary">retraits en cours</div>
-          </c-card-body></c-card>
-        </c-col>
-        <c-col sm="6" xl class="mb-3">
-          <c-card class="h-100"><c-card-body>
-            <div class="text-body-secondary small">Total Withdrawn</div>
-            <div class="fs-3 fw-bold">{{ d.totalWithdrawn | currency:'USD' }}</div>
-          </c-card-body></c-card>
-        </c-col>
-      </c-row>
+      <div class="stat-grid stat-grid--5 mb-4">
+        <app-stat-card label="Ventes" icon="cilCreditCard" tone="neutral" [value]="d.totalSales"
+                       [hint]="(d.totalRevenue | currency:'USD') + ' encaissés'" />
+        <app-stat-card label="Gains totaux" icon="cilDollar" tone="primary" [value]="d.totalEarnings | currency:'USD'" hint="60 % des ventes" />
+        <app-stat-card label="Solde disponible" icon="cilWallet" tone="success" [highlight]="true"
+                       [value]="d.availableBalance | currency:'USD'" hint="Retirable maintenant" />
+        <app-stat-card label="En attente" icon="cilClock" tone="warning" [value]="d.pendingBalance | currency:'USD'" hint="Retraits en cours" />
+        <app-stat-card label="Déjà retiré" icon="cilCash" tone="neutral" [value]="d.totalWithdrawn | currency:'USD'" />
+      </div>
 
       <c-row>
         <!-- Ventes par cours -->

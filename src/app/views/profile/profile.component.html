@@ -4,15 +4,16 @@
 
 <ng-container *ngIf="profile() as p">
   <!-- ═════════ Identité ═════════ -->
-  <c-card class="mb-4">
-    <c-card-body>
-      <div class="d-flex flex-wrap align-items-center gap-4">
-        <app-avatar [name]="p.name" [url]="p.avatarUrl" [size]="104" />
+  <c-card class="mb-4 profile-id">
+    <div class="profile-id__cover" aria-hidden="true"></div>
+    <c-card-body class="profile-id__body">
+      <div class="d-flex flex-wrap align-items-end gap-4">
+        <app-avatar class="profile-id__avatar" [name]="p.name" [url]="p.avatarUrl" [size]="104" />
 
         <div class="flex-grow-1">
           <h2 class="mb-1">{{ p.name }}</h2>
           <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
-            <c-badge [color]="p.role === 'TEACHER' ? 'primary' : p.role === 'STUDENT' ? 'info' : 'dark'">{{ roleLabels[p.role] || p.role }}</c-badge>
+            <span class="lms-pill" [ngClass]="p.role === 'TEACHER' ? 'lms-pill--warning' : p.role === 'STUDENT' ? 'lms-pill--primary' : 'lms-pill--dark'">{{ roleLabels[p.role] || p.role }}</span>
             <span class="small text-body-secondary" *ngIf="p.memberSince; else noDate">
               Membre {{ seniority(p.memberSince) }} · inscrit le {{ p.memberSince | date:'dd/MM/yyyy' }}
             </span>

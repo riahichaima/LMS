@@ -1,12 +1,13 @@
+<app-page-header title="Mes cours & studio" icon="cilBook"
+                 subtitle="Créez vos formations en chapitres et leçons, ajoutez vos supports et publiez-les.">
+  <button type="button" class="btn btn-primary" (click)="openCreateModal()">
+    <svg cIcon name="cilPlus" class="me-1"></svg>Nouveau cours
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
     <c-card class="mb-4">
-      <c-card-header class="d-flex justify-content-between align-items-center">
-        <strong><svg cIcon name="cilBook" class="me-2"></svg>Studio de Création des Cours (Enseignant)</strong>
-        <button cButton color="success" class="text-white" (click)="openCreateModal()">
-          <svg cIcon name="cilPlus" class="me-1"></svg> Créer un Nouveau Cours
-        </button>
-      </c-card-header>
       <c-card-body>
         <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
           {{ errorMessage() }}
@@ -113,7 +114,7 @@
       </button>
     </div>
 
-    <div *ngFor="let chap of chapters; let chapIdx = index" class="border rounded p-3 mb-3 bg-light">
+    <div *ngFor="let chap of chapters; let chapIdx = index" class="border rounded p-3 mb-3 bg-body-tertiary">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h6 class="text-primary fw-bold mb-0">Chapitre {{ chapIdx + 1 }}</h6>
         <button cButton color="danger" variant="ghost" size="sm" (click)="removeChapter(chapIdx)">
@@ -139,7 +140,7 @@
           </button>
         </div>
 
-        <div *ngFor="let les of chap.lessons; let lesIdx = index" class="border rounded p-2 mb-2 bg-white">
+        <div *ngFor="let les of chap.lessons; let lesIdx = index" class="border rounded p-2 mb-2 bg-body">
           <div class="d-flex justify-content-between align-items-center mb-1">
             <strong>Leçon {{ chapIdx + 1 }}.{{ lesIdx + 1 }}</strong>
             <button cButton color="danger" variant="ghost" size="sm" (click)="removeLesson(chap, lesIdx)">
@@ -164,7 +165,7 @@
                       (click)="addResource(les, rt.type)">+ {{ rt.label }}</button>
             </div>
 
-            <div *ngFor="let res of les.resources; let resIdx = index" class="mt-2 border rounded p-2 bg-light">
+            <div *ngFor="let res of les.resources; let resIdx = index" class="mt-2 border rounded p-2 bg-body-tertiary">
               <div class="d-flex justify-content-between align-items-center mb-1">
                 <span class="badge" [ngClass]="'bg-' + resourceInfo(res.resourceType).color">{{ resourceInfo(res.resourceType).label }}</span>
                 <button cButton color="danger" variant="ghost" size="sm" (click)="removeResource(les, resIdx)">

@@ -1,47 +1,35 @@
+<app-page-header title="Gestion financière" icon="cilDollar"
+                 subtitle="Paiements Stripe (mode test), commissions de la plateforme (40 %) et revenus des enseignants (60 %).">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <h4 class="mb-1">Financial Management</h4>
-        <span class="text-body-secondary small">Paiements Stripe (mode test), commissions de la plateforme (40 %) et revenus des enseignants (60 %).</span>
-      </div>
-      <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
-        <svg cIcon name="cilReload"></svg>
-      </button>
-    </div>
 
     <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
     <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
 
-    <c-row class="mb-2" *ngIf="summary() as s">
-      <c-col sm="6" xl="3" class="mb-3"><c-card class="h-100"><c-card-body>
-        <div class="text-body-secondary small">Paiements confirmés</div>
-        <div class="fs-3 fw-bold">{{ s.paidPayments }}</div>
-        <div class="small text-body-secondary">{{ s.grossRevenue | currency:'USD' }} encaissés</div>
-      </c-card-body></c-card></c-col>
-      <c-col sm="6" xl="3" class="mb-3"><c-card class="h-100"><c-card-body>
-        <div class="text-body-secondary small">Commissions plateforme</div>
-        <div class="fs-3 fw-bold text-primary">{{ s.platformCommission | currency:'USD' }}</div>
-      </c-card-body></c-card></c-col>
-      <c-col sm="6" xl="3" class="mb-3"><c-card class="h-100"><c-card-body>
-        <div class="text-body-secondary small">Revenus enseignants</div>
-        <div class="fs-3 fw-bold text-success">{{ s.teacherEarnings | currency:'USD' }}</div>
-      </c-card-body></c-card></c-col>
-      <c-col sm="6" xl="3" class="mb-3"><c-card class="h-100 border-warning"><c-card-body>
-        <div class="text-body-secondary small">Retraits en attente</div>
-        <div class="fs-3 fw-bold text-warning">{{ s.pendingWithdrawals | currency:'USD' }}</div>
-        <div class="small text-body-secondary">{{ s.totalWithdrawn | currency:'USD' }} déjà transférés</div>
-      </c-card-body></c-card></c-col>
-    </c-row>
-
-    <div class="btn-group mb-3 flex-wrap" role="group">
-      <button cButton [color]="tab() === 'withdrawals' ? 'primary' : 'light'" (click)="tab.set('withdrawals')">
-        Demandes de retrait <c-badge color="warning" class="ms-1" *ngIf="pendingWithdrawals().length">{{ pendingWithdrawals().length }}</c-badge>
-      </button>
-      <button cButton [color]="tab() === 'payments' ? 'primary' : 'light'" (click)="tab.set('payments')">Paiements</button>
-      <button cButton [color]="tab() === 'commissions' ? 'primary' : 'light'" (click)="tab.set('commissions')">Commissions</button>
-      <button cButton [color]="tab() === 'teachers' ? 'primary' : 'light'" (click)="tab.set('teachers')">Revenus enseignants</button>
+    <div class="stat-grid mb-4" *ngIf="summary() as s">
+      <app-stat-card label="Paiements confirmés" icon="cilCreditCard" tone="neutral" [value]="s.paidPayments"
+                     [hint]="(s.grossRevenue | currency:'USD') + ' encaissés'" />
+      <app-stat-card label="Commissions plateforme" icon="cilChartPie" tone="primary" [value]="s.platformCommission | currency:'USD'" hint="40 % des ventes" />
+      <app-stat-card label="Revenus enseignants" icon="cilPeople" tone="success" [value]="s.teacherEarnings | currency:'USD'" hint="60 % des ventes" />
+      <app-stat-card label="Retraits en attente" icon="cilClock" tone="warning" [highlight]="true"
+                     [value]="s.pendingWithdrawals | currency:'USD'" [hint]="(s.totalWithdrawn | currency:'USD') + ' déjà transférés'" />
     </div>
+
+    <ul class="nav nav-pills lms-tabs mb-3" role="tablist">
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="tab() === 'withdrawals'" (click)="tab.set('withdrawals')">
+          Demandes de retrait <span class="lms-tabs__count" *ngIf="pendingWithdrawals().length">{{ pendingWithdrawals().length }}</span>
+        </button>
+      </li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'payments'" (click)="tab.set('payments')">Paiements</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'commissions'" (click)="tab.set('commissions')">Commissions</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'teachers'" (click)="tab.set('teachers')">Revenus enseignants</button></li>
+    </ul>
 
     <c-card class="mb-4">
       <c-card-body>

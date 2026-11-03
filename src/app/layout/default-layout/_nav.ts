@@ -1,21 +1,21 @@
 import { INavData } from '@coreui/angular';
 
-export const adminNavItems: INavData[] = [
+// Menus des espaces connectés, regroupés par sections (mêmes adresses et mêmes pages qu'avant)
+
+// Pages d'administration, communes à l'administrateur et au super administrateur
+const administrationItems: INavData[] = [
+  { title: true, name: 'Administration' },
   {
-    name: 'Tableau de bord',
-    url: '/dashboard',
-    iconComponent: { name: 'cil-speedometer' }
-  },
-  {
-    name: 'Administration Users',
+    name: 'Utilisateurs',
     url: '/admin/users',
     iconComponent: { name: 'cil-people' }
   },
   {
-    name: 'Administration Cours',
+    name: 'Formations',
     url: '/admin/courses',
     iconComponent: { name: 'cil-library-add' }
   },
+  { title: true, name: 'Finance & supervision' },
   {
     name: 'Gestion financière',
     url: '/admin/finance',
@@ -26,20 +26,31 @@ export const adminNavItems: INavData[] = [
     url: '/supervision',
     iconComponent: { name: 'cil-chart-line' }
   },
+  { title: true, name: 'Outils IA' },
   {
-    name: 'Assistant IA Multi-Agents',
+    name: 'Assistant IA multi-agents',
     url: '/ai-assistant',
     iconComponent: { name: 'cil-lightbulb' }
   }
 ];
 
-// Super administrateur : son espace (missions admin + demandes de compte admin) puis le menu administrateur
+export const adminNavItems: INavData[] = [
+  {
+    name: 'Tableau de bord',
+    url: '/dashboard',
+    iconComponent: { name: 'cil-speedometer' }
+  },
+  ...administrationItems
+];
+
+// Super administrateur : son espace (validation des admins, contrôle financier) puis les pages d'administration
 export const superAdminNavItems: INavData[] = [
   {
     name: 'Espace super admin',
     url: '/super-admin',
     iconComponent: { name: 'cil-speedometer' }
   },
+  { title: true, name: 'Super administration' },
   {
     name: 'Demandes compte admin',
     url: '/super-admin/demandes',
@@ -50,7 +61,12 @@ export const superAdminNavItems: INavData[] = [
     url: '/super-admin/finance',
     iconComponent: { name: 'cil-chart-pie' }
   },
-  ...adminNavItems
+  {
+    name: 'Statistiques plateforme',
+    url: '/dashboard',
+    iconComponent: { name: 'cil-layers' }
+  },
+  ...administrationItems
 ];
 
 export const teacherNavItems: INavData[] = [
@@ -59,8 +75,9 @@ export const teacherNavItems: INavData[] = [
     url: '/dashboard',
     iconComponent: { name: 'cil-speedometer' }
   },
+  { title: true, name: 'Enseignement' },
   {
-    name: 'Mes Cours & Studio',
+    name: 'Mes cours & studio',
     url: '/teacher/courses',
     iconComponent: { name: 'cil-book' }
   },
@@ -70,20 +87,27 @@ export const teacherNavItems: INavData[] = [
     iconComponent: { name: 'cil-chart-line' }
   },
   {
-    name: 'Générateur Quiz/TP IA',
-    url: '/teacher/assessments',
-    iconComponent: { name: 'cil-task' }
-  },
-  {
-    name: 'Vos TP et Quiz avec IA',
-    url: '/teacher/ai-content',
-    iconComponent: { name: 'cil-notes' }
-  },
-  {
     name: 'Mes revenus',
     url: '/teacher/earnings',
     iconComponent: { name: 'cil-dollar' }
   },
+  { title: true, name: 'Outils IA' },
+  {
+    name: 'Générateur quiz & TP',
+    url: '/teacher/assessments',
+    iconComponent: { name: 'cil-task' }
+  },
+  {
+    name: 'Mes quiz & TP générés',
+    url: '/teacher/ai-content',
+    iconComponent: { name: 'cil-notes' }
+  },
+  {
+    name: 'Assistant IA multi-agents',
+    url: '/ai-assistant',
+    iconComponent: { name: 'cil-lightbulb' }
+  },
+  { title: true, name: 'Communication' },
   {
     name: 'Messagerie',
     url: '/messages',
@@ -93,11 +117,6 @@ export const teacherNavItems: INavData[] = [
     name: 'Réunions',
     url: '/meetings',
     iconComponent: { name: 'cil-video' }
-  },
-  {
-    name: 'Assistant IA Multi-Agents',
-    url: '/ai-assistant',
-    iconComponent: { name: 'cil-lightbulb' }
   }
 ];
 
@@ -107,16 +126,23 @@ export const studentNavItems: INavData[] = [
     url: '/dashboard',
     iconComponent: { name: 'cil-speedometer' }
   },
+  { title: true, name: 'Apprendre' },
   {
-    name: 'Catalogue Formations',
+    name: 'Catalogue des formations',
     url: '/courses',
     iconComponent: { name: 'cil-book' }
   },
   {
-    name: 'Mes Inscriptions',
+    name: 'Mes inscriptions',
     url: '/my-enrollments',
     iconComponent: { name: 'cil-library' }
   },
+  {
+    name: 'Assistant IA multi-agents',
+    url: '/ai-assistant',
+    iconComponent: { name: 'cil-lightbulb' }
+  },
+  { title: true, name: 'Communication' },
   {
     name: 'Messagerie',
     url: '/messages',
@@ -126,11 +152,6 @@ export const studentNavItems: INavData[] = [
     name: 'Réunions',
     url: '/meetings',
     iconComponent: { name: 'cil-video' }
-  },
-  {
-    name: 'Assistant IA Multi-Agents',
-    url: '/ai-assistant',
-    iconComponent: { name: 'cil-lightbulb' }
   }
 ];
 

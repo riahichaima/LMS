@@ -5,7 +5,6 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   AlertComponent,
   BadgeComponent,
-  ButtonDirective,
   CardBodyComponent,
   CardComponent,
   CardHeaderComponent,
@@ -19,6 +18,8 @@ import { CourseDetail, CourseSummary, StudentRow, TrackingService, saveBlob, sco
 import { CourseCommentView, FeedbackService, RatingSummary, Review } from '../../../services/feedback.service';
 import { StarRatingComponent } from '../../../shared/star-rating.component';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
 type SortKey = 'progress' | 'name' | 'quiz' | 'tp' | 'lastAccess';
 
 /**
@@ -29,11 +30,14 @@ type SortKey = 'progress' | 'name' | 'quiz' | 'tp' | 'lastAccess';
   selector: 'app-teacher-tracking',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, RouterLink, AlertComponent, BadgeComponent, ButtonDirective, CardComponent,
+    CommonModule, FormsModule, RouterLink, AlertComponent, BadgeComponent, CardComponent,
     CardBodyComponent, CardHeaderComponent, ColComponent, ProgressComponent, RowComponent, SpinnerComponent, IconDirective,
-    StarRatingComponent
+    StarRatingComponent,
+    PageHeaderComponent,
+    EmptyStateComponent
   ],
-  templateUrl: './teacher-tracking.component.html'
+  templateUrl: './teacher-tracking.component.html',
+  styleUrl: './teacher-tracking.component.scss'
 })
 export class TeacherTrackingComponent implements OnInit {
   courses = signal<CourseSummary[]>([]);

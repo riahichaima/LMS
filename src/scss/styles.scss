@@ -17,6 +17,9 @@
 // If you want to add custom CSS you can put it here.
 @use "custom";
 
+// Thème des espaces connectés (bleu LMS, limité au cadre DefaultLayout)
+@use "lms-app";
+
 // Examples
 // We use those styles to show code examples, you should remove them in your application.
 @use "examples";

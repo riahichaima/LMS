@@ -117,12 +117,30 @@ import {
   cilExitToApp,
   cilClock,
   cilVolumeOff,
+  cilSearch,
+  cilFilter,
+  cilFilterX,
+  cilUserX,
+  cilBan,
+  cilWallet,
+  cilCash,
+  cilEducation,
+  cilSortAscending,
 } from '@coreui/icons';
 
 import { signet } from './signet';
 import { logo } from './logo';
 
 export const iconSubset = {
+  cilSearch,
+  cilFilter,
+  cilFilterX,
+  cilUserX,
+  cilBan,
+  cilWallet,
+  cilCash,
+  cilEducation,
+  cilSortAscending,
   cilMicrophone,
   cilScreenDesktop,
   cilMediaStop,
@@ -246,6 +264,15 @@ export const iconSubset = {
 };
 
 export enum IconSubset {
+  cilSearch = 'cilSearch',
+  cilFilter = 'cilFilter',
+  cilFilterX = 'cilFilterX',
+  cilUserX = 'cilUserX',
+  cilBan = 'cilBan',
+  cilWallet = 'cilWallet',
+  cilCash = 'cilCash',
+  cilEducation = 'cilEducation',
+  cilSortAscending = 'cilSortAscending',
   cilMicrophone = 'cilMicrophone',
   cilScreenDesktop = 'cilScreenDesktop',
   cilMediaStop = 'cilMediaStop',

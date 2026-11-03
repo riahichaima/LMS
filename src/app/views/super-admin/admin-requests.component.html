@@ -1,15 +1,16 @@
+<app-page-header title="Demandes compte admin" icon="cilUserFollow"
+                 subtitle="Acceptez ou refusez les personnes qui demandent un compte administrateur.">
+  <span class="lms-pill lms-pill--warning">{{ pending().length }} en attente</span>
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
     <c-card class="mb-4">
       <c-card-header class="d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-          <svg cIcon name="cilUserFollow"></svg>
-          <strong>Demandes compte admin</strong>
-          <c-badge color="warning">{{ pending().length }}</c-badge>
-        </div>
-        <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
-          <svg cIcon name="cilReload"></svg>
-        </button>
+        <span>Demandes en attente</span>
       </c-card-header>
       <c-card-body>
         <p class="text-body-secondary">

@@ -1,15 +1,9 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   CardComponent,
   CardBodyComponent,
-  CardHeaderComponent,
-  ColComponent,
-  RowComponent,
-  TableDirective,
-  ButtonDirective,
-  BadgeComponent,
   SpinnerComponent,
   AlertComponent,
   FormSelectDirective,
@@ -22,7 +16,12 @@ import {
 import { IconDirective } from '@coreui/icons-angular';
 import { AuthService } from '../../../services/auth.service';
 import { AdminService, UserWithRoleDetails } from '../../../services/admin.service';
+import { AvatarComponent } from '../../../shared/avatar.component';
+import { normalizeText, roleCode } from '../../../shared/ui/labels';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { EmptyStateComponent } from '../../../shared/ui/empty-state.component';
+import { RoleLabelPipe, RoleTonePipe } from '../../../shared/ui/labels';
 @Component({
   selector: 'app-admin-users',
   standalone: true,
@@ -31,12 +30,6 @@ import { AdminService, UserWithRoleDetails } from '../../../services/admin.servi
     FormsModule,
     CardComponent,
     CardBodyComponent,
-    CardHeaderComponent,
-    ColComponent,
-    RowComponent,
-    TableDirective,
-    ButtonDirective,
-    BadgeComponent,
     SpinnerComponent,
     AlertComponent,
     FormSelectDirective,
@@ -45,9 +38,15 @@ import { AdminService, UserWithRoleDetails } from '../../../services/admin.servi
     ModalTitleDirective,
     ModalBodyComponent,
     ModalFooterComponent,
-    IconDirective
+    IconDirective,
+    AvatarComponent,
+    PageHeaderComponent,
+    EmptyStateComponent,
+    RoleLabelPipe,
+    RoleTonePipe
   ],
-  templateUrl: './admin-users.component.html'
+  templateUrl: './admin-users.component.html',
+  styleUrl: './admin-users.component.scss'
 })
 export class AdminUsersComponent implements OnInit {
   users = signal<UserWithRoleDetails[]>([]);
@@ -60,6 +59,54 @@ export class AdminUsersComponent implements OnInit {
   roleModalVisible = signal(false);
 
   readonly isSuperAdmin: boolean;
+
+  // ── Recherche, filtres et pagination (dans le navigateur, l'API ne change pas) ──
+  readonly pageSize = 10;
+  search = signal('');
+  roleFilter = signal('');
+  statusFilter = signal<'' | 'active' | 'inactive'>('');
+  page = signal(1);
+
+  /** Nombre de comptes par rôle (pastilles de filtre) */
+  readonly roleCounts = computed(() => {
+    const counts: Record<string, number> = {};
+    for (const u of this.users()) counts[roleCode(u.role)] = (counts[roleCode(u.role)] ?? 0) + 1;
+    return counts;
+  });
+
+  readonly filteredUsers = computed(() => {
+    const q = normalizeText(this.search());
+    const role = this.roleFilter();
+    const status = this.statusFilter();
+    return this.users().filter(u => {
+      if (q && !normalizeText(`${u.name} ${u.email}`).includes(q)) return false;
+      if (role && roleCode(u.role) !== role) return false;
+      if (status === 'active' && u.enabled === false) return false;
+      if (status === 'inactive' && u.enabled !== false) return false;
+      return true;
+    });
+  });
+
+  readonly pageCount = computed(() => Math.max(1, Math.ceil(this.filteredUsers().length / this.pageSize)));
+  readonly pagedUsers = computed(() => {
+    const page = Math.min(this.page(), this.pageCount());
+    return this.filteredUsers().slice((page - 1) * this.pageSize, page * this.pageSize);
+  });
+  readonly pages = computed(() => Array.from({ length: this.pageCount() }, (_, i) => i + 1));
+  readonly rangeLabel = computed(() => {
+    const total = this.filteredUsers().length;
+    if (!total) return '0 utilisateur';
+    const page = Math.min(this.page(), this.pageCount());
+    const from = (page - 1) * this.pageSize + 1;
+    return `${from}–${Math.min(page * this.pageSize, total)} sur ${total}`;
+  });
+
+  setSearch(value: string): void { this.search.set(value); this.page.set(1); }
+  setRole(value: string): void { this.roleFilter.set(value); this.page.set(1); }
+  setStatus(value: '' | 'active' | 'inactive'): void { this.statusFilter.set(value); this.page.set(1); }
+  goTo(page: number): void { this.page.set(Math.min(Math.max(1, page), this.pageCount())); }
+  resetFilters(): void { this.search.set(''); this.roleFilter.set(''); this.statusFilter.set(''); this.page.set(1); }
+  isProtected(u: UserWithRoleDetails): boolean { return roleCode(u.role) === 'SUPER_ADMIN'; }
 
   constructor(private adminService: AdminService, authService: AuthService) {
     this.isSuperAdmin = authService.isSuperAdmin();

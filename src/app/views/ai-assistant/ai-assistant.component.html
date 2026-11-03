@@ -1,9 +1,9 @@
+<app-page-header title="Assistant IA multi-agents" icon="cilLightbulb"
+                 subtitle="Analyse de documents, vidéos et audios, et suivi de progression · Azure AI Foundry (GPT-4.1 mini)" />
+
 <c-row>
   <c-col xs="12">
     <c-card class="mb-4">
-      <c-card-header class="d-flex justify-content-between align-items-center">
-        <strong><svg cIcon name="cilLightbulb" class="me-2"></svg>Assistant Pédagogique Multi-Agents IA (Azure AI Foundry · GPT-4.1 mini)</strong>
-      </c-card-header>
       <c-card-body>
         <!-- Nav Tabs -->
         <ul class="nav nav-tabs mb-4">
@@ -53,12 +53,12 @@
           </c-alert>
 
           <!-- Chat Box -->
-          <div class="border rounded p-3 bg-light mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+          <div class="border rounded p-3 bg-body-tertiary mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
             <div *ngFor="let m of textMessages()" class="mb-3">
               <div [class]="m.role === 'user' ? 'text-end' : 'text-start'">
                 <span
                   class="d-inline-block p-2 rounded"
-                  [class]="m.role === 'user' ? 'bg-primary text-white' : 'bg-white border text-dark'"
+                  [class]="m.role === 'user' ? 'bg-primary text-white' : 'bg-body border text-body'"
                   style="max-width: 80%; text-align: left;"
                 >
                   <strong>{{ m.role === 'user' ? 'Vous' : 'Agent IA Texte' }} :</strong><br />
@@ -116,12 +116,12 @@
           </c-alert>
 
           <!-- Chat Box -->
-          <div class="border rounded p-3 bg-light mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+          <div class="border rounded p-3 bg-body-tertiary mb-3" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
             <div *ngFor="let m of videoMessages()" class="mb-3">
               <div [class]="m.role === 'user' ? 'text-end' : 'text-start'">
                 <span
                   class="d-inline-block p-2 rounded"
-                  [class]="m.role === 'user' ? 'bg-danger text-white' : 'bg-white border text-dark'"
+                  [class]="m.role === 'user' ? 'bg-danger text-white' : 'bg-body border text-body'"
                   style="max-width: 80%; text-align: left;"
                 >
                   <strong>{{ m.role === 'user' ? 'Vous' : 'Agent IA Vidéo' }} :</strong><br />
@@ -166,9 +166,9 @@
             {{ progressError() }}
           </c-alert>
 
-          <div *ngIf="progressResult()" class="border rounded p-3 bg-light">
+          <div *ngIf="progressResult()" class="border rounded p-3 bg-body-tertiary">
             <h5 class="text-info fw-bold">Rapport d'analyse & Recommandations :</h5>
-            <pre class="bg-white p-3 border rounded text-dark">{{ progressResult() | json }}</pre>
+            <pre class="bg-body p-3 border rounded text-body">{{ progressResult() | json }}</pre>
           </div>
         </div>
       </c-card-body>

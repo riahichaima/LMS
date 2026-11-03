@@ -1,9 +1,11 @@
+<app-page-header title="Générateur de quiz & TP" icon="cilTask"
+                 subtitle="L'IA analyse le contenu d'un chapitre et génère des quiz QCM et des sujets de TP, avec leurs corrections.">
+  <a class="btn btn-outline-primary btn-sm" routerLink="/teacher/ai-content"><svg cIcon name="cilNotes" size="sm" class="me-1"></svg>Mes quiz & TP générés</a>
+</app-page-header>
+
 <c-row>
-  <c-col lg="8" md="10" class="mx-auto">
+  <c-col lg="9" md="11" class="mx-auto">
     <c-card class="mb-4">
-      <c-card-header>
-        <strong><svg cIcon name="cilTask" class="me-2"></svg>Générateur Automatique de Quiz & TP par IA (Multi-Agents)</strong>
-      </c-card-header>
       <c-card-body>
         <p class="text-muted">
           Sélectionnez un chapitre de votre cours. L'agent IA pédagogique analysera automatiquement son contenu et générera des Quiz QCM et des sujets de TP adaptés à vos étudiants.
@@ -26,7 +28,7 @@
         </c-alert>
         <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
           {{ successMessage() }}
-          Retrouvez-les avec leurs corrections dans <a routerLink="/teacher/ai-content" class="alert-link">Vos TP et Quiz avec IA</a>.
+          Retrouvez-les avec leurs corrections dans <a routerLink="/teacher/ai-content" class="alert-link">Mes quiz & TP générés</a>.
         </c-alert>
 
         <div class="mb-3">
@@ -69,18 +71,18 @@
 
         <div class="mb-4">
           <label class="form-label fw-bold">3. Niveaux de difficulté à générer :</label>
-          <div class="d-flex gap-3">
+          <div class="d-flex flex-wrap gap-3">
             <c-form-check>
               <input cFormCheckInput type="checkbox" id="lvlBeg" [(ngModel)]="beginner" />
-              <label cFormCheckLabel for="lvlBeg">Débutant (BEGINNER)</label>
+              <label cFormCheckLabel for="lvlBeg">Débutant</label>
             </c-form-check>
             <c-form-check>
               <input cFormCheckInput type="checkbox" id="lvlInt" [(ngModel)]="intermediate" />
-              <label cFormCheckLabel for="lvlInt">Intermédiaire (INTERMEDIATE)</label>
+              <label cFormCheckLabel for="lvlInt">Intermédiaire</label>
             </c-form-check>
             <c-form-check>
               <input cFormCheckInput type="checkbox" id="lvlAdv" [(ngModel)]="advanced" />
-              <label cFormCheckLabel for="lvlAdv">Avancé (ADVANCED)</label>
+              <label cFormCheckLabel for="lvlAdv">Avancé</label>
             </c-form-check>
           </div>
         </div>

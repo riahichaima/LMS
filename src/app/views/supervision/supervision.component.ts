@@ -20,6 +20,7 @@ import { ChartData, ChartOptions } from 'chart.js';
 import { GlobalStats, LogFilters, LogPage, SupervisionService, SystemLog } from '../../services/supervision.service';
 import { saveBlob, scoreColor } from '../../services/tracking.service';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 /** Palette catégorielle validée (3 premiers créneaux : distincts aussi pour les daltoniens), clair / sombre. */
 const SERIES = {
   light: ['#2a78d6', '#eb6834', '#1baf7a'],
@@ -35,7 +36,8 @@ const SERIES = {
   standalone: true,
   imports: [
     CommonModule, FormsModule, AlertComponent, BadgeComponent, CardComponent, CardBodyComponent,
-    CardHeaderComponent, ColComponent, ProgressComponent, RowComponent, SpinnerComponent, ChartjsComponent, IconDirective
+    CardHeaderComponent, ColComponent, ProgressComponent, RowComponent, SpinnerComponent, ChartjsComponent, IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './supervision.component.html',
   styleUrl: './supervision.component.scss'

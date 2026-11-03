@@ -1,19 +1,17 @@
-<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
-  <div>
-    <h2 class="mb-0">Supervision</h2>
-    <p class="text-body-secondary small mb-0">Statistiques globales de la plateforme et journal système.</p>
-  </div>
-  <div class="btn-group" role="tablist" aria-label="Sections de la supervision">
-    <button type="button" role="tab" class="btn" [class.btn-primary]="tab() === 'stats'" [class.btn-outline-primary]="tab() !== 'stats'"
-            [attr.aria-selected]="tab() === 'stats'" (click)="setTab('stats')">
-      <svg cIcon name="cilChartLine" class="me-1"></svg>Statistiques globales
+<app-page-header title="Supervision" icon="cilChartLine" subtitle="Statistiques globales de la plateforme et journal système." />
+
+<ul class="nav nav-pills lms-tabs mb-3" role="tablist" aria-label="Sections de la supervision">
+  <li class="nav-item">
+    <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'stats'" [attr.aria-selected]="tab() === 'stats'" (click)="setTab('stats')">
+      <svg cIcon name="cilChartLine" size="sm"></svg>Statistiques globales
     </button>
-    <button type="button" role="tab" class="btn" [class.btn-primary]="tab() === 'logs'" [class.btn-outline-primary]="tab() !== 'logs'"
-            [attr.aria-selected]="tab() === 'logs'" (click)="setTab('logs')">
-      <svg cIcon name="cilList" class="me-1"></svg>Logs système
+  </li>
+  <li class="nav-item">
+    <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'logs'" [attr.aria-selected]="tab() === 'logs'" (click)="setTab('logs')">
+      <svg cIcon name="cilList" size="sm"></svg>Journal système
     </button>
-  </div>
-</div>
+  </li>
+</ul>
 
 <!-- ═════════════ Statistiques globales ═════════════ -->
 <ng-container *ngIf="tab() === 'stats'">

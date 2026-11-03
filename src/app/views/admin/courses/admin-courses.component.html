@@ -1,12 +1,12 @@
+<app-page-header title="Formations" icon="cilLibraryAdd" subtitle="Supervisez les cours de la plateforme et attribuez leurs formateurs.">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadData()">
+    <svg cIcon name="cilReload" size="sm" class="me-1"></svg>Actualiser
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
     <c-card class="mb-4">
-      <c-card-header class="d-flex justify-content-between align-items-center">
-        <strong><svg cIcon name="cilLibraryAdd" class="me-2"></svg>Supervision des Formations</strong>
-        <button cButton color="primary" size="sm" (click)="loadData()">
-          <svg cIcon name="cilReload" class="me-1"></svg> Actualiser
-        </button>
-      </c-card-header>
       <c-card-body>
         <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
           {{ errorMessage() }}
@@ -37,7 +37,7 @@
               <td class="fw-semibold">{{ c.title }}</td>
               <td>{{ c.description }}</td>
               <td>
-                <span *ngIf="c.teacherName" class="badge bg-light text-dark border">
+                <span *ngIf="c.teacherName" class="lms-pill lms-pill--neutral">
                   {{ c.teacherName }}
                 </span>
                 <span *ngIf="!c.teacherName" class="text-muted fst-italic">Non attribué</span>

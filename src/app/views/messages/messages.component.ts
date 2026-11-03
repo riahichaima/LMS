@@ -9,6 +9,7 @@ import { RealtimeService } from '../../services/realtime.service';
 import { ContactView, MessageView, MessagingService } from '../../services/messaging.service';
 import { AvatarComponent } from '../../shared/avatar.component';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 interface DayGroup {
   label: string;
   messages: MessageView[];
@@ -21,7 +22,9 @@ interface DayGroup {
 @Component({
   selector: 'app-messages',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconDirective, AvatarComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconDirective, AvatarComponent,
+    PageHeaderComponent
+  ],
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.scss'
 })

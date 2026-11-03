@@ -1,13 +1,13 @@
 import { Component, OnInit, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   AlertComponent,
   BadgeComponent,
   ButtonDirective,
   CardBodyComponent,
   CardComponent,
-  CardHeaderComponent,
   ColComponent,
   FormSelectDirective,
   RowComponent,
@@ -17,6 +17,7 @@ import { IconDirective } from '@coreui/icons-angular';
 import { AiService, CourseAssessments, ReviewAssignment, ReviewQuiz } from '../../../services/ai.service';
 import { LEVEL_COLORS, LEVEL_LABELS, TpExercise, splitExercises } from '../exercise-utils';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 // Un quiz ou un TP accompagné du cours et du chapitre auxquels il appartient
 interface QuizItem {
   courseTitle: string;
@@ -35,19 +36,20 @@ interface TpItem {
   selector: 'app-teacher-ai-content',
   standalone: true,
   imports: [
+    RouterLink,
     CommonModule,
     FormsModule,
     RowComponent,
     ColComponent,
     CardComponent,
-    CardHeaderComponent,
     CardBodyComponent,
     ButtonDirective,
     BadgeComponent,
     AlertComponent,
     SpinnerComponent,
     FormSelectDirective,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './teacher-ai-content.component.html'
 })

@@ -1,14 +1,9 @@
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-  <div>
-    <h2 class="mb-0">Messagerie</h2>
-    <p class="text-body-secondary small mb-0">
-      {{ authService.isStudent() ? 'Échangez avec les formateurs de vos cours.' : 'Échangez avec les étudiants inscrits à vos cours.' }}
-    </p>
-  </div>
+<app-page-header title="Messagerie" icon="cilChatBubble"
+                 [subtitle]="authService.isStudent() ? 'Échangez avec les formateurs de vos cours.' : 'Échangez avec les étudiants inscrits à vos cours.'">
   <span class="live-status" [class.on]="realtime.connected()">
     <span class="dot"></span>{{ realtime.connected() ? 'Temps réel actif' : 'Connexion temps réel…' }}
   </span>
-</div>
+</app-page-header>
 
 <div class="messenger" [class.has-selection]="selectedId() !== null">
   <!-- Contacts -->

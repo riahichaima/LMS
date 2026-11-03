@@ -37,7 +37,8 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
     CardHeaderComponent, ColComponent, ProgressComponent, RowComponent, SpinnerComponent, IconDirective,
     AvatarComponent, StarRatingComponent, TeacherRatingComponent
   ],
-  templateUrl: './profile.component.html'
+  templateUrl: './profile.component.html',
+  styleUrl: './profile.component.scss'
 })
 export class ProfileComponent implements OnInit {
   profile = signal<ProfileView | null>(null);

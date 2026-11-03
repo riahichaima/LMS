@@ -5,7 +5,6 @@ import { RouterLink } from '@angular/router';
 import {
   CardComponent,
   CardBodyComponent,
-  CardHeaderComponent,
   ColComponent,
   RowComponent,
   ButtonDirective,
@@ -22,6 +21,7 @@ import { CourseService, Course, Chapter } from '../../../services/course.service
 import { AiService, AiModelStatus } from '../../../services/ai.service';
 import { AuthService } from '../../../services/auth.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 @Component({
   selector: 'app-teacher-assessments',
   standalone: true,
@@ -31,7 +31,6 @@ import { AuthService } from '../../../services/auth.service';
     RouterLink,
     CardComponent,
     CardBodyComponent,
-    CardHeaderComponent,
     ColComponent,
     RowComponent,
     ButtonDirective,
@@ -42,7 +41,8 @@ import { AuthService } from '../../../services/auth.service';
     FormCheckLabelDirective,
     FormControlDirective,
     FormSelectDirective,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './teacher-assessments.component.html'
 })

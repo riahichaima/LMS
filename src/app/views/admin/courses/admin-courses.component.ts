@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import {
   CardComponent,
   CardBodyComponent,
-  CardHeaderComponent,
   ColComponent,
   RowComponent,
   TableDirective,
@@ -23,6 +22,7 @@ import { IconDirective } from '@coreui/icons-angular';
 import { AdminService, UserWithRoleDetails } from '../../../services/admin.service';
 import { Course } from '../../../services/course.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 @Component({
   selector: 'app-admin-courses',
   standalone: true,
@@ -31,7 +31,6 @@ import { Course } from '../../../services/course.service';
     FormsModule,
     CardComponent,
     CardBodyComponent,
-    CardHeaderComponent,
     ColComponent,
     RowComponent,
     TableDirective,
@@ -45,7 +44,8 @@ import { Course } from '../../../services/course.service';
     ModalBodyComponent,
     ModalFooterComponent,
     FormSelectDirective,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './admin-courses.component.html'
 })

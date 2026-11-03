@@ -1,46 +1,28 @@
+<app-page-header title="Espace super administrateur" icon="cilSpeedometer"
+                 subtitle="Toutes les missions d'un administrateur, plus la validation des nouveaux administrateurs.">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
 <c-row>
   <c-col xs="12">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <h4 class="mb-1">Espace super administrateur</h4>
-        <span class="text-body-secondary">Toutes les missions d'un administrateur, plus la validation des nouveaux administrateurs.</span>
-      </div>
-      <button cButton color="secondary" variant="outline" size="sm" (click)="load()" [disabled]="loading()">
-        <svg cIcon name="cilReload"></svg>
-      </button>
-    </div>
 
     <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
 
     <!-- Chiffres de la plateforme -->
-    <c-row class="mb-3" *ngIf="stats() as s">
-      <c-col sm="6" lg="3" class="mb-3">
-        <c-card class="h-100"><c-card-body>
-          <div class="text-body-secondary small">Utilisateurs</div><div class="fs-3 fw-bold">{{ s.totalUsers }}</div>
-        </c-card-body></c-card>
-      </c-col>
-      <c-col sm="6" lg="3" class="mb-3">
-        <c-card class="h-100"><c-card-body>
-          <div class="text-body-secondary small">Formations</div><div class="fs-3 fw-bold">{{ s.totalCourses }}</div>
-        </c-card-body></c-card>
-      </c-col>
-      <c-col sm="6" lg="3" class="mb-3">
-        <c-card class="h-100"><c-card-body>
-          <div class="text-body-secondary small">Inscriptions aux cours</div><div class="fs-3 fw-bold">{{ s.totalEnrollments }}</div>
-        </c-card-body></c-card>
-      </c-col>
-      <c-col sm="6" lg="3" class="mb-3">
-        <c-card class="h-100 border-warning"><c-card-body>
-          <div class="text-body-secondary small">Demandes admin en attente</div><div class="fs-3 fw-bold text-warning">{{ pending().length }}</div>
-        </c-card-body></c-card>
-      </c-col>
-    </c-row>
+    <div class="stat-grid mb-4" *ngIf="stats() as s">
+      <app-stat-card label="Utilisateurs" icon="cilPeople" tone="info" [value]="s.totalUsers" />
+      <app-stat-card label="Formations" icon="cilBook" tone="success" [value]="s.totalCourses" />
+      <app-stat-card label="Inscriptions aux cours" icon="cilUserFollow" tone="primary" [value]="s.totalEnrollments" />
+      <app-stat-card label="Demandes admin en attente" icon="cilClock" tone="warning" [highlight]="pending().length > 0" [value]="pending().length" />
+    </div>
 
     <!-- Mission propre au super administrateur -->
-    <c-card class="mb-4 border-warning">
+    <c-card class="mb-4 request-banner">
       <c-card-body class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="d-flex align-items-center gap-3">
-          <svg cIcon name="cilUserFollow" size="xl" class="text-warning"></svg>
+          <span class="request-banner__icon"><svg cIcon name="cilUserFollow"></svg></span>
           <div>
             <strong>Demandes compte admin</strong>
             <div class="small text-body-secondary">
@@ -48,31 +30,24 @@
             </div>
           </div>
         </div>
-        <a cButton color="warning" routerLink="/super-admin/demandes">Voir les demandes</a>
+        <a class="btn btn-primary" routerLink="/super-admin/demandes">Voir les demandes</a>
       </c-card-body>
     </c-card>
 
     <!-- Missions d'administration -->
-    <h6 class="fw-bold mb-3">Missions d'administration</h6>
-    <c-row class="mb-4">
-      <c-col sm="6" xl="3" class="mb-3" *ngFor="let m of missions">
-        <a [routerLink]="m.link" class="text-decoration-none">
-          <c-card class="h-100">
-            <c-card-body>
-              <div class="d-flex align-items-center gap-2 mb-2 text-primary">
-                <svg cIcon [name]="m.icon" size="lg"></svg>
-                <strong class="text-body">{{ m.title }}</strong>
-              </div>
-              <div class="small text-body-secondary">{{ m.text }}</div>
-            </c-card-body>
-          </c-card>
-        </a>
-      </c-col>
-    </c-row>
+    <h2 class="section-title">Missions d'administration</h2>
+    <div class="mission-grid mb-4">
+      <a *ngFor="let m of missions" [routerLink]="m.link" class="mission card">
+        <span class="mission__icon"><svg cIcon [name]="m.icon"></svg></span>
+        <span class="mission__title">{{ m.title }}</span>
+        <span class="mission__text">{{ m.text }}</span>
+        <svg cIcon name="cilArrowRight" size="sm" class="mission__arrow"></svg>
+      </a>
+    </div>
 
     <!-- Administrateurs en place -->
     <c-card class="mb-4">
-      <c-card-header><strong>Administrateurs</strong> <c-badge color="success" class="ms-1">{{ approved().length }}</c-badge></c-card-header>
+      <c-card-header>Administrateurs <span class="lms-pill lms-pill--success ms-1">{{ approved().length }}</span></c-card-header>
       <c-card-body>
         <table cTable [hover]="true" [responsive]="true" class="mb-0">
           <thead>
@@ -86,7 +61,7 @@
             <tr *ngFor="let a of approved()">
               <td class="fw-semibold">{{ a.name }}</td>
               <td>{{ a.email }}</td>
-              <td><c-badge [color]="a.enabled ? 'success' : 'secondary'">{{ a.enabled ? 'Actif' : 'Inactif' }}</c-badge></td>
+              <td><span class="lms-pill" [ngClass]="a.enabled ? 'lms-pill--success' : 'lms-pill--neutral'">{{ a.enabled ? 'Actif' : 'Inactif' }}</span></td>
             </tr>
             <tr *ngIf="approved().length === 0">
               <td colspan="3" class="text-center text-body-secondary py-3">Aucun administrateur.</td>

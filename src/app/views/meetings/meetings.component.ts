@@ -7,6 +7,7 @@ import { AuthService } from '../../services/auth.service';
 import { Course, CourseService } from '../../services/course.service';
 import { MeetingService, MeetingView, RecordingView } from '../../services/meeting.service';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 interface CalendarDay {
   date: Date;
   key: string;
@@ -31,7 +32,9 @@ interface MeetingForm {
 @Component({
   selector: 'app-meetings',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconDirective],
+  imports: [CommonModule, FormsModule, IconDirective,
+    PageHeaderComponent
+  ],
   templateUrl: './meetings.component.html',
   styleUrl: './meetings.component.scss'
 })

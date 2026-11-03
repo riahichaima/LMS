@@ -17,13 +17,17 @@ import {
 import { IconDirective } from '@coreui/icons-angular';
 import { FinanceService, TeacherEarningsView, WithdrawalStatus } from '../../../services/finance.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 // « My Earnings » : ventes, gains (60 %), soldes du portefeuille virtuel et demandes de retrait
 @Component({
   selector: 'app-teacher-earnings',
   standalone: true,
   imports: [
     CommonModule, FormsModule, RowComponent, ColComponent, CardComponent, CardHeaderComponent, CardBodyComponent,
-    TableDirective, BadgeComponent, ButtonDirective, AlertComponent, SpinnerComponent, FormControlDirective, IconDirective
+    TableDirective, BadgeComponent, ButtonDirective, AlertComponent, SpinnerComponent, FormControlDirective, IconDirective,
+    PageHeaderComponent,
+    StatCardComponent
   ],
   templateUrl: './teacher-earnings.component.html'
 })

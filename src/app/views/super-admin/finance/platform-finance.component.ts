@@ -14,13 +14,17 @@ import {
 import { IconDirective } from '@coreui/icons-angular';
 import { FinanceService, PlatformWalletView, TransactionView, WithdrawalView } from '../../../services/finance.service';
 
+import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { StatCardComponent } from '../../../shared/ui/stat-card.component';
 // « Platform Financial Control » : portefeuille de la plateforme, historique et transferts SIMULÉS
 @Component({
   selector: 'app-platform-finance',
   standalone: true,
   imports: [
     CommonModule, RowComponent, ColComponent, CardComponent, CardHeaderComponent, CardBodyComponent, TableDirective,
-    BadgeComponent, ButtonDirective, AlertComponent, IconDirective
+    BadgeComponent, ButtonDirective, AlertComponent, IconDirective,
+    PageHeaderComponent,
+    StatCardComponent
   ],
   templateUrl: './platform-finance.component.html'
 })

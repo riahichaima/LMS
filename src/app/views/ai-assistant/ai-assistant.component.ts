@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import {
   CardComponent,
   CardBodyComponent,
-  CardHeaderComponent,
   ColComponent,
   RowComponent,
   ButtonDirective,
@@ -16,6 +15,7 @@ import { IconDirective } from '@coreui/icons-angular';
 import { AiService, LmsAiQuestionResponse } from '../../services/ai.service';
 import { AuthService } from '../../services/auth.service';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -31,14 +31,14 @@ interface ChatMessage {
     FormsModule,
     CardComponent,
     CardBodyComponent,
-    CardHeaderComponent,
     ColComponent,
     RowComponent,
     ButtonDirective,
     FormControlDirective,
     SpinnerComponent,
     AlertComponent,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './ai-assistant.component.html'
 })

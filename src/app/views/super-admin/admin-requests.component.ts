@@ -15,6 +15,7 @@ import {
 import { IconDirective } from '@coreui/icons-angular';
 import { AdminAccount, AdminService } from '../../services/admin.service';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
 // Demandes de compte administrateur : le super administrateur approuve ou non
 @Component({
   selector: 'app-admin-requests',
@@ -31,7 +32,8 @@ import { AdminAccount, AdminService } from '../../services/admin.service';
     ButtonDirective,
     AlertComponent,
     SpinnerComponent,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent
   ],
   templateUrl: './admin-requests.component.html'
 })

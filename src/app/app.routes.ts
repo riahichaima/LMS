@@ -17,7 +17,7 @@ export const routes: Routes = [
     loadComponent: () => import('./layout').then(m => m.DefaultLayoutComponent),
     canActivate: [authGuard],
     data: {
-      title: 'Home'
+      title: 'Accueil'
     },
     children: [
       {
@@ -40,7 +40,7 @@ export const routes: Routes = [
         path: 'admin/users',
         loadComponent: () => import('./views/admin/users/admin-users.component').then(m => m.AdminUsersComponent),
         canActivate: [roleGuard(['ADMIN'])],
-        data: { title: 'Administration Utilisateurs' }
+        data: { title: 'Utilisateurs' }
       },
       {
         path: 'super-admin',
@@ -59,37 +59,37 @@ export const routes: Routes = [
         path: 'admin/courses',
         loadComponent: () => import('./views/admin/courses/admin-courses.component').then(m => m.AdminCoursesComponent),
         canActivate: [roleGuard(['ADMIN'])],
-        data: { title: 'Administration Formations' }
+        data: { title: 'Formations' }
       },
       {
         path: 'teacher/courses',
         loadComponent: () => import('./views/teacher/courses/teacher-courses.component').then(m => m.TeacherCoursesComponent),
         canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
-        data: { title: 'Studio Enseignant' }
+        data: { title: 'Mes cours & studio' }
       },
       {
         path: 'teacher/assessments',
         loadComponent: () => import('./views/teacher/assessments/teacher-assessments.component').then(m => m.TeacherAssessmentsComponent),
         canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
-        data: { title: 'Générateur Quiz/TP IA' }
+        data: { title: 'Générateur de quiz & TP' }
       },
       {
         path: 'teacher/earnings',
         loadComponent: () => import('./views/teacher/earnings/teacher-earnings.component').then(m => m.TeacherEarningsComponent),
         canActivate: [roleGuard(['TEACHER'])],
-        data: { title: 'My Earnings' }
+        data: { title: 'Mes revenus' }
       },
       {
         path: 'admin/finance',
         loadComponent: () => import('./views/admin/finance/admin-finance.component').then(m => m.AdminFinanceComponent),
         canActivate: [roleGuard(['ADMIN'])],
-        data: { title: 'Financial Management' }
+        data: { title: 'Gestion financière' }
       },
       {
         path: 'super-admin/finance',
         loadComponent: () => import('./views/super-admin/finance/platform-finance.component').then(m => m.PlatformFinanceComponent),
         canActivate: [roleGuard(['SUPER_ADMIN'])],
-        data: { title: 'Platform Financial Control' }
+        data: { title: 'Contrôle financier' }
       },
       // Retour de Stripe Checkout (l'accès n'est accordé qu'après confirmation serveur)
       {
@@ -108,7 +108,7 @@ export const routes: Routes = [
         path: 'teacher/ai-content',
         loadComponent: () => import('./views/teacher/ai-content/teacher-ai-content.component').then(m => m.TeacherAiContentComponent),
         canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
-        data: { title: 'Vos TP et Quiz avec IA' }
+        data: { title: 'Mes quiz & TP générés' }
       },
       // Espace étudiant : lecture du cours, quiz, TP et statistiques
       {

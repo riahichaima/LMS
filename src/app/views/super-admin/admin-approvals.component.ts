@@ -3,8 +3,6 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
   AlertComponent,
-  BadgeComponent,
-  ButtonDirective,
   CardBodyComponent,
   CardComponent,
   CardHeaderComponent,
@@ -15,6 +13,8 @@ import {
 import { IconDirective } from '@coreui/icons-angular';
 import { AdminAccount, AdminService, AdminStatistics } from '../../services/admin.service';
 
+import { PageHeaderComponent } from '../../shared/ui/page-header.component';
+import { StatCardComponent } from '../../shared/ui/stat-card.component';
 // Espace du super administrateur : missions d'administration + demandes de compte administrateur
 @Component({
   selector: 'app-admin-approvals',
@@ -27,13 +27,14 @@ import { AdminAccount, AdminService, AdminStatistics } from '../../services/admi
     CardComponent,
     CardHeaderComponent,
     CardBodyComponent,
-    BadgeComponent,
-    ButtonDirective,
     AlertComponent,
     TableDirective,
-    IconDirective
+    IconDirective,
+    PageHeaderComponent,
+    StatCardComponent
   ],
-  templateUrl: './admin-approvals.component.html'
+  templateUrl: './admin-approvals.component.html',
+  styleUrl: './admin-approvals.component.scss'
 })
 export class AdminApprovalsComponent implements OnInit {
   admins = signal<AdminAccount[]>([]);

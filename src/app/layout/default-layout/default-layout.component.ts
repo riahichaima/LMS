@@ -27,6 +27,8 @@ import { ProfileService } from '../../services/profile.service';
   selector: 'app-dashboard',
   templateUrl: './default-layout.component.html',
   styleUrls: ['./default-layout.component.scss'],
+  // Thème bleu LMS des espaces connectés (scss/_lms-app.scss)
+  host: { class: 'lms-app' },
   imports: [
     SidebarComponent,
     SidebarHeaderComponent,

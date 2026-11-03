@@ -1,7 +1,63 @@
-:host {
-  .legend {
-    small {
-      font-size: x-small;
+// Bandeau d'accueil (fond : .lms-hero du thème)
+.hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  padding: 1.5rem 1.6rem;
+
+  &__eyebrow {
+    display: inline-block;
+    margin-bottom: .4rem;
+    padding: .15rem .6rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0 0 .25rem;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: #fff;
+  }
+
+  &__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+  &__btn {
+    font-weight: 600;
+    color: #0d3a8c;
+
+    &--ghost {
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, .45);
+      background: rgba(255, 255, 255, .08);
+
+      &:hover { color: #fff; background: rgba(255, 255, 255, .18); }
     }
   }
 }
+
+@media (max-width: 576px) {
+  .hero { padding: 1.2rem; }
+  .hero__title { font-size: 1.25rem; }
+}
+
+// Avancement par cours (étudiant)
+.progress-row {
+  padding: .9rem 0;
+  border-bottom: 1px solid var(--lms-border, var(--cui-border-color));
+
+  &:first-of-type { padding-top: 0; }
+  &--last { border-bottom: 0; padding-bottom: 0; }
+  &__pct { width: 3rem; text-align: right; }
+}
+
+.min-w-0 { min-width: 0; }

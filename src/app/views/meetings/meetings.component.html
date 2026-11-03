@@ -1,22 +1,15 @@
 <div class="meetings-page">
-  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3">
-    <div>
-      <h2 class="h4 mb-1">Réunions en visio</h2>
-      <p class="text-body-secondary mb-0 small">
-        @if (isTeacher()) {
-          Planifiez une réunion : vos étudiants sont notifiés tout de suite puis reçoivent un rappel 1 h avant.
-        } @else {
-          Les réunions de vos formateurs. Vous recevez un rappel 1 h avant chaque réunion.
-        }
-      </p>
-    </div>
+  <app-page-header title="Réunions en visio" icon="cilVideo"
+                   [subtitle]="isTeacher()
+                     ? 'Planifiez une réunion : vos étudiants sont notifiés tout de suite puis reçoivent un rappel 1 h avant.'
+                     : 'Les réunions de vos formateurs. Vous recevez un rappel 1 h avant chaque réunion.'">
     @if (isTeacher() && tab() === 'meetings') {
-      <button type="button" class="btn btn-primary mt-2 mt-md-0" (click)="openCreate()">
+      <button type="button" class="btn btn-primary" (click)="openCreate()">
         <svg cIcon name="cilPlus" class="me-1"></svg>
         <span>Nouvelle réunion</span>
       </button>
     }
-  </div>
+  </app-page-header>
 
   <ul class="nav nav-tabs mb-3">
     <li class="nav-item">
