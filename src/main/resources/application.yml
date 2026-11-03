@@ -85,6 +85,9 @@ app:
     turn-username: ${TURN_USERNAME:}
     turn-credential: ${TURN_CREDENTIAL:}
     reminder-check-ms: ${MEETING_REMINDER_CHECK_MS:60000}
+  # Connexion avec Google : Client ID OAuth « Application Web » (Google Cloud Console). Vide = bouton masqué.
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:}
   # Unique compte super administrateur, créé et maintenu au démarrage (mot de passe obligatoire).
   super-admin:
     email: ${SUPER_ADMIN_EMAIL:superadmin@lms.com}

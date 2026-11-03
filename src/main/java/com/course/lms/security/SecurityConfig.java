@@ -91,6 +91,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
                 .requestMatchers("/auth/register").permitAll()
                 .requestMatchers("/auth/login").permitAll()
+                // À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) :
+                // .requestMatchers(HttpMethod.POST, "/auth/google").permitAll()
+                // .requestMatchers(HttpMethod.GET, "/auth/google/config").permitAll()
                 .requestMatchers("/teacher/register").permitAll()
                 .requestMatchers("/student/register").permitAll()
                 .requestMatchers("/admin/register").permitAll()

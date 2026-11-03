@@ -34,5 +34,6 @@ build/
 
 ### Secrets et données locales (ne jamais publier) ###
 .env
+.env.bak
 uploads/
 *.log

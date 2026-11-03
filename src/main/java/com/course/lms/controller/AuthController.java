@@ -2,13 +2,16 @@ package com.course.lms.controller;
 
 import com.course.lms.dto.AuthResponse;
 import com.course.lms.dto.ForgotPasswordRequest;
+import com.course.lms.dto.GoogleAuthRequest;
 import com.course.lms.dto.PasswordResetRequest;
 import com.course.lms.dto.LoginRequest;
 import com.course.lms.dto.RegisterRequest;
 import com.course.lms.dto.UserResponse;
 import com.course.lms.exception.AdminApprovalException;
 import com.course.lms.exception.EmailNotVerifiedException;
+import com.course.lms.exception.GoogleAuthException;
 import com.course.lms.service.AuthService;
+import com.course.lms.service.GoogleAuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,9 +27,11 @@ import java.util.Map;
 public class AuthController {
     
     private final AuthService authService;
-    
-    public AuthController(AuthService authService) {
+    private final GoogleAuthService googleAuthService;
+
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
     }
 
     @PostMapping("/auth/login")
@@ -34,6 +39,21 @@ public class AuthController {
         AuthResponse authResponse = authService.login(request);
         return ResponseEntity.ok(authResponse);
     }
+
+    // À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) : retirer les commentaires des deux routes ci-dessous
+    // (et des deux lignes /auth/google dans SecurityConfig), puis définir GOOGLE_CLIENT_ID.
+    //
+    // /** Le bouton « Continuer avec Google » n'est affiché que si le serveur a un Client ID Google. */
+    // @GetMapping("/auth/google/config")
+    // public ResponseEntity<Map<String, Object>> googleConfig() {
+    //     return ResponseEntity.ok(Map.of("enabled", googleAuthService.isEnabled(), "clientId", googleAuthService.clientId()));
+    // }
+    //
+    // /** Connexion (page de connexion) ou inscription (page d'inscription, avec le rôle choisi) avec Google. */
+    // @PostMapping("/auth/google")
+    // public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleAuthRequest request) {
+    //     return ResponseEntity.ok(googleAuthService.authenticate(request.credential(), request.role()));
+    // }
 
     @GetMapping("/auth/me")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
@@ -131,6 +151,11 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> handleAdminApproval(AdminApprovalException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("message", ex.getMessage(), "code", ex.getCode()));
+    }
+
+    @ExceptionHandler(GoogleAuthException.class)
+    public ResponseEntity<Map<String, String>> handleGoogle(GoogleAuthException ex) {
+        return ResponseEntity.status(ex.getStatus()).body(Map.of("message", ex.getMessage(), "code", ex.getCode()));
     }
 
     @ExceptionHandler(DisabledException.class)

@@ -153,6 +153,12 @@ secret `SONAR_TOKEN`.
   que la signalisation par WebSocket. Sur les réseaux qui bloquent la connexion directe (Wi-Fi d'école, 4G), ajouter
   un serveur TURN (ex. coturn) avec `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Les rappels partent 1 h avant
   dans le fuseau `APP_TIMEZONE` ; les enregistrements sont conservés dans le volume `uploads` (`uploads/recordings`).
+- **Connexion avec Google** (facultative) : dans [Google Cloud Console](https://console.cloud.google.com/apis/credentials),
+  *Créer des identifiants → ID client OAuth → Application Web*, puis ajouter dans **Origines JavaScript autorisées**
+  chaque adresse du frontend (`http://localhost:4200`, `http://localhost`, `https://app.mon-lms.com`…). Aucun URI de
+  redirection n'est nécessaire. Copier l'ID client dans `GOOGLE_CLIENT_ID` (backend) : le bouton « Continuer avec
+  Google » apparaît alors sur les pages de connexion et d'inscription. Le backend vérifie la signature de chaque jeton
+  Google ; aucun secret Google n'est nécessaire.
 
 ## 5. Lancer toute la plateforme en local avec Docker
 

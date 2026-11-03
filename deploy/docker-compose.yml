@@ -74,6 +74,7 @@ services:
       TURN_URL: ${TURN_URL:-}
       TURN_USERNAME: ${TURN_USERNAME:-}
       TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     volumes:
       - uploads:/app/uploads
     ports:
