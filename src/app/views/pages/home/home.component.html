@@ -1,7 +1,6 @@
-<!-- Intro : le logo arrive de loin, grandit jusqu'à la taille de la page puis se place dans la barre -->
-<div class="intro" *ngIf="showIntro()" [class.intro--leaving]="introDone()" (click)="skipIntro()" title="Cliquer pour passer">
-  <img #introLogo class="intro__logo" src="assets/images/lms-logo-mark.png" alt="" />
-</div>
+<!-- Intro de marque : logo, particules et slogan, puis le logo rejoint la barre de navigation -->
+<app-brand-intro *ngIf="showIntro()" logoSrc="assets/images/lms-logo-mark.png" [slogan]="slogan"
+                 [target]="navLogo" (reveal)="introDone.set(true)" (finished)="finishIntro()" />
 
 <header class="topbar">
   <div class="topbar__inner">
@@ -39,15 +38,15 @@
         <button class="cta cta--solid cta--lg" (click)="goToSpace()">Accéder à mon espace</button>
       </ng-template>
     </div>
-    <p class="hero__trust"><svg cIcon name="cilCheck"></svg> Vos propres supports de cours · corrections incluses · trois espaces dédiés</p>
+    <p class="hero__trust"><svg cIcon name="cilCheck"></svg> Cours et quiz IA · visio et messagerie · étudiants, enseignants et administrateurs</p>
 
     <!-- Illustration : une bibliothèque de cours (livres, écrans, vidéo) et des étiquettes d'activité -->
     <div class="library" aria-hidden="true">
-      <span class="chip chip--a"><i class="dot dot--green"></i>PDF importé</span>
-      <span class="chip chip--b"><i class="dot dot--blue"></i>Vidéo transcrite</span>
+      <span class="chip chip--a"><i class="dot dot--green"></i>Cours terminé</span>
+      <span class="chip chip--b"><i class="dot dot--blue"></i>Nouveau message</span>
       <span class="chip chip--c"><i class="dot dot--amber"></i>Quiz généré</span>
-      <span class="chip chip--d"><i class="dot dot--blue"></i>TP corrigé</span>
-      <span class="chip chip--e"><i class="dot dot--gray"></i>Niveau avancé</span>
+      <span class="chip chip--d"><i class="dot dot--blue"></i>Réunion à 14:00</span>
+      <span class="chip chip--e"><i class="dot dot--gray"></i>★ 4,8 / 5</span>
 
       <div class="shelf">
         <div class="book book--1"></div>
@@ -91,8 +90,8 @@
     <div class="band__inner">
       <div class="band__badge"><svg cIcon name="cilLockLocked"></svg><span>Vos contenus</span></div>
       <div>
-        <h2>Vos cours, vos questions</h2>
-        <p>L'IA s'appuie uniquement sur les supports que vous importez : chaque question et chaque exercice viennent de votre cours, avec leur correction à relire.</p>
+        <h2>Un seul espace pour apprendre et enseigner</h2>
+        <p>Cours, évaluations, échanges et réunions au même endroit. L'IA s'appuie uniquement sur les supports du cours : chaque question et chaque explication viennent de vos contenus.</p>
       </div>
     </div>
   </section>
@@ -101,21 +100,46 @@
   <section class="section method" id="methode">
     <div class="method__intro reveal">
       <span class="kicker">Comment ça marche</span>
-      <h2>Du support de cours au quiz corrigé, en trois étapes</h2>
-      <p>Une fois votre cours créé, chaque chapitre peut servir à générer de nouvelles évaluations.</p>
+      <h2>{{ parcours() === 'student' ? 'Apprendre en trois étapes' : 'Du support de cours au suivi des étudiants' }}</h2>
+      <div class="switch" role="tablist" aria-label="Choisir un parcours">
+        <button type="button" role="tab" [class.switch__on]="parcours() === 'student'" [attr.aria-selected]="parcours() === 'student'"
+                (click)="parcours.set('student')"><svg cIcon name="cilUser"></svg>Étudiant</button>
+        <button type="button" role="tab" [class.switch__on]="parcours() === 'teacher'" [attr.aria-selected]="parcours() === 'teacher'"
+                (click)="parcours.set('teacher')"><svg cIcon name="cilBook"></svg>Enseignant</button>
+      </div>
+      <p>{{ parcours() === 'student'
+        ? 'Inscrivez-vous à une formation et retrouvez cours, exercices, assistant IA et formateur au même endroit.'
+        : 'Une fois votre cours créé, chaque chapitre peut servir à générer de nouvelles évaluations.' }}</p>
       <a class="cta cta--outline" routerLink="/register" *ngIf="!authService.isLoggedIn()">Commencer</a>
     </div>
 
-    <ol class="timeline">
-      <li class="timeline__step reveal" *ngFor="let s of steps; let i = index">
+    <ol class="timeline reveal">
+      <li class="timeline__step" *ngFor="let s of steps[parcours()]; let i = index">
         <span class="timeline__num">{{ i + 1 }}</span>
         <h3>{{ s.title }}</h3>
         <p>{{ s.text }}</p>
 
         <!-- Maquettes d'écran -->
-        <div class="mock" [ngSwitch]="i">
+        <div class="mock" [ngSwitch]="parcours() + i">
           <div class="mock__bar"><i></i><i></i><i></i></div>
-          <ng-container *ngSwitchCase="0">
+          <ng-container *ngSwitchCase="'student0'">
+            <div class="line"><span>Spring Boot avancé</span><span class="stars">★★★★★</span></div>
+            <div class="line"><span>Angular de A à Z</span><b>49 DT</b></div>
+            <div class="line"><span>Initiation à Java</span><b class="ok">Gratuit</b></div>
+          </ng-container>
+          <ng-container *ngSwitchCase="'student1'">
+            <div class="tags">
+              <span class="tag tag--pdf">PDF</span><span class="tag tag--video">Vidéo</span><span class="tag tag--audio">Audio</span>
+            </div>
+            <div class="bar"><span style="width: 64%"></span></div>
+            <div class="mock__caption">Progression du cours : 64 %</div>
+          </ng-container>
+          <ng-container *ngSwitchCase="'student2'">
+            <div class="mock__question">Quelle annotation génère equals() et hashCode() ?</div>
+            <div class="answer answer--ok">B. &#64;EqualsAndHashCode <svg cIcon name="cilCheck"></svg></div>
+            <div class="mock__caption mock__caption--ok">Score : 5 / 6 · Réunion avec votre formateur demain à 14:00</div>
+          </ng-container>
+          <ng-container *ngSwitchCase="'teacher0'">
             <div class="mock__line"></div>
             <div class="mock__line mock__line--short"></div>
             <div class="tags">
@@ -123,18 +147,17 @@
               <span class="tag tag--audio">Audio</span><span class="tag tag--link">Lien web</span>
             </div>
           </ng-container>
-          <ng-container *ngSwitchCase="1">
+          <ng-container *ngSwitchCase="'teacher1'">
             <div class="levels">
               <span class="level level--on">Débutant</span><span class="level level--on">Intermédiaire</span><span class="level">Avancé</span>
             </div>
             <div class="bar"><span style="width: 78%"></span></div>
             <div class="mock__caption">Génération en cours… 12 s</div>
           </ng-container>
-          <ng-container *ngSwitchCase="2">
-            <div class="mock__question">Quelle annotation génère equals() et hashCode() ?</div>
-            <div class="answer">A. &#64;Getter</div>
-            <div class="answer answer--ok">B. &#64;EqualsAndHashCode <svg cIcon name="cilCheck"></svg></div>
-            <div class="mock__caption mock__caption--ok">Correction : génère les deux méthodes à partir des champs.</div>
+          <ng-container *ngSwitchCase="'teacher2'">
+            <div class="line"><span>Sarah B.</span><b>92 %</b></div>
+            <div class="line"><span>Karim M.</span><b>67 %</b></div>
+            <div class="line"><span>Réunion « Correction du TP »</span><b class="ok">12 inscrits notifiés</b></div>
           </ng-container>
         </div>
       </li>
@@ -163,8 +186,8 @@
   <!-- ── Outils ── -->
   <section class="section" id="outils">
     <div class="section__head reveal">
-      <span class="kicker">Les outils</span>
-      <h2>Tout ce qu'il faut pour enseigner, au même endroit</h2>
+      <span class="kicker">Fonctionnalités</span>
+      <h2>Tout ce qu'il faut pour enseigner et apprendre, au même endroit</h2>
     </div>
 
     <article class="tool reveal">
@@ -174,7 +197,7 @@
         <p>Construisez vos cours en chapitres et en leçons, ajoutez vos supports et modifiez-les à tout moment.</p>
         <ul class="checks">
           <li><svg cIcon name="cilCheck"></svg>Plusieurs supports par leçon</li>
-          <li><svg cIcon name="cilCheck"></svg>Remplacement des fichiers en un clic</li>
+          <li><svg cIcon name="cilCheck"></svg>Formations gratuites ou payantes</li>
           <li><svg cIcon name="cilCheck"></svg>Quiz et TP conservés après modification</li>
         </ul>
       </div>
@@ -213,37 +236,138 @@
       <div class="tool__text">
         <span class="kicker">Pour l'étudiant</span>
         <h3>Un assistant qui connaît vos cours</h3>
-        <p>Posez vos questions sur un document, une vidéo ou une notion : l'assistant répond à partir des contenus du cours.</p>
+        <p>Posez vos questions sur un document, une vidéo ou une notion : l'assistant explique et résume à partir des contenus du cours.</p>
         <ul class="checks">
-          <li><svg cIcon name="cilCheck"></svg>Questions en langage naturel</li>
-          <li><svg cIcon name="cilCheck"></svg>Réponses fondées sur vos supports</li>
-          <li><svg cIcon name="cilCheck"></svg>Disponible à tout moment</li>
+          <li><svg cIcon name="cilCheck"></svg>Explications et résumés à la demande</li>
+          <li><svg cIcon name="cilCheck"></svg>Réponses téléchargeables en PDF ou en texte</li>
+          <li><svg cIcon name="cilCheck"></svg>Disponible à tout moment, sur chaque page</li>
         </ul>
       </div>
       <div class="panel chat">
-        <div class="bubble bubble--me">Que fait l'annotation &#64;Builder ?</div>
-        <div class="bubble bubble--ai"><svg cIcon name="cilLightbulb"></svg> Elle génère un « builder » pour créer l'objet étape par étape, d'après le chapitre 2 du cours.</div>
-        <div class="bubble bubble--me">Et avec &#64;NoArgsConstructor ?</div>
+        <div class="bubble bubble--me">Résume le chapitre 2 en 5 points</div>
+        <div class="bubble bubble--ai"><svg cIcon name="cilLightbulb"></svg> Voici l'essentiel : 1. &#64;Builder crée l'objet étape par étape… <u>Télécharger en PDF</u></div>
+        <div class="bubble bubble--me">Explique-moi &#64;NoArgsConstructor</div>
         <div class="typing"><i></i><i></i><i></i></div>
       </div>
     </article>
 
     <article class="tool reveal">
       <div class="tool__text">
-        <span class="kicker">Pour l'administrateur</span>
-        <h3>Utilisateurs, rôles et formations</h3>
-        <p>Activez les comptes, attribuez les rôles et les formateurs, et suivez l'activité de la plateforme.</p>
+        <span class="kicker">Enseignant et étudiant</span>
+        <h3>Réunions en visio</h3>
+        <p>L'enseignant planifie une réunion dans le calendrier : les étudiants sont notifiés, puis reçoivent un rappel 1 h avant.</p>
         <ul class="checks">
-          <li><svg cIcon name="cilCheck"></svg>Activation et désactivation des comptes</li>
-          <li><svg cIcon name="cilCheck"></svg>Attribution des formateurs aux cours</li>
-          <li><svg cIcon name="cilCheck"></svg>Statistiques en un coup d'œil</li>
+          <li><svg cIcon name="cilCheck"></svg>Caméra, micro, partage d'écran et chat</li>
+          <li><svg cIcon name="cilCheck"></svg>Enregistrement par l'enseignant ou un étudiant</li>
+          <li><svg cIcon name="cilCheck"></svg>Tous les enregistrements dans un seul onglet</li>
+        </ul>
+      </div>
+      <div class="panel visio">
+        <div class="visio__top"><b>Correction du TP 2</b><span class="visio__rec"><i></i>REC</span></div>
+        <div class="visio__grid">
+          <span class="visio__tile">Mme Ben Ali<em>formatrice</em></span>
+          <span class="visio__tile">Sarah B.</span>
+          <span class="visio__tile visio__tile--screen"><svg cIcon name="cilScreenDesktop"></svg>Écran de Karim M.</span>
+          <span class="visio__tile">Lina T.</span>
+        </div>
+        <div class="visio__bar">
+          <svg cIcon name="cilMicrophone"></svg><svg cIcon name="cilVideo"></svg><svg cIcon name="cilScreenDesktop"></svg>
+          <svg cIcon name="cilMediaRecord"></svg><svg cIcon name="cilChatBubble"></svg>
+        </div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Enseignant et étudiant</span>
+        <h3>Messagerie et notifications en temps réel</h3>
+        <p>Écrivez à votre formateur ou à vos étudiants : les messages et les notifications arrivent instantanément.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Historique des conversations conservé</li>
+          <li><svg cIcon name="cilCheck"></svg>Compteur de messages non lus</li>
+          <li><svg cIcon name="cilCheck"></svg>Alertes : nouveau cours, réponse, réunion, avis</li>
+        </ul>
+      </div>
+      <div class="panel chat">
+        <div class="bubble bubble--ai">Bonjour Madame, je bloque sur l'exercice 3 du TP.</div>
+        <div class="bubble bubble--me">Relisez la leçon 2.1, on en parle à la réunion de demain.</div>
+        <div class="line"><span><svg cIcon name="cilBell" class="ico"></svg>Rappel : réunion dans 1 h</span><b class="ok">Nouveau</b></div>
+        <div class="line"><span><svg cIcon name="cilBook" class="ico"></svg>Nouveau cours : Spring Security</span><b>il y a 2 h</b></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Suivi pédagogique</span>
+        <h3>Progression, notes et tableaux de bord</h3>
+        <p>L'étudiant suit sa progression et ses résultats ; l'enseignant voit l'avancement de chaque étudiant et exporte les résultats.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Progression et notes par cours</li>
+          <li><svg cIcon name="cilCheck"></svg>Participation et statistiques</li>
+          <li><svg cIcon name="cilCheck"></svg>Export des résultats en CSV</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="tabs"><span class="tabs__on">Étudiants</span><span>Statistiques</span><span>Avis</span></div>
+        <div class="line"><span>Sarah B.</span><span class="meter"><i style="width: 92%"></i></span><b>92 %</b></div>
+        <div class="line"><span>Karim M.</span><span class="meter"><i style="width: 67%"></i></span><b>67 %</b></div>
+        <div class="line"><span>Lina T.</span><span class="meter"><i style="width: 45%"></i></span><b>45 %</b></div>
+        <div class="line"><span>Exporter les résultats</span><b class="ok">CSV</b></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Avis et profils</span>
+        <h3>Des avis qui aident à choisir</h3>
+        <p>Les étudiants notent les cours, réagissent aux ressources et évaluent leurs formateurs ; l'enseignant est prévenu à chaque avis.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Étoiles, « j'aime » et commentaires</li>
+          <li><svg cIcon name="cilCheck"></svg>Note du formateur en pourcentage</li>
+          <li><svg cIcon name="cilCheck"></svg>Profils avec photo pour tous les rôles</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="line"><span>Spring Boot avancé</span><span class="stars">★★★★★ <small>4,8</small></span></div>
+        <div class="line"><span>« Très clair, merci ! »</span><b><svg cIcon name="cilThumbUp" class="ico"></svg>24</b></div>
+        <div class="line"><span>Mme Ben Ali · formatrice</span><b class="ok">96 % satisfaits</b></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Paiement et revenus</span>
+        <h3>Formations payantes en toute sécurité</h3>
+        <p>Paiement par carte via Stripe pour l'étudiant ; portefeuille et historique des ventes pour l'enseignant.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Accès ouvert dès le paiement confirmé</li>
+          <li><svg cIcon name="cilCheck"></svg>Aucune donnée de carte stockée</li>
+          <li><svg cIcon name="cilCheck"></svg>Revenus et retraits suivis par l'enseignant</li>
+        </ul>
+      </div>
+      <div class="panel">
+        <div class="line"><span><svg cIcon name="cilCreditCard" class="ico"></svg>Angular de A à Z</span><b class="ok">Payé</b></div>
+        <div class="line"><span>Ventes du mois</span><b>18</b></div>
+        <div class="line"><span>Solde du portefeuille</span><b>612 DT</b></div>
+      </div>
+    </article>
+
+    <article class="tool reveal">
+      <div class="tool__text">
+        <span class="kicker">Pour l'administrateur</span>
+        <h3>Gestion et supervision de la plateforme</h3>
+        <p>Activez les comptes, attribuez les rôles et suivez l'activité de toute la plateforme en un coup d'œil.</p>
+        <ul class="checks">
+          <li><svg cIcon name="cilCheck"></svg>Utilisateurs, rôles et formateurs</li>
+          <li><svg cIcon name="cilCheck"></svg>Statistiques globales et graphiques</li>
+          <li><svg cIcon name="cilCheck"></svg>Journal d'activité et suivi financier</li>
         </ul>
       </div>
       <div class="panel">
         <div class="line"><span>Sarah B.</span><span class="role role--student">Étudiant</span></div>
         <div class="line"><span>Karim M.</span><span class="role role--teacher">Enseignant</span></div>
-        <div class="line"><span>Lina T.</span><span class="role role--student">Étudiant</span></div>
         <div class="line"><span>Youssef A.</span><span class="role role--admin">Administrateur</span></div>
+        <div class="line"><span>Connexions aujourd'hui</span><b>148</b></div>
       </div>
     </article>
   </section>
@@ -270,8 +394,8 @@
   <footer class="site-footer">
     <div class="site-footer__cta">
       <div>
-        <h2>Prêt à créer votre premier cours ?</h2>
-        <p>Créez votre compte et générez vos premiers quiz en quelques minutes.</p>
+        <h2>Prêt à commencer ?</h2>
+        <p>Créez votre compte étudiant ou enseignant : vos cours, vos échanges et vos réunions vous attendent.</p>
       </div>
       <a class="cta cta--light cta--lg" routerLink="/register" *ngIf="!authService.isLoggedIn(); else footerSpace">Créer un compte</a>
       <ng-template #footerSpace><button class="cta cta--light cta--lg" (click)="goToSpace()">Mon espace</button></ng-template>
@@ -279,7 +403,7 @@
     <div class="site-footer__cols">
       <div class="site-footer__brand">
         <img src="assets/images/lms-logo-mark.png" alt="LMS" />
-        <p>Votre plateforme intelligente pour l'e&#8209;learning.</p>
+        <p>{{ slogan }}.</p>
       </div>
       <div>
         <h4>Plateforme</h4>

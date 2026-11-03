@@ -1,0 +1,249 @@
+// Couleurs du logo LMS
+$navy: #0b2f7a;
+$blue: #1565e0;
+$sky: #1fa2ff;
+
+:host {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: block;
+}
+
+.bi {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 4vh, 36px);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.bi-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba($sky, .22) 0%, rgba($blue, .12) 22%, transparent 55%),
+    radial-gradient(ellipse at 50% 120%, rgba($blue, .35) 0%, transparent 60%),
+    linear-gradient(180deg, #071c4d 0%, #04112f 60%, #020a1e 100%);
+}
+
+// ── Traits lumineux ─────────────────────────────────────────────
+.bi-lines {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(110vmax, 800px);
+  height: max(110vmax, 800px);
+  margin: calc(max(110vmax, 800px) / -2) 0 0 calc(max(110vmax, 800px) / -2);
+  pointer-events: none;
+  will-change: opacity;
+}
+
+.bi-track {
+  fill: none;
+  stroke: rgba($sky, .12);
+  stroke-width: 1;
+}
+
+.bi-trail {
+  fill: none;
+  stroke: url(#bi-trail-grad);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 90 910;
+}
+
+.bi-trail--halo {
+  stroke-width: 7;
+  opacity: .25;
+}
+
+.bi-streaks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bi-streak {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba($sky, .0) 30%, rgba(#fff, .85) 50%, rgba($sky, .0) 70%, transparent 100%);
+  opacity: 0;
+
+  &:nth-child(1) { top: 32%; transform: rotate(-8deg); }
+  &:nth-child(2) { top: 68%; transform: rotate(6deg); }
+}
+
+// ── Scène : orbites + logo ──────────────────────────────────────
+.bi-stage {
+  position: relative;
+  width: min(62vmin, 440px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  z-index: 1;
+}
+
+.bi-orbits {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bi-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1px solid rgba($sky, .10);
+  will-change: transform, opacity;
+}
+
+.bi-dot {
+  position: absolute;
+  inset: 0;
+
+  i {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 6px 1px rgba($sky, .9), 0 0 14px 2px rgba($sky, .45);
+  }
+}
+
+// Étoiles : petite croix lumineuse
+.bi-star i {
+  background: #eaf6ff;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 300%;
+    height: 1px;
+    translate: -50% -50%;
+    background: linear-gradient(90deg, transparent, rgba(#fff, .9), transparent);
+  }
+
+  &::after { rotate: 90deg; }
+}
+
+.bi-float {
+  position: relative;
+  width: 58%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.bi-glow {
+  position: absolute;
+  inset: -22%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba($sky, .55) 0%, rgba($blue, .25) 38%, transparent 68%);
+  will-change: transform, opacity;
+}
+
+.bi-ring {
+  position: absolute;
+  inset: -7%;
+  width: 114%;
+  height: 114%;
+  overflow: visible;
+}
+
+.bi-ring-base {
+  fill: none;
+  stroke: rgba($sky, .15);
+  stroke-width: .5;
+}
+
+.bi-ring-draw {
+  fill: none;
+  stroke: $sky;
+  stroke-width: .9;
+  stroke-linecap: round;
+}
+
+// Disque de lumière : garde le logo (bleu marine) bien lisible sur le fond sombre
+.bi-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #ffffff 0%, #f4f9ff 55%, #dcebff 100%);
+  box-shadow: 0 0 0 1px rgba(#fff, .6), 0 0 40px rgba($sky, .55), 0 0 110px rgba($blue, .45);
+}
+
+.bi-sheen {
+  position: absolute;
+  inset: -10% auto -10% 0;
+  width: 45%;
+  background: linear-gradient(100deg, transparent 0%, rgba(#fff, .95) 50%, transparent 100%);
+  mix-blend-mode: overlay;
+  transform: skewX(-18deg);
+}
+
+.bi-logo {
+  position: relative;
+  width: 72%;
+  height: auto;
+  transform-origin: center;
+  will-change: transform, opacity;
+}
+
+// ── Slogan ──────────────────────────────────────────────────────
+.bi-slogan {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  padding: 0 16px;
+  max-width: 920px;
+  text-align: center;
+  color: #eaf3ff;
+  font-size: clamp(1.05rem, 3.6vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: .01em;
+  line-height: 1.35;
+  text-shadow: 0 0 14px rgba($sky, .45);
+}
+
+.bi-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.bi-letter {
+  display: inline-block;
+}
+
+// ── Éclair final ────────────────────────────────────────────────
+.bi-flash {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 60vmax;
+  height: 60vmax;
+  margin: -30vmax 0 0 -30vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(#fff, 1) 0%, rgba(#eaf6ff, .85) 25%, rgba($sky, .25) 50%, transparent 70%);
+  pointer-events: none;
+  z-index: 2;
+  will-change: transform, opacity;
+}
+
+@media (max-width: 520px) {
+  .bi-stage { width: 78vw; }
+}
