@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
 import {
   InputGroupComponent,
@@ -12,6 +12,8 @@ import {
   AlertComponent
 } from '@coreui/angular';
 import { AuthService, PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from '../../../services/auth.service';
+// À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) : remettre GoogleSigninComponent dans imports: [...] ci-dessous
+import { GoogleSigninError } from '../../../shared/google-signin.component';
 
 @Component({
   selector: 'app-register',
@@ -27,6 +29,7 @@ import { AuthService, PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from '../../../s
     FormSelectDirective,
     SpinnerComponent,
     AlertComponent
+    // GoogleSigninComponent
   ],
   templateUrl: './register.component.html',
   styleUrls: ['../auth-pages.scss']
@@ -44,8 +47,25 @@ export class RegisterComponent {
   registeredRole = signal('');
   resending = signal(false);
   resendMessage = signal('');
+  // Inscription Google d'un administrateur : demande envoyée au super administrateur
+  googleInfo = signal('');
 
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private router: Router) {}
+
+  /** Compte Google créé (ou déjà existant) : connecté directement, pas d'email de vérification à attendre. */
+  onGoogle(): void {
+    this.router.navigateByUrl(this.authService.getHomeRoute());
+  }
+
+  onGoogleError(error: GoogleSigninError): void {
+    if (error.code === 'ADMIN_PENDING') {
+      this.errorMessage.set('');
+      this.googleInfo.set(error.message);
+    } else {
+      this.googleInfo.set('');
+      this.errorMessage.set(error.message);
+    }
+  }
 
   onRegister(): void {
     this.errorMessage.set('');

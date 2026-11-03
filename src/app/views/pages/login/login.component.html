@@ -12,6 +12,9 @@
 
         <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">
           {{ errorMessage() }}
+          <div *ngIf="googleNoAccount()" class="mt-2">
+            <a routerLink="/register" class="alert-link">Créer mon compte avec Google</a>
+          </div>
           <div *ngIf="notVerified()" class="mt-2">
             <button cButton color="danger" variant="outline" size="sm" type="button"
                     (click)="resendVerification()" [disabled]="resending()">
@@ -45,6 +48,10 @@
           <c-spinner aria-hidden="true" size="sm" *ngIf="loading()"></c-spinner>
           <span *ngIf="!loading()">Se connecter</span>
         </button>
+
+        <!-- À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) :
+        <app-google-signin mode="signin" (success)="onGoogle()" (failure)="onGoogleError($event)" />
+        -->
 
         <p class="auth__switch">
           Vous n'avez pas encore de compte ?<a routerLink="/register">Créer un compte</a>

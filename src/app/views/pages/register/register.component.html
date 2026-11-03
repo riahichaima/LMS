@@ -39,6 +39,24 @@
             {{ errorMessage() }}
           </c-alert>
 
+          <c-alert color="info" *ngIf="googleInfo()" class="mb-3">
+            {{ googleInfo() }}
+          </c-alert>
+
+          <!-- Le rôle sert aussi à l'inscription avec Google -->
+          <c-input-group class="mb-3">
+            <span cInputGroupText><svg cIcon name="cilPeople"></svg></span>
+            <select name="role" [(ngModel)]="role" cSelect aria-label="Je m'inscris en tant que">
+              <option value="STUDENT">Étudiant</option>
+              <option value="TEACHER">Enseignant</option>
+              <option value="ADMIN">Administrateur</option>
+            </select>
+          </c-input-group>
+
+          <c-alert color="warning" *ngIf="role() === 'ADMIN'" class="mb-3 small">
+            Un compte administrateur doit être validé par le super administrateur avant la première connexion.
+          </c-alert>
+
           <c-input-group class="mb-3">
             <span cInputGroupText><svg cIcon name="cilUser"></svg></span>
             <input name="name" [(ngModel)]="name" autoComplete="name" cFormControl placeholder="Nom complet" required />
@@ -49,19 +67,6 @@
             <input name="email" [(ngModel)]="email" autoComplete="email" cFormControl
                    placeholder="Adresse e-mail" type="email" required />
           </c-input-group>
-
-          <c-input-group class="mb-3">
-            <span cInputGroupText><svg cIcon name="cilPeople"></svg></span>
-            <select name="role" [(ngModel)]="role" cSelect>
-              <option value="STUDENT">Étudiant</option>
-              <option value="TEACHER">Enseignant</option>
-              <option value="ADMIN">Administrateur</option>
-            </select>
-          </c-input-group>
-
-          <c-alert color="warning" *ngIf="role() === 'ADMIN'" class="mb-3 small">
-            Un compte administrateur doit être validé par le super administrateur avant la première connexion.
-          </c-alert>
 
           <c-input-group class="mb-3">
             <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
@@ -81,6 +86,10 @@
             <c-spinner aria-hidden="true" size="sm" *ngIf="loading()"></c-spinner>
             <span *ngIf="!loading()">Créer mon compte</span>
           </button>
+
+          <!-- À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) :
+          <app-google-signin mode="signup" [role]="role()" (success)="onGoogle()" (failure)="onGoogleError($event)" />
+          -->
 
           <p class="auth__switch">
             Vous avez déjà un compte ?<a routerLink="/login">Se connecter</a>

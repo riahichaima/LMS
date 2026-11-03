@@ -12,6 +12,8 @@ import {
   AlertComponent
 } from '@coreui/angular';
 import { AuthService } from '../../../services/auth.service';
+// À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) : remettre GoogleSigninComponent dans imports: [...] ci-dessous
+import { GoogleSigninError } from '../../../shared/google-signin.component';
 
 @Component({
   selector: 'app-login',
@@ -27,6 +29,7 @@ import { AuthService } from '../../../services/auth.service';
     ButtonDirective,
     SpinnerComponent,
     AlertComponent
+    // GoogleSigninComponent
   ],
   templateUrl: './login.component.html',
   styleUrls: ['../auth-pages.scss']
@@ -40,8 +43,22 @@ export class LoginComponent {
   notVerified = signal(false);
   resending = signal(false);
   infoMessage = signal('');
+  // Connexion Google avec une adresse sans compte LMS : lien vers l'inscription
+  googleNoAccount = signal(false);
 
   constructor(private authService: AuthService, private router: Router, private route: ActivatedRoute) {}
+
+  onGoogle(): void {
+    const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');
+    this.router.navigateByUrl(returnUrl || this.authService.getHomeRoute());
+  }
+
+  onGoogleError(error: GoogleSigninError): void {
+    this.infoMessage.set('');
+    this.notVerified.set(false);
+    this.googleNoAccount.set(error.code === 'GOOGLE_NO_ACCOUNT');
+    this.errorMessage.set(error.message);
+  }
 
   onLogin(): void {
     if (!this.email || !this.password) {
@@ -53,6 +70,7 @@ export class LoginComponent {
     this.errorMessage.set('');
     this.infoMessage.set('');
     this.notVerified.set(false);
+    this.googleNoAccount.set(false);
 
     this.authService.login({ email: this.email, password: this.password }).subscribe({
       next: () => {

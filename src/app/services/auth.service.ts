@@ -67,6 +67,23 @@ export class AuthService {
     );
   }
 
+  /** Le bouton Google n'est affiché que si le backend a un Client ID Google configuré. */
+  googleConfig(): Observable<{ enabled: boolean; clientId: string }> {
+    return this.http.get<{ enabled: boolean; clientId: string }>(`${this.apiUrl}/auth/google/config`);
+  }
+
+  /** Connexion (sans rôle) ou inscription (avec le rôle choisi) à partir du jeton renvoyé par Google. */
+  loginWithGoogle(credential: string, role?: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/google`, { credential, role: role ?? null }).pipe(
+      tap(response => {
+        if (response.token) {
+          this.setToken(response.token);
+          this.setUser(response.user);
+        }
+      })
+    );
+  }
+
   register(data: RegisterRequest): Observable<User> {
     const endpoint = data.role === 'ADMIN' ? '/admin/register' :
                      data.role === 'TEACHER' ? '/teacher/register' :
