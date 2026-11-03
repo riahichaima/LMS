@@ -29,6 +29,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  *     /user/queue/notifications  → nouvelles notifications
  *     /user/queue/read           → accusés de lecture
  * - Les messages sont envoyés par l'API REST (POST /api/messages) : contrôles d'accès centralisés.
+ * - Exception : la signalisation des réunions en visio (/app/meeting.*, file /user/queue/meeting).
  */
 @Configuration
 @EnableWebSocketMessageBroker
@@ -72,7 +73,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         throw new MessagingException("Abonnement refusé : " + destination);
                     }
                 } else if (command == StompCommand.SEND) {
-                    throw new MessagingException("Envoyez les messages via l'API REST /api/messages");
+                    // Seule la signalisation des réunions passe par le WebSocket ; les autres envois utilisent l'API REST
+                    String destination = accessor.getDestination();
+                    if (accessor.getUser() == null || destination == null || !destination.startsWith("/app/meeting.")) {
+                        throw new MessagingException("Envoyez les messages via l'API REST /api/messages");
+                    }
                 }
                 return message;
             }

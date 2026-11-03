@@ -25,8 +25,8 @@ spring:
         format_sql: ${JPA_SHOW_SQL:false}
   mail:
     host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
-    port: ${MAIL_PORT:2525}
-    username: ${MAIL_USERNAME:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:api}
     password: ${MAIL_PASSWORD:}
     properties:
       mail:
@@ -77,6 +77,14 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   # Origines autorisées à appeler l'API (séparées par des virgules), en plus des adresses locales
   cors-origins: ${APP_CORS_ORIGINS:}
+  # Fuseau horaire des dates écrites dans les notifications (réunions)
+  timezone: ${APP_TIMEZONE:Africa/Tunis}
+  # Réunions en visio (WebRTC) : serveur TURN facultatif pour les réseaux qui bloquent la connexion directe
+  meetings:
+    turn-url: ${TURN_URL:}
+    turn-username: ${TURN_USERNAME:}
+    turn-credential: ${TURN_CREDENTIAL:}
+    reminder-check-ms: ${MEETING_REMINDER_CHECK_MS:60000}
   # Unique compte super administrateur, créé et maintenu au démarrage (mot de passe obligatoire).
   super-admin:
     email: ${SUPER_ADMIN_EMAIL:superadmin@lms.com}

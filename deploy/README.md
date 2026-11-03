@@ -147,6 +147,12 @@ secret `SONAR_TOKEN`.
 - **Supervision** : `docker compose --profile monitoring up -d`, puis tunnel SSH
   `ssh -L 3000:localhost:3000 serveur` et http://localhost:3000 (tableau de bord *LMS — Backend*).
 - **Test de charge** : *Actions → Test de charge (k6) → Run workflow* (URL de l'API, nombre d'utilisateurs).
+- **Réunions en visio (WebRTC)** : la caméra, le micro et le partage d'écran ne fonctionnent qu'en **HTTPS**
+  (ou sur `localhost`) — en production, utiliser le profil `https` (Caddy) ou un hébergeur HTTPS. La vidéo passe
+  directement entre navigateurs (maillage pair-à-pair, confortable jusqu'à 6–8 participants) ; le backend ne relaie
+  que la signalisation par WebSocket. Sur les réseaux qui bloquent la connexion directe (Wi-Fi d'école, 4G), ajouter
+  un serveur TURN (ex. coturn) avec `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`. Les rappels partent 1 h avant
+  dans le fuseau `APP_TIMEZONE` ; les enregistrements sont conservés dans le volume `uploads` (`uploads/recordings`).
 
 ## 5. Lancer toute la plateforme en local avec Docker
 

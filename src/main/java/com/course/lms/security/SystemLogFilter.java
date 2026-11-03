@@ -82,6 +82,11 @@ public class SystemLogFilter extends OncePerRequestFilter {
             r("PUT", "/api/feedback/teachers/\\d+/rating", "FEEDBACK", "Évaluation d'un formateur"),
             r("DELETE", "/api/feedback/teachers/\\d+/rating", "FEEDBACK", "Évaluation retirée"),
             r("PUT", "/api/profiles/me", "USER", "Profil modifié"),
+            r("POST", "/api/meetings", "MEETING", "Réunion planifiée"),
+            r("PUT", "/api/meetings/\\d+", "MEETING", "Réunion modifiée"),
+            r("DELETE", "/api/meetings/\\d+", "MEETING", "Réunion annulée"),
+            r("POST", "/api/meetings/\\d+/recordings", "MEETING", "Enregistrement de réunion déposé"),
+            r("DELETE", "/api/meetings/recordings/\\d+", "MEETING", "Enregistrement supprimé"),
             r("POST", "/api/profiles/me/avatar", "USER", "Photo de profil modifiée"),
             r("DELETE", "/api/profiles/me/avatar", "USER", "Photo de profil supprimée")
     );

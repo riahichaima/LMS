@@ -70,6 +70,10 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Africa/Tunis}
+      TURN_URL: ${TURN_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
     volumes:
       - uploads:/app/uploads
     ports:
