@@ -55,7 +55,6 @@
       </div>
 
       <div *ngIf="photoError()" class="small text-danger mt-2">{{ photoError() }}</div>
-      <div *ngIf="p.self && !editing()" class="small text-body-secondary mt-2">Photo : JPG, PNG, GIF ou WebP, 3 Mo maximum.</div>
 
       <form *ngIf="editing()" class="row g-2 align-items-end mt-3" (ngSubmit)="saveNames()">
         <div class="col-sm-4">

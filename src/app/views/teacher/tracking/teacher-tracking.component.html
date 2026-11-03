@@ -1,5 +1,4 @@
-<app-page-header title="Suivi pédagogique" icon="cilChartLine"
-                 subtitle="Progression de vos étudiants, notes aux quiz et TP, participation et export des résultats.">
+<ng-template #trackingTools>
   <ng-container *ngIf="courses().length > 0">
     <select class="form-select tracking-select" aria-label="Cours à suivre"
             [ngModel]="selectedId()" (ngModelChange)="select($event)">
@@ -9,7 +8,19 @@
       <svg cIcon name="cilCloudDownload" class="me-1"></svg>{{ exporting() ? 'Export…' : 'Exporter (CSV)' }}
     </button>
   </ng-container>
-</app-page-header>
+</ng-template>
+
+@if (embedded()) {
+  <div class="tracking-toolbar mb-3">
+    <span class="fw-semibold me-auto">Choisissez un cours pour voir chaque étudiant</span>
+    <ng-container *ngTemplateOutlet="trackingTools" />
+  </div>
+} @else {
+  <app-page-header title="Suivi pédagogique" icon="cilChartLine"
+                   subtitle="Progression de vos étudiants, notes aux quiz et TP, participation et export des résultats.">
+    <ng-container *ngTemplateOutlet="trackingTools" />
+  </app-page-header>
+}
 
 <div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
 <c-alert *ngIf="error()" color="danger">{{ error() }}</c-alert>
@@ -163,7 +174,7 @@
             </tr>
             <tr *ngIf="d.assessments.length === 0">
               <td colspan="7" class="text-center text-body-secondary py-3">
-                Aucun quiz ni TP pour ce cours. <a routerLink="/teacher/assessments">Générer avec l'IA</a>
+                Aucun quiz ni TP pour ce cours. <a routerLink="/teacher/quiz-tp" [queryParams]="{ tab: 'generate' }">Créer un quiz ou un TP</a>
               </td>
             </tr>
           </tbody>

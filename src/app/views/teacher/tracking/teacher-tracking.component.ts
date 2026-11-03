@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, signal } from '@angular/core';
+import { Component, OnInit, input, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -40,6 +40,8 @@ type SortKey = 'progress' | 'name' | 'quiz' | 'tp' | 'lastAccess';
   styleUrl: './teacher-tracking.component.scss'
 })
 export class TeacherTrackingComponent implements OnInit {
+  /** Affiché dans le tableau de bord enseignant : barre d'outils compacte au lieu de l'en-tête de page. */
+  embedded = input(false);
   courses = signal<CourseSummary[]>([]);
   selectedId = signal<number | null>(null);
   detail = signal<CourseDetail | null>(null);

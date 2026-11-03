@@ -1,5 +1,7 @@
 <app-page-header title="Messagerie" icon="cilChatBubble"
-                 [subtitle]="authService.isStudent() ? 'Échangez avec les formateurs de vos cours.' : 'Échangez avec les étudiants inscrits à vos cours.'">
+                 [subtitle]="authService.isStudent() ? 'Échangez avec les formateurs de vos cours et l\'administration.'
+                   : authService.isTeacher() ? 'Échangez avec les étudiants inscrits à vos cours et l\'administration.'
+                   : 'Écrivez à n\'importe quel étudiant ou enseignant de la plateforme.'">
   <span class="live-status" [class.on]="realtime.connected()">
     <span class="dot"></span>{{ realtime.connected() ? 'Temps réel actif' : 'Connexion temps réel…' }}
   </span>

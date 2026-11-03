@@ -1,0 +1,154 @@
+<c-alert color="danger" *ngIf="error()" [dismissible]="true" (visibleChange)="error.set('')">{{ error() }}</c-alert>
+<c-alert color="success" *ngIf="success()" [dismissible]="true" (visibleChange)="success.set('')">{{ success() }}</c-alert>
+
+<div class="files-layout">
+  <!-- Import d'un sujet -->
+  <section class="card">
+    <div class="card-body">
+      <h2 class="section-title">Importer un quiz ou un TP</h2>
+      <p class="small text-body-secondary">Déposez un sujet préparé sur votre ordinateur. Vos étudiants le téléchargent, rendent leur copie, et vous la notez ici.</p>
+
+      <div class="kind mb-3" role="radiogroup" aria-label="Type">
+        <button type="button" role="radio" [class.on]="type === 'QUIZ'" [attr.aria-checked]="type === 'QUIZ'" (click)="type = 'QUIZ'">
+          <svg cIcon name="cilListNumbered" size="sm"></svg>Quiz
+        </button>
+        <button type="button" role="radio" [class.on]="type === 'TP'" [attr.aria-checked]="type === 'TP'" (click)="type = 'TP'">
+          <svg cIcon name="cilTask" size="sm"></svg>TP
+        </button>
+      </div>
+
+      <label class="drop mb-3" [class.drop--over]="dragOver()" [class.drop--ready]="file()"
+             (dragover)="$event.preventDefault(); dragOver.set(true)" (dragleave)="dragOver.set(false)" (drop)="drop($event)">
+        <input type="file" [accept]="accepted" (change)="pick($event)" hidden />
+        <svg cIcon [name]="file() ? 'cilCheckCircle' : 'cilCloudUpload'" class="drop__icon"></svg>
+        @if (file(); as f) {
+          <strong class="text-truncate d-block">{{ f.name }}</strong>
+          <span class="small text-body-secondary">{{ fileSize(f.size) }} · cliquez pour changer</span>
+        } @else {
+          <strong>Glissez le fichier ici ou cliquez pour le choisir</strong>
+          <span class="small text-body-secondary">PDF, Word, PowerPoint, Excel, texte, image ou ZIP · 25 Mo max.</span>
+        }
+      </label>
+
+      <div class="row g-2 mb-2">
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold" for="f-course">Cours</label>
+          <select id="f-course" class="form-select" [(ngModel)]="courseId" (ngModelChange)="loadChapters()">
+            <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold" for="f-chapter">Chapitre</label>
+          <select id="f-chapter" class="form-select" [(ngModel)]="chapterId" [disabled]="!chapters().length">
+            <option *ngFor="let ch of chapters()" [ngValue]="ch.id">{{ ch.title }}</option>
+          </select>
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold" for="f-title">Titre</label>
+          <input id="f-title" class="form-control" maxlength="150" [(ngModel)]="title" placeholder="Ex. : TP 2 — Les boucles" />
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold" for="f-level">Niveau</label>
+          <select id="f-level" class="form-select" [(ngModel)]="level">
+            <option *ngFor="let l of levels" [value]="l">{{ levelLabels[l] }}</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <label class="form-label small fw-semibold" for="f-instr">Consignes <span class="fw-normal text-body-secondary">(facultatif)</span></label>
+          <textarea id="f-instr" class="form-control" rows="2" maxlength="1000" [(ngModel)]="instructions"
+                    placeholder="Ex. : rendez un PDF, répondez directement sur le sujet…"></textarea>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold" for="f-due"><svg cIcon name="cilCalendar" size="sm" class="me-1"></svg>Date limite de rendu</label>
+          <input id="f-due" type="datetime-local" class="form-control" [(ngModel)]="dueAtInput" [min]="minDue" />
+          <div class="form-text">Vide : sans date limite. Après cette date, plus aucune copie n'est acceptée.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small fw-semibold" for="f-duration"><svg cIcon name="cilClock" size="sm" class="me-1"></svg>Temps de travail</label>
+          <div class="input-group">
+            <input id="f-duration" type="number" min="1" max="1440" class="form-control" [(ngModel)]="durationMinutes" placeholder="Non minuté" />
+            <span class="input-group-text">min</span>
+          </div>
+          <div class="form-text">Le chrono démarre quand l'étudiant télécharge le sujet ; il doit déposer sa copie avant la fin.</div>
+        </div>
+      </div>
+
+      @if (uploadProgress() !== null) {
+        <div class="progress mb-2" style="height: 6px"><div class="progress-bar" [style.width.%]="uploadProgress()"></div></div>
+      }
+      <button type="button" class="btn btn-primary w-100" (click)="upload()" [disabled]="uploadProgress() !== null || !chapterId">
+        <svg cIcon name="cilCloudUpload" size="sm" class="me-1"></svg>Publier pour mes étudiants
+      </button>
+    </div>
+  </section>
+
+  <!-- Sujets importés -->
+  <section>
+    <div class="mini-stats mb-3">
+      <span><strong>{{ totals().quiz }}</strong> quiz</span>
+      <span><strong>{{ totals().tp }}</strong> TP</span>
+      <span><strong>{{ totals().copies }}</strong> copies</span>
+      <span [class.text-warning]="totals().toGrade > 0"><strong>{{ totals().toGrade }}</strong> à corriger</span>
+    </div>
+
+    <div *ngIf="loading()" class="text-center py-4"><c-spinner color="primary"></c-spinner></div>
+    <app-empty-state *ngIf="!loading() && files().length === 0" icon="cilCloudUpload" title="Aucun fichier importé"
+                     text="Vos quiz et TP en fichier apparaîtront ici, avec les copies de vos étudiants." />
+
+    <article *ngFor="let f of files()" class="card file mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+          <div class="min-w-0">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <span class="lms-pill" [ngClass]="f.type === 'QUIZ' ? 'lms-pill--primary' : 'lms-pill--info'">{{ f.type === 'QUIZ' ? 'Quiz' : 'TP' }}</span>
+              <span class="badge" [ngClass]="'bg-' + levelColors[f.difficultyLevel]">{{ levelLabels[f.difficultyLevel] }}</span>
+              <strong class="text-truncate">{{ f.title }}</strong>
+            </div>
+            <div class="small text-body-secondary">{{ f.courseTitle }} › {{ f.chapterTitle }} · {{ f.createdAt | date:'dd/MM/yyyy' }}</div>
+            <div class="small text-body-secondary" *ngIf="f.instructions">{{ f.instructions }}</div>
+            <app-schedule-editor class="d-block mt-2" kind="FILE" [id]="f.id" [dueAt]="f.dueAt" [durationMinutes]="f.durationMinutes"
+                                 (changed)="updateRules(f, $event)" />
+          </div>
+          <div class="d-flex flex-wrap gap-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="downloadSubject(f)" [title]="'Télécharger ' + f.originalName">
+              <svg cIcon name="cilCloudDownload" size="sm" class="me-1"></svg>Sujet
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-primary" (click)="toggle(f)">
+              Copies <span class="badge bg-primary ms-1">{{ f.submissionCount }}</span>
+              <span class="badge bg-warning ms-1" *ngIf="f.submissionCount - f.gradedCount > 0" title="À corriger">{{ f.submissionCount - f.gradedCount }}</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="remove(f)" title="Supprimer" aria-label="Supprimer le sujet">
+              <svg cIcon name="cilTrash" size="sm"></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Copies et correction -->
+        <div class="copies mt-3" *ngIf="openId() === f.id">
+          <div *ngIf="submissionsLoading()" class="text-center py-2"><c-spinner size="sm"></c-spinner></div>
+          <p *ngIf="!submissionsLoading() && submissions().length === 0" class="small text-body-secondary mb-0">Aucune copie rendue pour le moment.</p>
+          <div class="copy" *ngFor="let s of submissions()">
+            <div class="copy__who">
+              <strong>{{ s.studentName }}</strong>
+              <span class="small text-body-secondary">rendue le {{ s.submittedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              <button type="button" class="btn btn-link btn-sm p-0 text-start" (click)="downloadCopy(s)">
+                <svg cIcon name="cilCloudDownload" size="sm" class="me-1"></svg>{{ s.originalName }}
+              </button>
+            </div>
+            <div class="copy__grade">
+              <div class="input-group input-group-sm">
+                <input type="number" min="0" max="20" step="0.25" class="form-control" [(ngModel)]="grades[s.id].grade" aria-label="Note sur 20" placeholder="Note" />
+                <span class="input-group-text">/20</span>
+              </div>
+              <input class="form-control form-control-sm" [(ngModel)]="grades[s.id].feedback" maxlength="2000" placeholder="Commentaire (facultatif)" aria-label="Commentaire" />
+              <button type="button" class="btn btn-sm" [ngClass]="s.grade !== null ? 'btn-outline-success' : 'btn-success text-white'"
+                      (click)="saveGrade(f, s)" [disabled]="savingGrade() === s.id">
+                {{ s.grade !== null ? 'Modifier' : 'Noter' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+</div>

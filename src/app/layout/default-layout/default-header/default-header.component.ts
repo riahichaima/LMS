@@ -5,7 +5,6 @@ import { Router, RouterLink } from '@angular/router';
 
 import {
   BadgeComponent,
-  BreadcrumbRouterComponent,
   ColorModeService,
   ContainerComponent,
   DropdownComponent,
@@ -32,11 +31,13 @@ interface Toast {
   notification: NotificationView;
 }
 
+import { AppBreadcrumbComponent } from '../breadcrumb/app-breadcrumb.component';
+
 @Component({
   selector: 'app-default-header',
   templateUrl: './default-header.component.html',
   styleUrl: './default-header.component.scss',
-  imports: [CommonModule, ContainerComponent, HeaderTogglerDirective, SidebarToggleDirective, IconDirective, HeaderNavComponent, NavLinkDirective, RouterLink, NgTemplateOutlet, BreadcrumbRouterComponent, DropdownComponent, DropdownToggleDirective, UserAvatarComponent, DropdownMenuDirective, DropdownHeaderDirective, DropdownItemDirective, BadgeComponent, DropdownDividerDirective]
+  imports: [CommonModule, ContainerComponent, HeaderTogglerDirective, SidebarToggleDirective, IconDirective, HeaderNavComponent, NavLinkDirective, RouterLink, NgTemplateOutlet, AppBreadcrumbComponent, DropdownComponent, DropdownToggleDirective, UserAvatarComponent, DropdownMenuDirective, DropdownHeaderDirective, DropdownItemDirective, BadgeComponent, DropdownDividerDirective]
 })
 export class DefaultHeaderComponent extends HeaderComponent {
 
@@ -60,10 +61,10 @@ export class DefaultHeaderComponent extends HeaderComponent {
   readonly currentUser = this.authService.currentUserSignal;
   readonly sidebarId = input('sidebar1');
 
-  /** La messagerie interne concerne les étudiants et les formateurs. */
+  /** Messagerie : étudiants, formateurs et administration (qui peut écrire à tout le monde). */
   readonly canMessage = computed(() => {
     const role = this.currentUser()?.role;
-    return role === 'STUDENT' || role === 'TEACHER';
+    return role === 'STUDENT' || role === 'TEACHER' || role === 'ADMIN' || role === 'SUPER_ADMIN';
   });
   readonly latestNotifications = computed(() => this.messaging.notifications().slice(0, 8));
 
@@ -88,7 +89,12 @@ export class DefaultHeaderComponent extends HeaderComponent {
     MEETING: 'cilVideo',
     MEETING_CANCELLED: 'cilVideo',
     MEETING_REMINDER: 'cilClock',
-    RECORDING: 'cilMediaRecord'
+    RECORDING: 'cilMediaRecord',
+    COMPLAINT: 'cilCommentSquare',
+    COMPLAINT_UPDATE: 'cilCommentSquare',
+    ADMIN_COURSE: 'cilBook',
+    ADMIN_USER: 'cilUserFollow',
+    ADMIN_FEEDBACK: 'cilStar'
   };
 
   constructor() {

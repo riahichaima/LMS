@@ -15,6 +15,16 @@ const administrationItems: INavData[] = [
     url: '/admin/courses',
     iconComponent: { name: 'cil-library-add' }
   },
+  {
+    name: 'Réclamations',
+    url: '/admin/complaints',
+    iconComponent: { name: 'cil-comment-square' }
+  },
+  {
+    name: 'Messagerie',
+    url: '/messages',
+    iconComponent: { name: 'cil-chat-bubble' }
+  },
   { title: true, name: 'Finance & supervision' },
   {
     name: 'Gestion financière',
@@ -71,7 +81,7 @@ export const superAdminNavItems: INavData[] = [
 
 export const teacherNavItems: INavData[] = [
   {
-    name: 'Tableau de bord',
+    name: 'Tableau de bord & suivi',
     url: '/dashboard',
     iconComponent: { name: 'cil-speedometer' }
   },
@@ -82,30 +92,14 @@ export const teacherNavItems: INavData[] = [
     iconComponent: { name: 'cil-book' }
   },
   {
-    name: 'Suivi pédagogique',
-    url: '/teacher/tracking',
-    iconComponent: { name: 'cil-chart-line' }
-  },
-  {
     name: 'Mes revenus',
     url: '/teacher/earnings',
     iconComponent: { name: 'cil-dollar' }
   },
-  { title: true, name: 'Outils IA' },
   {
-    name: 'Générateur quiz & TP',
-    url: '/teacher/assessments',
+    name: 'Quiz & TP',
+    url: '/teacher/quiz-tp',
     iconComponent: { name: 'cil-task' }
-  },
-  {
-    name: 'Mes quiz & TP générés',
-    url: '/teacher/ai-content',
-    iconComponent: { name: 'cil-notes' }
-  },
-  {
-    name: 'Assistant IA multi-agents',
-    url: '/ai-assistant',
-    iconComponent: { name: 'cil-lightbulb' }
   },
   { title: true, name: 'Communication' },
   {
@@ -117,6 +111,11 @@ export const teacherNavItems: INavData[] = [
     name: 'Réunions',
     url: '/meetings',
     iconComponent: { name: 'cil-video' }
+  },
+  {
+    name: 'Réclamations',
+    url: '/complaints',
+    iconComponent: { name: 'cil-comment-square' }
   }
 ];
 
@@ -137,11 +136,6 @@ export const studentNavItems: INavData[] = [
     url: '/my-enrollments',
     iconComponent: { name: 'cil-library' }
   },
-  {
-    name: 'Assistant IA multi-agents',
-    url: '/ai-assistant',
-    iconComponent: { name: 'cil-lightbulb' }
-  },
   { title: true, name: 'Communication' },
   {
     name: 'Messagerie',
@@ -152,6 +146,11 @@ export const studentNavItems: INavData[] = [
     name: 'Réunions',
     url: '/meetings',
     iconComponent: { name: 'cil-video' }
+  },
+  {
+    name: 'Réclamations',
+    url: '/complaints',
+    iconComponent: { name: 'cil-comment-square' }
   }
 ];
 

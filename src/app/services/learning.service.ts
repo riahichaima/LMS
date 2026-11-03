@@ -2,7 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AssessmentFile } from './assessment-file.service';
 import { Course } from './course.service';
+import { ScheduleSummary } from './assessment-schedule.service';
 
 export interface AssessmentSummary {
   id: number;
@@ -11,6 +13,8 @@ export interface AssessmentSummary {
   questionCount?: number;
   exerciseCount?: number;
   bestScore: number | null; // meilleur résultat de l'étudiant, en %
+  /** Date limite, durée et état du passage de l'étudiant */
+  schedule?: ScheduleSummary;
 }
 
 export interface ChapterAssessments {
@@ -24,12 +28,21 @@ export interface LearningView {
   enrollmentId: number;
   progressPercentage: number;
   completedLessonIds: number[];
+  /** Avancement réel de chaque leçon et de chaque ressource (en %) */
+  lessonProgress: Record<number, number>;
+  resourceProgress: Record<number, number>;
   assessments: ChapterAssessments[];
+  /** Quiz / TP importés en fichier par l'enseignant, avec la copie de l'étudiant */
+  files: AssessmentFile[];
+  /** Heure du serveur (chrono des sujets minutés) */
+  serverNow?: string;
 }
 
 export interface LessonCompletion {
   progressPercentage: number;
   completedLessonIds: number[];
+  lessonProgress: Record<number, number>;
+  resourceProgress: Record<number, number>;
   isCompleted: boolean;
 }
 
@@ -92,6 +105,10 @@ export interface CourseStats {
   totalLessons: number;
   quizAverage: number | null;
   assignmentAverage: number | null;
+  quizzesTotal: number;
+  quizzesDone: number;
+  tpsTotal: number;
+  tpsDone: number;
   enrolledAt: string;
   lastAccessedAt: string | null;
 }
@@ -106,6 +123,11 @@ export interface StudentStatistics {
   assignmentsSubmitted: number;
   quizAverage: number | null;
   assignmentAverage: number | null;
+  /** Quiz et TP disponibles dans les cours suivis (IA et fichiers), et ceux déjà faits / rendus */
+  quizzesTotal: number;
+  quizzesDone: number;
+  tpsTotal: number;
+  tpsDone: number;
   courses: CourseStats[];
   recentResults: { type: 'QUIZ' | 'TP'; title: string; courseTitle: string; percent: number; submittedAt: string }[];
 }
@@ -127,6 +149,11 @@ export class LearningService {
 
   completeLesson(lessonId: number): Observable<LessonCompletion> {
     return this.http.post<LessonCompletion>(`${this.apiUrl}/api/student/lessons/${lessonId}/complete`, {});
+  }
+
+  /** Avancement mesuré d'une ressource : pages PDF lues, part regardée / écoutée, lien ouvert (100 %). */
+  updateResourceProgress(resourceId: number, percent: number): Observable<LessonCompletion> {
+    return this.http.put<LessonCompletion>(`${this.apiUrl}/api/student/resources/${resourceId}/progress`, { percent: Math.round(percent) });
   }
 
   // Fichier d'une ressource (PDF, vidéo...) : récupéré avec le jeton puis affiché via une URL blob

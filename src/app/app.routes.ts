@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { authGuard } from './services/auth.guard';
 import { roleGuard } from './services/role.guard';
 import { landingFirstGuard } from './services/landing.guard';
@@ -34,7 +35,9 @@ export const routes: Routes = [
       },
       {
         path: 'ai-assistant',
-        loadChildren: () => import('./views/ai-assistant/routes').then((m) => m.routes)
+        loadChildren: () => import('./views/ai-assistant/routes').then((m) => m.routes),
+        // Assistant multi-agents réservé à l'administration (l'étudiant garde le tuteur IA de ses cours)
+        canActivate: [roleGuard(['ADMIN'])]
       },
       {
         path: 'admin/users',
@@ -68,11 +71,14 @@ export const routes: Routes = [
         data: { title: 'Mes cours & studio' }
       },
       {
-        path: 'teacher/assessments',
-        loadComponent: () => import('./views/teacher/assessments/teacher-assessments.component').then(m => m.TeacherAssessmentsComponent),
-        canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
-        data: { title: 'Générateur de quiz & TP' }
+        // Page unique de l'enseignant : liste + statistiques + corrections, génération IA, création manuelle
+        path: 'teacher/quiz-tp',
+        loadComponent: () => import('./views/teacher/quiz-tp/teacher-quiz-tp.component').then(m => m.TeacherQuizTpComponent),
+        canActivate: [roleGuard(['TEACHER'])],
+        data: { title: 'Quiz & TP' }
       },
+      // Anciennes adresses du générateur et de la liste : regroupées dans « Quiz & TP »
+      { path: 'teacher/assessments', redirectTo: '/teacher/quiz-tp?tab=generate' },
       {
         path: 'teacher/earnings',
         loadComponent: () => import('./views/teacher/earnings/teacher-earnings.component').then(m => m.TeacherEarningsComponent),
@@ -104,12 +110,7 @@ export const routes: Routes = [
         canActivate: [roleGuard(['STUDENT'])],
         data: { title: 'Paiement annulé' }
       },
-      {
-        path: 'teacher/ai-content',
-        loadComponent: () => import('./views/teacher/ai-content/teacher-ai-content.component').then(m => m.TeacherAiContentComponent),
-        canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
-        data: { title: 'Mes quiz & TP générés' }
-      },
+      { path: 'teacher/ai-content', redirectTo: '/teacher/quiz-tp' },
       // Espace étudiant : lecture du cours, quiz, TP et statistiques
       {
         path: 'learn/quiz/:id',
@@ -129,11 +130,10 @@ export const routes: Routes = [
         canActivate: [roleGuard(['STUDENT'])],
         data: { title: 'Cours' }
       },
+      // Suivi pédagogique : intégré au tableau de bord de l'enseignant (les paramètres course / tab sont conservés)
       {
         path: 'teacher/tracking',
-        loadComponent: () => import('./views/teacher/tracking/teacher-tracking.component').then(m => m.TeacherTrackingComponent),
-        canActivate: [roleGuard(['TEACHER'])],
-        data: { title: 'Suivi pédagogique' }
+        redirectTo: ({ queryParams }) => inject(Router).createUrlTree(['/dashboard'], { queryParams: { ...queryParams, view: 'suivi' } })
       },
       {
         path: 'profile',
@@ -156,8 +156,20 @@ export const routes: Routes = [
       {
         path: 'messages',
         loadComponent: () => import('./views/messages/messages.component').then(m => m.MessagesComponent),
-        canActivate: [roleGuard(['STUDENT', 'TEACHER'])],
+        canActivate: [roleGuard(['STUDENT', 'TEACHER', 'ADMIN'])],
         data: { title: 'Messagerie' }
+      },
+      {
+        path: 'complaints',
+        loadComponent: () => import('./views/complaints/complaints.component').then(m => m.ComplaintsComponent),
+        canActivate: [roleGuard(['STUDENT', 'TEACHER'])],
+        data: { title: 'Réclamations' }
+      },
+      {
+        path: 'admin/complaints',
+        loadComponent: () => import('./views/admin/complaints/admin-complaints.component').then(m => m.AdminComplaintsComponent),
+        canActivate: [roleGuard(['ADMIN'])],
+        data: { title: 'Réclamations' }
       },
       {
         path: 'meetings',

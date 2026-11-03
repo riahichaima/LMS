@@ -1,124 +1,192 @@
-<app-page-header title="Générateur de quiz & TP" icon="cilTask"
-                 subtitle="L'IA analyse le contenu d'un chapitre et génère des quiz QCM et des sujets de TP, avec leurs corrections.">
-  <a class="btn btn-outline-primary btn-sm" routerLink="/teacher/ai-content"><svg cIcon name="cilNotes" size="sm" class="me-1"></svg>Mes quiz & TP générés</a>
-</app-page-header>
+<div class="gen">
+  <!-- Prévient seulement si le service IA ne répond pas -->
+  <c-alert *ngIf="modelStatus() as ms" [visible]="!ms.model_available" color="warning" class="mb-3 py-2 small">
+    <strong>Service IA indisponible.</strong> {{ ms.error || 'Réessayez dans un instant.' }}
+  </c-alert>
+  <c-alert color="danger" *ngIf="errorMessage()" dismissible (visibleChange)="errorMessage.set('')" class="mb-3">
+    {{ errorMessage() }}
+  </c-alert>
 
-<c-row>
-  <c-col lg="9" md="11" class="mx-auto">
-    <c-card class="mb-4">
-      <c-card-body>
-        <p class="text-muted">
-          Sélectionnez un chapitre de votre cours. L'agent IA pédagogique analysera automatiquement son contenu et générera des Quiz QCM et des sujets de TP adaptés à vos étudiants.
+  <div class="gen__layout">
+    <div class="gen__steps">
+      <!-- 1. Cours et contenu -->
+      <section class="step">
+        <header class="step__head"><span class="step__num">1</span><h3>Cours et contenu à utiliser</h3></header>
+        <label class="form-label small fw-semibold" for="gen-course">Cours</label>
+        <select id="gen-course" class="form-select mb-3" [(ngModel)]="selectedCourseId" (ngModelChange)="onCourseChange()">
+          <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}</option>
+        </select>
+
+        <div *ngIf="chapters().length; else noChapters">
+          <label class="chap chap--all">
+            <input type="checkbox" class="form-check-input" [checked]="allSelected()" (change)="toggleAll($any($event.target).checked)" />
+            <span><strong>Tout le cours</strong> <span class="text-body-secondary small">({{ chapters().length }} chapitres)</span></span>
+          </label>
+          <div class="chap-list">
+            <label *ngFor="let ch of chapters(); let i = index" class="chap" [class.chap--on]="isChapterSelected(ch.id)">
+              <input type="checkbox" class="form-check-input" [checked]="isChapterSelected(ch.id)"
+                     (change)="toggleChapter(ch.id, $any($event.target).checked)" />
+              <span class="chap__body">
+                <span class="chap__title">{{ i + 1 }}. {{ ch.title }}</span>
+                <span class="chap__meta">
+                  {{ ch.lessons?.length || 0 }} leçon(s)
+                  <span *ngFor="let f of chapterFormats(ch)" class="fmt"><svg cIcon [name]="f.icon" size="sm"></svg>{{ f.label }} ×{{ f.count }}</span>
+                </span>
+              </span>
+            </label>
+          </div>
+        </div>
+        <ng-template #noChapters>
+          <p class="small text-body-secondary mb-0">Ce cours n'a pas encore de chapitre. Ajoutez du contenu dans « Mes cours & studio ».</p>
+        </ng-template>
+      </section>
+
+      <!-- 2. Formats -->
+      <section class="step">
+        <header class="step__head"><span class="step__num">2</span><h3>Formats analysés par l'IA</h3></header>
+        <div *ngIf="availableSources().length > 0; else noSources" class="fmt-grid">
+          <label *ngFor="let s of availableSources()" class="fmt-card" [class.fmt-card--on]="isSourceSelected(s.type)">
+            <input type="checkbox" class="visually-hidden" [checked]="isSourceSelected(s.type)"
+                   (change)="toggleSource(s.type, $any($event.target).checked)" />
+            <svg cIcon [name]="s.icon" size="lg"></svg>
+            <span class="fmt-card__label">{{ s.label }}</span>
+            <span class="fmt-card__count">{{ s.count }} ressource(s)</span>
+          </label>
+        </div>
+        <ng-template #noSources>
+          <p class="small text-body-secondary mb-0">Aucune ressource dans les chapitres choisis : seuls les titres et descriptions des leçons seront utilisés.</p>
+        </ng-template>
+        <p class="small text-body-secondary mt-2 mb-0">
+          PDF lus page par page, vidéos et audios transcrits, vidéos YouTube et pages web analysées, textes des leçons.
         </p>
+      </section>
 
-        <c-alert *ngIf="modelStatus() as ms" [color]="ms.model_available ? 'info' : 'warning'" class="mb-3 py-2 small">
-          <ng-container *ngIf="ms.model_available; else modelDown">
-            <strong>Modèle IA :</strong>
-            Azure AI Foundry — {{ ms.chat_model }}
-            · transcription des vidéos : {{ ms.transcription_model }}
-            · analyse des images vidéo : {{ ms.video_vision ? 'oui' : 'non' }}
-          </ng-container>
-          <ng-template #modelDown>
-            <strong>Modèle IA indisponible.</strong> {{ ms.error || 'Vérifiez que LMS_AI est démarré.' }}
-          </ng-template>
-        </c-alert>
-
-        <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
-          {{ errorMessage() }}
-        </c-alert>
-        <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
-          {{ successMessage() }}
-          Retrouvez-les avec leurs corrections dans <a routerLink="/teacher/ai-content" class="alert-link">Mes quiz & TP générés</a>.
-        </c-alert>
-
-        <div class="mb-3">
-          <label class="form-label fw-bold">1. Sélectionner le cours :</label>
-          <select cSelect [(ngModel)]="selectedCourseId" (ngModelChange)="onCourseChange()">
-            <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}</option>
-          </select>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label fw-bold">2. Sélectionner le chapitre cible :</label>
-          <select cSelect [(ngModel)]="selectedChapterId" (ngModelChange)="excludedSources.set([])">
-            <option *ngFor="let ch of chapters()" [ngValue]="ch.id">{{ ch.title }}</option>
-          </select>
-        </div>
-
+      <!-- 3. Quoi générer + niveaux -->
+      <section class="step">
+        <header class="step__head"><span class="step__num">3</span><h3>Quiz, TP et niveaux</h3></header>
         <div class="row g-3 mb-3">
-          <div class="col-md-6">
-            <c-form-check>
-              <input cFormCheckInput type="checkbox" id="genQuiz" [(ngModel)]="generateQuiz" />
-              <label cFormCheckLabel for="genQuiz" class="fw-bold">Générer Quiz QCM</label>
-            </c-form-check>
-            <div class="mt-2" *ngIf="generateQuiz">
-              <label class="form-label small">Nombre de questions par quiz :</label>
-              <input type="number" cFormControl min="1" max="20" [(ngModel)]="quizQuestionCount" />
+          <div class="col-sm-6">
+            <label class="kind" [class.kind--on]="generateQuiz">
+              <input type="checkbox" class="form-check-input" [(ngModel)]="generateQuiz" />
+              <span><strong>Quiz QCM</strong><br /><span class="small text-body-secondary">Corrigé automatiquement</span></span>
+            </label>
+            <div class="input-group input-group-sm mt-2" *ngIf="generateQuiz">
+              <input type="number" class="form-control" min="1" max="20" [(ngModel)]="quizQuestionCount" aria-label="Nombre de questions" />
+              <span class="input-group-text">questions</span>
             </div>
           </div>
-
-          <div class="col-md-6">
-            <c-form-check>
-              <input cFormCheckInput type="checkbox" id="genAssign" [(ngModel)]="generateAssignment" />
-              <label cFormCheckLabel for="genAssign" class="fw-bold">Générer Sujets de TP</label>
-            </c-form-check>
-            <div class="mt-2" *ngIf="generateAssignment">
-              <label class="form-label small">Nombre d'exercices par TP :</label>
-              <input type="number" cFormControl min="1" max="10" [(ngModel)]="assignmentExerciseCount" />
+          <div class="col-sm-6">
+            <label class="kind" [class.kind--on]="generateAssignment">
+              <input type="checkbox" class="form-check-input" [(ngModel)]="generateAssignment" />
+              <span><strong>Sujet de TP</strong><br /><span class="small text-body-secondary">Corrigé par l'IA, solution de référence</span></span>
+            </label>
+            <div class="input-group input-group-sm mt-2" *ngIf="generateAssignment">
+              <input type="number" class="form-control" min="1" max="10" [(ngModel)]="assignmentExerciseCount" aria-label="Nombre d'exercices" />
+              <span class="input-group-text">exercices</span>
             </div>
           </div>
         </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-bold">3. Niveaux de difficulté à générer :</label>
-          <div class="d-flex flex-wrap gap-3">
-            <c-form-check>
-              <input cFormCheckInput type="checkbox" id="lvlBeg" [(ngModel)]="beginner" />
-              <label cFormCheckLabel for="lvlBeg">Débutant</label>
-            </c-form-check>
-            <c-form-check>
-              <input cFormCheckInput type="checkbox" id="lvlInt" [(ngModel)]="intermediate" />
-              <label cFormCheckLabel for="lvlInt">Intermédiaire</label>
-            </c-form-check>
-            <c-form-check>
-              <input cFormCheckInput type="checkbox" id="lvlAdv" [(ngModel)]="advanced" />
-              <label cFormCheckLabel for="lvlAdv">Avancé</label>
-            </c-form-check>
-          </div>
-        </div>
-
-        <div class="mb-4">
-          <label class="form-label fw-bold">4. Sources du contenu à utiliser :</label>
-          <div *ngIf="availableSources().length > 0; else noSources" class="d-flex flex-wrap gap-3">
-            <c-form-check *ngFor="let s of availableSources()">
-              <input cFormCheckInput type="checkbox" [id]="'src' + s.type"
-                     [checked]="isSourceSelected(s.type)" (change)="toggleSource(s.type, $any($event.target).checked)" />
-              <label cFormCheckLabel [for]="'src' + s.type">{{ s.label }} ({{ s.count }})</label>
-            </c-form-check>
-          </div>
-          <ng-template #noSources>
-            <div class="small text-body-secondary">Aucune ressource dans ce chapitre : seuls les titres et descriptions des leçons seront utilisés.</div>
-          </ng-template>
-          <div class="small text-body-secondary mt-1">Le quiz et le TP sont générés uniquement à partir des sources cochées (une seule ou une combinaison).</div>
-        </div>
-
-        <div class="d-grid">
-          <button cButton color="primary" size="lg" (click)="onGenerate()" [disabled]="loading()">
-            <ng-container *ngIf="loading(); else idle">
-              <c-spinner aria-hidden="true" size="sm" class="me-2"></c-spinner>
-              Génération en cours... {{ formatElapsed(elapsed()) }}
-            </ng-container>
-            <ng-template #idle>
-              <svg cIcon name="cilLightbulb" class="me-2"></svg> Lancer la génération IA
-            </ng-template>
+        <div class="levels">
+          <button *ngFor="let l of levels" type="button" class="level" [class.level--on]="isLevelSelected(l.key)"
+                  [attr.aria-pressed]="isLevelSelected(l.key)" (click)="toggleLevel(l.key)">
+            <span class="level__name">{{ l.label }}</span>
+            <span class="level__hint">{{ l.hint }}</span>
           </button>
-          <small class="text-body-secondary mt-2 text-center">
-            Un quiz et/ou un TP par niveau coché : {{ callCount }} génération(s),
-            {{ modelStatus()?.provider === 'azure' ? 'environ 20 à 60 s avec Azure' : 'environ ' + (callCount * 1.5) + ' min avec le modèle local' }}.
-            Restez sur cette page jusqu'à la fin (ne la rechargez pas).
-          </small>
         </div>
-      </c-card-body>
-    </c-card>
-  </c-col>
-</c-row>
+      </section>
+
+      <!-- 4. Rendu -->
+      <section class="step">
+        <header class="step__head"><span class="step__num">4</span><h3>Date limite et temps de travail</h3></header>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="gen-due"><svg cIcon name="cilCalendar" size="sm" class="me-1"></svg>Date limite de rendu</label>
+            <input id="gen-due" type="datetime-local" class="form-control" [(ngModel)]="dueAtInput" [min]="minDue" />
+            <div class="form-text">
+              {{ dueAtInput ? 'Plus aucun rendu après cette date. Les étudiants inscrits sont prévenus.' : 'Vide : sans date limite.' }}
+              <button *ngIf="dueAtInput" type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="dueAtInput = ''">Retirer</button>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div *ngIf="generateQuiz" class="timed">
+              <div class="form-check form-switch mb-1">
+                <input class="form-check-input" type="checkbox" id="gen-quiz-timed" [(ngModel)]="quizTimed" />
+                <label class="form-check-label small fw-semibold" for="gen-quiz-timed">Quiz minuté</label>
+              </div>
+              <div *ngIf="quizTimed" class="d-flex flex-wrap gap-1 align-items-center">
+                <button *ngFor="let p of quizPresets" type="button" class="preset" [class.preset--on]="quizDuration === p"
+                        (click)="quizDuration = p">{{ formatDuration(p) }}</button>
+                <div class="input-group input-group-sm" style="width: 120px">
+                  <input type="number" class="form-control" min="1" max="1440" [(ngModel)]="quizDuration" aria-label="Durée du quiz en minutes" />
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="generateAssignment" class="timed">
+              <div class="form-check form-switch mb-1">
+                <input class="form-check-input" type="checkbox" id="gen-tp-timed" [(ngModel)]="assignmentTimed" />
+                <label class="form-check-label small fw-semibold" for="gen-tp-timed">TP minuté</label>
+              </div>
+              <div *ngIf="assignmentTimed" class="d-flex flex-wrap gap-1 align-items-center">
+                <button *ngFor="let p of assignmentPresets" type="button" class="preset" [class.preset--on]="assignmentDuration === p"
+                        (click)="assignmentDuration = p">{{ formatDuration(p) }}</button>
+                <div class="input-group input-group-sm" style="width: 120px">
+                  <input type="number" class="form-control" min="1" max="1440" [(ngModel)]="assignmentDuration" aria-label="Durée du TP en minutes" />
+                  <span class="input-group-text">min</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="small text-body-secondary mt-2 mb-0">
+          Minuté : le chrono démarre quand l'étudiant clique sur « Commencer » ; à la fin du temps, ses réponses sont envoyées automatiquement.
+        </p>
+      </section>
+    </div>
+
+    <!-- Résumé -->
+    <aside class="gen__summary">
+      <div class="summary">
+        <h3 class="summary__title"><svg cIcon name="cilLightbulb" class="me-2"></svg>Résumé</h3>
+        <dl class="summary__list">
+          <dt>Contenu</dt><dd>{{ scopeLabel }}</dd>
+          <dt>Formats</dt><dd>{{ availableSources().length ? (selectedSourceTypes().length + ' / ' + availableSources().length + ' format(s)') : 'Leçons' }}</dd>
+          <dt>Niveaux</dt>
+          <dd>
+            <span *ngFor="let k of selectedLevels(); let last = last">{{ levelLabel(k) }}{{ last ? '' : ', ' }}</span>
+            <span *ngIf="!selectedLevels().length" class="text-danger">aucun</span>
+          </dd>
+          <dt>À générer</dt>
+          <dd>
+            <div *ngIf="generateQuiz">{{ selectedLevels().length }} quiz · {{ quizQuestionCount }} questions{{ quizTimed ? ' · ' + formatDuration(quizDuration) : '' }}</div>
+            <div *ngIf="generateAssignment">{{ selectedLevels().length }} TP · {{ assignmentExerciseCount }} exercices{{ assignmentTimed ? ' · ' + formatDuration(assignmentDuration) : '' }}</div>
+          </dd>
+          <dt>Date limite</dt><dd>{{ dueIso ? formatDue(dueIso) : 'Aucune' }}</dd>
+        </dl>
+        <button cButton color="primary" size="lg" class="w-100" (click)="onGenerate()" [disabled]="loading() || !selectedChapterIds().length">
+          <ng-container *ngIf="loading(); else idle">
+            <c-spinner aria-hidden="true" size="sm" class="me-2"></c-spinner>
+            Génération… {{ formatElapsed(elapsed()) }}
+          </ng-container>
+          <ng-template #idle>Lancer la génération</ng-template>
+        </button>
+        <small class="d-block text-body-secondary mt-2 text-center">
+          {{ callCount }} génération(s), généralement moins d'une minute. Restez sur cette page.
+        </small>
+
+        <div *ngIf="successMessage()" class="summary__done">
+          <c-alert color="success" class="mb-2 py-2 small">{{ successMessage() }}</c-alert>
+          <ul class="list-unstyled small mb-2">
+            <li *ngFor="let g of generated()" class="d-flex justify-content-between gap-2 py-1 border-bottom">
+              <span><strong>{{ g.kind }}</strong> · {{ g.title }}</span>
+              <span class="text-body-secondary text-nowrap">{{ g.count }} {{ g.kind === 'Quiz' ? 'q.' : 'ex.' }}</span>
+            </li>
+          </ul>
+          <a routerLink="/teacher/quiz-tp" [queryParams]="{ tab: 'list' }" class="btn btn-sm btn-outline-primary w-100">
+            Voir les corrections et modifier les délais
+          </a>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

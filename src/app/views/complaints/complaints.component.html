@@ -1,0 +1,60 @@
+<app-page-header title="Réclamations" icon="cilCommentSquare"
+                 subtitle="Un problème, une question ou une réclamation ? L'administration est notifiée et vous répond ici." />
+
+<div class="complaints-layout">
+  <!-- Formulaire -->
+  <section class="card">
+    <div class="card-body">
+      <h2 class="section-title">Nouvelle réclamation</h2>
+      <c-alert color="danger" *ngIf="error()" [dismissible]="true" (visibleChange)="error.set('')">{{ error() }}</c-alert>
+      <c-alert color="success" *ngIf="success()" [dismissible]="true" (visibleChange)="success.set('')">{{ success() }}</c-alert>
+
+      <label class="form-label fw-semibold">Type de problème</label>
+      <div class="cat-grid mb-3" role="radiogroup" aria-label="Type de problème">
+        <button type="button" *ngFor="let c of categories" class="cat" [class.cat--on]="category === c.value"
+                role="radio" [attr.aria-checked]="category === c.value" (click)="category = c.value">
+          <svg cIcon [name]="c.icon"></svg><span>{{ c.label }}</span>
+        </button>
+      </div>
+
+      <label class="form-label fw-semibold" for="c-subject">Objet</label>
+      <input id="c-subject" class="form-control mb-3" maxlength="150" [(ngModel)]="subject" placeholder="Ex. : la vidéo du chapitre 2 ne se lance pas" />
+
+      <label class="form-label fw-semibold" for="c-message">Description</label>
+      <textarea id="c-message" class="form-control mb-1" rows="6" maxlength="4000" [(ngModel)]="message"
+                placeholder="Décrivez le problème : ce que vous faisiez, ce qui s'est passé, le cours concerné…"></textarea>
+      <div class="form-text text-end mb-3">{{ message.length }} / 4000</div>
+
+      <button type="button" class="btn btn-primary w-100" (click)="send()" [disabled]="sending()">
+        <c-spinner *ngIf="sending()" size="sm" class="me-2"></c-spinner>
+        <svg *ngIf="!sending()" cIcon name="cilSend" size="sm" class="me-1"></svg>Envoyer à l'administration
+      </button>
+    </div>
+  </section>
+
+  <!-- Suivi -->
+  <section>
+    <h2 class="section-title">Mes réclamations</h2>
+    <div *ngIf="loading()" class="text-center py-4"><c-spinner color="primary"></c-spinner></div>
+    <app-empty-state *ngIf="!loading() && complaints().length === 0" icon="cilCommentSquare"
+                     title="Aucune réclamation envoyée" text="Vos demandes et les réponses de l'administration apparaîtront ici." />
+
+    <article *ngFor="let c of complaints()" class="card complaint mb-3" [class.complaint--focus]="c.id === highlightId()">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+          <strong class="complaint__subject">{{ c.subject }}</strong>
+          <span class="lms-pill" [ngClass]="'lms-pill--' + status[c.status].tone">{{ status[c.status].label }}</span>
+        </div>
+        <div class="small text-body-secondary mb-2">{{ categoryLabel(c.category) }} · envoyée le {{ c.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+        <p class="complaint__message mb-0">{{ c.message }}</p>
+        <div class="complaint__reply" *ngIf="c.adminResponse">
+          <div class="small fw-semibold mb-1">
+            <svg cIcon name="cilShieldAlt" size="sm" class="me-1"></svg>Réponse de l'administration
+            <span class="text-body-secondary fw-normal" *ngIf="c.handledByName"> · {{ c.handledByName }}</span>
+          </div>
+          <div>{{ c.adminResponse }}</div>
+        </div>
+      </div>
+    </article>
+  </section>
+</div>

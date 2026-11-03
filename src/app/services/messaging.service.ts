@@ -151,6 +151,18 @@ export class MessagingService {
       case 'MEETING_CANCELLED': return { path: '/meetings' };
       case 'MEETING_REMINDER': return n.relatedId ? { path: `/meetings/${n.relatedId}/room` } : { path: '/meetings' };
       case 'RECORDING': return { path: '/meetings', query: { tab: 'recordings' } };
+      // Administration : réclamations, nouveaux cours, nouveaux comptes, avis à modérer
+      case 'COMPLAINT': return { path: '/admin/complaints', query: n.relatedId ? { id: n.relatedId } : undefined };
+      case 'COMPLAINT_UPDATE': return { path: '/complaints', query: n.relatedId ? { id: n.relatedId } : undefined };
+      case 'ADMIN_COURSE':
+      case 'ADMIN_FEEDBACK': return { path: '/admin/courses' };
+      case 'ADMIN_USER': return { path: '/admin/users' };
+      // Quiz / TP : date limite, envoi automatique, nouveau sujet, note → cours ; copie rendue → onglet des fichiers
+      case 'ASSESSMENT_DEADLINE':
+      case 'ASSESSMENT_AUTO_SUBMITTED':
+      case 'ASSESSMENT_FILE':
+      case 'ASSESSMENT_GRADED': return n.relatedId ? { path: `/learn/${n.relatedId}` } : { path: '/my-enrollments' };
+      case 'ASSESSMENT_SUBMISSION': return { path: '/teacher/quiz-tp', query: { tab: 'files' } };
       default: return { path: '/dashboard' };
     }
   }

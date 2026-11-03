@@ -26,6 +26,10 @@ export interface AssessmentGenerationRequest {
   teacherId?: number;
   // Types de ressources utilisés comme source (PDF, VIDEO, AUDIO, YOUTUBE_VIDEO, WEB_PAGE, TEXT)
   resourceTypes?: string[];
+  /** Rendu : date limite (ISO) et temps de travail en minutes (null = sans limite) */
+  dueAt?: string | null;
+  quizDurationMinutes?: number | null;
+  assignmentDurationMinutes?: number | null;
 }
 
 export interface SubmissionCorrectionRequest {
@@ -67,6 +71,10 @@ export interface ReviewQuiz {
   timeLimitMinutes: number;
   passingScore: number;
   questions: ReviewQuestion[];
+  /** true : généré par l'IA ; false : créé à la main par l'enseignant */
+  generatedByAi?: boolean;
+  dueAt?: string | null;
+  durationMinutes?: number | null;
 }
 
 export interface ReviewAssignment {
@@ -79,6 +87,9 @@ export interface ReviewAssignment {
   createdAt: string;
   statement: string;
   expectedSolution: string;
+  generatedByAi?: boolean;
+  dueAt?: string | null;
+  durationMinutes?: number | null;
 }
 
 export interface ChapterReview {

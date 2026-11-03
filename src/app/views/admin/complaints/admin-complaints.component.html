@@ -1,0 +1,99 @@
+<app-page-header title="Réclamations" icon="cilCommentSquare"
+                 subtitle="Problèmes et réclamations envoyés par les étudiants et les enseignants : traitez-les et répondez." />
+
+<c-alert color="danger" *ngIf="error()" [dismissible]="true" (visibleChange)="error.set('')">{{ error() }}</c-alert>
+<c-alert color="success" *ngIf="success()" [dismissible]="true" (visibleChange)="success.set('')">{{ success() }}</c-alert>
+
+<div class="stat-grid mb-4">
+  <app-stat-card label="À traiter" icon="cilBell" tone="info" [value]="counts().OPEN" [highlight]="counts().OPEN > 0" />
+  <app-stat-card label="En cours" icon="cilClock" tone="warning" [value]="counts().IN_PROGRESS" />
+  <app-stat-card label="Résolues" icon="cilCheckCircle" tone="success" [value]="counts().RESOLVED" />
+  <app-stat-card label="Rejetées" icon="cilX" tone="neutral" [value]="counts().REJECTED" />
+</div>
+
+<div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+
+<app-empty-state *ngIf="!loading() && complaints().length === 0" icon="cilCommentSquare"
+                 title="Aucune réclamation" text="Les réclamations des étudiants et des enseignants apparaîtront ici, avec une notification." />
+
+<div class="desk" *ngIf="!loading() && complaints().length > 0">
+  <!-- Liste -->
+  <section class="card desk__list">
+    <div class="card-body p-2">
+      <div class="p-2">
+        <div class="input-group input-group-sm mb-2">
+          <span class="input-group-text"><svg cIcon name="cilSearch" size="sm"></svg></span>
+          <input type="search" class="form-control" placeholder="Rechercher…" aria-label="Rechercher une réclamation"
+                 [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        </div>
+        <div class="d-flex gap-2">
+          <select class="form-select form-select-sm" aria-label="Statut" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            <option value="">Tous les statuts</option>
+            <option value="OPEN">À traiter</option>
+            <option value="IN_PROGRESS">En cours</option>
+            <option value="RESOLVED">Résolues</option>
+            <option value="REJECTED">Rejetées</option>
+          </select>
+          <select class="form-select form-select-sm" aria-label="Type" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
+            <option value="">Tous les types</option>
+            <option *ngFor="let c of categories" [value]="c.value">{{ c.label }}</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="button" *ngFor="let c of filtered()" class="row-item" [class.row-item--on]="c.id === selectedId()" (click)="select(c.id)">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <strong class="row-item__subject">{{ c.subject }}</strong>
+          <span class="lms-pill" [ngClass]="'lms-pill--' + status[c.status].tone">{{ c.status === 'OPEN' ? 'À traiter' : status[c.status].label }}</span>
+        </div>
+        <div class="small text-body-secondary text-truncate">{{ c.authorName }} · {{ categoryLabel(c.category) }}</div>
+        <div class="small text-body-secondary">{{ c.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+      </button>
+      <p *ngIf="filtered().length === 0" class="text-body-secondary small text-center py-3 mb-0">Aucune réclamation pour ces filtres.</p>
+    </div>
+  </section>
+
+  <!-- Détail et traitement -->
+  <section class="card desk__detail" *ngIf="selected() as c">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+          <h2 class="detail-title">{{ c.subject }}</h2>
+          <div class="small text-body-secondary">{{ categoryLabel(c.category) }} · {{ c.createdAt | date:'dd/MM/yyyy HH:mm' }}</div>
+        </div>
+        <span class="lms-pill" [ngClass]="'lms-pill--' + status[c.status].tone">{{ c.status === 'OPEN' ? 'À traiter' : status[c.status].label }}</span>
+      </div>
+
+      <div class="author mb-3">
+        <app-avatar [name]="c.authorName" [size]="38" />
+        <div class="min-w-0">
+          <div class="fw-semibold">{{ c.authorName }} <span class="lms-pill lms-pill--neutral ms-1">{{ c.authorRole | roleLabel }}</span></div>
+          <div class="small text-body-secondary text-truncate">{{ c.authorEmail }}</div>
+        </div>
+        <a class="btn btn-sm btn-outline-primary ms-auto" routerLink="/messages" [queryParams]="{ with: c.authorId }">
+          <svg cIcon name="cilChatBubble" size="sm" class="me-1"></svg>Écrire
+        </a>
+      </div>
+
+      <div class="message mb-3">{{ c.message }}</div>
+
+      <label class="form-label fw-semibold" for="a-response">Réponse à l'utilisateur</label>
+      <textarea id="a-response" class="form-control mb-1" rows="4" maxlength="4000" [(ngModel)]="response"
+                placeholder="Expliquez la solution ou la décision (obligatoire pour résoudre ou rejeter)."></textarea>
+      <div class="small text-body-secondary mb-3" *ngIf="c.handledByName">Dernier traitement par {{ c.handledByName }}<span *ngIf="c.updatedAt"> le {{ c.updatedAt | date:'dd/MM/yyyy HH:mm' }}</span>.</div>
+
+      <div class="d-flex flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-warning" (click)="handle('IN_PROGRESS')" [disabled]="saving()">
+          <svg cIcon name="cilClock" size="sm" class="me-1"></svg>Prendre en charge
+        </button>
+        <button type="button" class="btn btn-success text-white" (click)="handle('RESOLVED')" [disabled]="saving()">
+          <svg cIcon name="cilCheckCircle" size="sm" class="me-1"></svg>Marquer comme résolue
+        </button>
+        <button type="button" class="btn btn-outline-secondary" (click)="handle('REJECTED')" [disabled]="saving()">
+          <svg cIcon name="cilX" size="sm" class="me-1"></svg>Rejeter
+        </button>
+        <c-spinner *ngIf="saving()" size="sm" class="align-self-center"></c-spinner>
+      </div>
+    </div>
+  </section>
+</div>

@@ -18,7 +18,13 @@
       } @else {
         <a class="btn btn-light hero__btn" routerLink="/admin/users"><svg cIcon name="cilPeople" class="me-1"></svg>Utilisateurs</a>
       }
-      <a class="btn hero__btn hero__btn--ghost" routerLink="/ai-assistant"><svg cIcon name="cilLightbulb" class="me-1"></svg>Assistant IA</a>
+      @if (authService.isStudent()) {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/my-enrollments"><svg cIcon name="cilLibrary" class="me-1"></svg>Mes inscriptions</a>
+      } @else if (authService.isTeacher()) {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/teacher/quiz-tp"><svg cIcon name="cilTask" class="me-1"></svg>Quiz & TP</a>
+      } @else {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/ai-assistant"><svg cIcon name="cilLightbulb" class="me-1"></svg>Assistant IA</a>
+      }
     </div>
   </div>
 </section>
@@ -88,12 +94,29 @@
                      [hint]="t.kpis.submissions + ' copie(s) rendue(s) (quiz + TP)'" />
     </div>
 
+    <ul class="nav nav-pills lms-tabs mb-3" role="tablist" aria-label="Tableau de bord enseignant">
+      <li class="nav-item">
+        <button type="button" role="tab" class="nav-link" [class.active]="teacherView() === 'overview'" (click)="setTeacherView('overview')">
+          <svg cIcon name="cilSpeedometer" size="sm"></svg>Vue d'ensemble
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" role="tab" class="nav-link" [class.active]="teacherView() === 'suivi'" (click)="setTeacherView('suivi')">
+          <svg cIcon name="cilChartLine" size="sm"></svg>Suivi des étudiants
+        </button>
+      </li>
+    </ul>
+
+    <!-- Suivi détaillé par cours (anciennement « Suivi pédagogique ») -->
+    <app-teacher-tracking *ngIf="teacherView() === 'suivi'" [embedded]="true" />
+
+    <ng-container *ngIf="teacherView() === 'overview'">
     <c-card class="mb-4">
       <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <span>Mes cours — suivi pédagogique</span>
+        <span>Mes cours</span>
         <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-outline-primary btn-sm" routerLink="/teacher/courses"><svg cIcon name="cilPlus" class="me-1"></svg>Studio de cours</a>
-          <a class="btn btn-primary btn-sm" routerLink="/teacher/tracking"><svg cIcon name="cilChartLine" class="me-1"></svg>Suivi détaillé</a>
+          <button type="button" class="btn btn-primary btn-sm" (click)="setTeacherView('suivi')"><svg cIcon name="cilChartLine" class="me-1"></svg>Suivi des étudiants</button>
         </div>
       </c-card-header>
       <c-card-body class="p-0">
@@ -128,7 +151,7 @@
                 <td class="text-center"><c-badge [color]="scoreColor(c.assignmentAverage)">{{ c.assignmentAverage !== null ? c.assignmentAverage + '%' : '—' }}</c-badge></td>
                 <td class="text-center">{{ c.participationRate }}%</td>
                 <td class="text-end">
-                  <a class="btn btn-outline-primary btn-sm" routerLink="/teacher/tracking" [queryParams]="{ course: c.courseId }">Étudiants</a>
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="setTeacherView('suivi', c.courseId)">Étudiants</button>
                 </td>
               </tr>
             </tbody>
@@ -163,6 +186,7 @@
                          text="Les quiz et TP rendus par vos étudiants apparaîtront ici." />
       </c-card-body>
     </c-card>
+    </ng-container>
   </ng-container>
 </div>
 
@@ -185,6 +209,43 @@
       <app-stat-card label="Moyenne aux quiz" icon="cilStar" tone="warning"
                      [value]="s.quizAverage !== null ? s.quizAverage + '%' : '—'"
                      [hint]="s.quizzesTaken + ' quiz passé(s) · TP : ' + (s.assignmentAverage !== null ? s.assignmentAverage + '%' : '—') + ' (' + s.assignmentsSubmitted + ' rendu(s))'" />
+    </div>
+
+    <!-- Graphiques de progression (données réelles) -->
+    <div class="card mb-4" *ngIf="studentCharts() as ch">
+      <div class="card-header">Ma progression</div>
+      <div class="card-body">
+        <div class="rings">
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.courses.data" [options]="doughnutOptions" [height]="150" aria-label="Pourcentage lu de mes cours" />
+              <div class="ring__center"><strong>{{ ch.courses.pct }}%</strong><span>lu</span></div>
+            </div>
+            <figcaption><strong>Cours</strong><span>{{ ch.courses.pct }} % lu · {{ 100 - ch.courses.pct }} % restant</span></figcaption>
+          </figure>
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.quiz.data" [options]="doughnutOptions" [height]="150" aria-label="Quiz passés" />
+              <div class="ring__center"><strong>{{ ch.quiz.pct }}%</strong><span>quiz</span></div>
+            </div>
+            <figcaption><strong>Quiz</strong><span>{{ ch.quiz.done }} passé(s) sur {{ ch.quiz.total }}</span></figcaption>
+          </figure>
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.tp.data" [options]="doughnutOptions" [height]="150" aria-label="TP rendus" />
+              <div class="ring__center"><strong>{{ ch.tp.pct }}%</strong><span>TP</span></div>
+            </div>
+            <figcaption><strong>TP</strong><span>{{ ch.tp.done }} rendu(s) sur {{ ch.tp.total }}</span></figcaption>
+          </figure>
+        </div>
+        <div class="bars mt-4" *ngIf="s.courses.length">
+          <div class="small fw-semibold text-body-secondary mb-2">Avancement par cours</div>
+          <div class="bars__chart" [style.height.px]="50 + s.courses.length * 40">
+            <c-chart type="bar" [data]="ch.bars" [options]="barOptions" [height]="50 + s.courses.length * 40"
+                     aria-label="Avancement de chaque cours en pourcentage" />
+          </div>
+        </div>
+      </div>
     </div>
 
     <c-card class="mb-4">

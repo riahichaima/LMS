@@ -4,11 +4,12 @@ export interface TpExercise {
   solution: string;
 }
 
-// Le backend enregistre les exercices d'un TP en un seul texte : "Exercice 1 : ...\n\nExercice 2 : ..."
+// Le backend enregistre les exercices d'un TP en un seul texte, en début de ligne :
+// ancien format "Exercice 1 : ...\n\nExercice 2 : ..." ou format Markdown "### Exercice 1\n\n...\n\n### Exercice 2\n\n..."
 function splitByExercise(text: string | null | undefined): Map<number, string> {
   const parts = new Map<number, string>();
   if (!text) return parts;
-  const regex = /Exercice\s+(\d+)\s*:\s*/g;
+  const regex = /(?:^|\n)[ \t]*(?:#{1,6}[ \t]*)?Exercice\s+(\d+)[ \t]*:?[ \t]*/g;
   const matches = [...text.matchAll(regex)];
   if (matches.length === 0) {
     parts.set(1, text.trim());

@@ -261,6 +261,8 @@ $lms-sky: #1fa2ff;
       text-align: center;
     }
 
+    &__count--neutral { background: rgba(var(--cui-secondary-rgb), .14); color: var(--cui-secondary-color); }
+
     .active &__count { background: rgba(255, 255, 255, .25); color: #fff; }
   }
 

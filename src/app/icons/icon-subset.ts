@@ -117,6 +117,7 @@ import {
   cilExitToApp,
   cilClock,
   cilVolumeOff,
+  cilShieldAlt,
   cilSearch,
   cilFilter,
   cilFilterX,
@@ -126,12 +127,17 @@ import {
   cilCash,
   cilEducation,
   cilSortAscending,
+  cilWarning,
+  cilAvTimer,
 } from '@coreui/icons';
 
 import { signet } from './signet';
 import { logo } from './logo';
 
 export const iconSubset = {
+  cilWarning,
+  cilAvTimer,
+  cilShieldAlt,
   cilSearch,
   cilFilter,
   cilFilterX,
@@ -264,11 +270,14 @@ export const iconSubset = {
 };
 
 export enum IconSubset {
+  cilShieldAlt = 'cilShieldAlt',
   cilSearch = 'cilSearch',
   cilFilter = 'cilFilter',
   cilFilterX = 'cilFilterX',
   cilUserX = 'cilUserX',
   cilBan = 'cilBan',
+  cilWarning = 'cilWarning',
+  cilAvTimer = 'cilAvTimer',
   cilWallet = 'cilWallet',
   cilCash = 'cilCash',
   cilEducation = 'cilEducation',
