@@ -248,7 +248,11 @@ public class AssessmentFileService {
         try {
             Files.createDirectories(DIR);
             try (InputStream in = file.getInputStream()) {
-                Files.copy(in, DIR.resolve(stored), StandardCopyOption.REPLACE_EXISTING);
+                Path target = DIR.resolve(stored).normalize();
+                if (!STORED_NAME.matcher(stored).matches() || !target.startsWith(DIR)) {
+                    throw new IllegalArgumentException("Nom de fichier invalide.");
+                }
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
             throw new IllegalStateException("Enregistrement du fichier impossible.");

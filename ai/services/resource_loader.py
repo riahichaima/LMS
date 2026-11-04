@@ -43,7 +43,8 @@ def extract_resource(resource: ResourceDetail) -> str:
 
     if rtype == "TEXT":
         return resource.title
-    if url and (rtype == "YOUTUBE_VIDEO" or is_youtube_url(url)):
+    # Seul un vrai lien YouTube part vers yt-dlp ; tout autre lien passe par le téléchargement protégé (SSRF)
+    if url and is_youtube_url(url):
         return _cached(f"youtube:{url}", lambda: analyze_youtube(url))
     if resource.file_path and rtype == "PDF":
         return extract_from_pdf(str(resolve_backend_path(resource.file_path)))
