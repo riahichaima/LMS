@@ -1,0 +1,157 @@
+# LMS — déploiement complet sur n'importe quel serveur avec Docker (VPS, VM Azure, serveur de l'école…)
+#
+#   cp .env.example .env      # puis remplir les valeurs
+#   docker compose up -d      # base + IA + backend + frontend
+#   docker compose --profile https up -d        # + HTTPS automatique (Caddy, nom de domaine requis)
+#   docker compose --profile monitoring up -d   # + Prometheus et Grafana
+#
+# Les images sont construites et scannées par GitHub Actions puis publiées sur GitHub Container Registry.
+# Les workflows CD mettent à jour un service à la fois (variables *_TAG du fichier .env).
+name: lms
+
+services:
+  # MySQL 8.4 LTS : base officiellement prise en charge par le pilote du backend (mysql-connector-j),
+  # identique à Azure Database for MySQL. (En développement, XAMPP MariaDB reste utilisable.)
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: lms_db
+      MYSQL_USER: ${DB_USERNAME:-lms}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Définir DB_PASSWORD dans .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Définir DB_ROOT_PASSWORD dans .env}
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # TCP uniquement disponible une fois l'initialisation terminée
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 30s
+    networks: [interne]
+
+  # Service IA : jamais exposé sur Internet, seul le backend l'appelle
+  ai:
+    image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-ai:${AI_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_CHAT_DEPLOYMENT: ${AZURE_CHAT_DEPLOYMENT:-gpt-4.1-mini}
+      AZURE_TRANSCRIBE_DEPLOYMENT: ${AZURE_TRANSCRIBE_DEPLOYMENT:-gpt-4o-mini-transcribe}
+      # Fichiers des cours déposés par le backend (volume partagé, lecture seule)
+      BACKEND_ROOT_DIR: /backend
+    volumes:
+      - uploads:/backend/uploads:ro
+      - ai-data:/app/uploads
+    networks: [interne]
+
+  backend:
+    image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-backend:${BACKEND_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+      ai: { condition: service_started }
+    environment:
+      DB_URL: jdbc:mysql://db:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false
+      DB_USERNAME: ${DB_USERNAME:-lms}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Définir JWT_SECRET dans .env}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-superadmin@lms.com}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Définir SUPER_ADMIN_PASSWORD dans .env}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Administrateur}
+      FRONTEND_URL: ${PUBLIC_APP_URL:-http://localhost}
+      APP_CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost}
+      LMS_AI_URL: http://ai:8000
+      MAIL_HOST: ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Africa/Tunis}
+      TURN_URL: ${TURN_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+    volumes:
+      - uploads:/app/uploads
+    ports:
+      - '${BACKEND_PORT:-8090}:8090'
+    networks: [interne, web]
+
+  frontend:
+    image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-frontend:${FRONTEND_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # Adresse publique de l'API, injectée au démarrage (même image pour tous les serveurs)
+      API_URL: ${PUBLIC_API_URL:-http://localhost:8090}
+    ports:
+      - '${FRONTEND_PORT:-80}:8080'
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [web]
+
+  # ── Option HTTPS : certificats Let's Encrypt automatiques (APP_DOMAIN et API_DOMAIN doivent pointer vers le serveur)
+  caddy:
+    image: caddy:2-alpine
+    profiles: [https]
+    restart: unless-stopped
+    depends_on: [frontend, backend]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:-}
+      API_DOMAIN: ${API_DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [web]
+
+  # ── Option supervision : métriques du backend (port interne 8091) et tableau de bord Grafana
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks: [interne]
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Définir GRAFANA_ADMIN_PASSWORD dans .env}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      # Accessible seulement depuis le serveur (tunnel SSH : ssh -L 3000:localhost:3000 serveur)
+      - '${GRAFANA_PORT:-127.0.0.1:3000}:3000'
+    networks: [interne]
+
+networks:
+  interne:
+  web:
+
+volumes:
+  db-data:
+  uploads:
+  ai-data:
+  caddy-data:
+  caddy-config:
+  prometheus-data:
+  grafana-data:

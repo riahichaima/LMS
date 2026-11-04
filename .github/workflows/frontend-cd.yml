@@ -1,0 +1,159 @@
+# CD du frontend : image Docker (nginx) → scan Trivy → GHCR → staging → production (approbation).
+# Option Vercel : secrets VERCEL_TOKEN + variables VERCEL_ORG_ID, VERCEL_PROJECT_ID et API_URL dans l'environnement.
+# Retour arrière : « Run workflow » avec le tag (SHA) d'une ancienne version.
+name: Frontend CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-cd.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag d'une image existante à redéployer (retour arrière). Vide = construire le commit courant."
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-cd
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  image:
+    name: Image Docker (build, Trivy, GHCR)
+    if: inputs.tag == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: vars
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/lms-frontend" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construction
+        uses: docker/build-push-action@v7
+        with:
+          context: frontend
+          load: true
+          tags: |
+            ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=LMS - frontend Angular
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Vérification de l'image (démarrage + env.js)
+        run: |
+          docker run -d --name lms-front -e API_URL=https://api.exemple.test -p 8080:8080 "${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+          for _ in $(seq 1 20); do curl -fsS localhost:8080/healthz >/dev/null && break; sleep 1; done
+          curl -fsS localhost:8080/assets/env.js | grep -q 'https://api.exemple.test'
+          curl -fsS localhost:8080/ | grep -q '<app-root'
+          docker rm -f lms-front
+
+      - name: Scan Trivy (rapport)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: CRITICAL,HIGH
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+          category: frontend-image
+
+      - name: Barrière Trivy (aucune faille critique corrigeable)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Publication sur GHCR
+        run: docker push --all-tags "${{ steps.vars.outputs.image }}"
+
+  staging:
+    name: Staging
+    needs: image
+    if: ${{ !cancelled() && (needs.image.result == 'success' || needs.image.result == 'skipped') }}
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: staging
+      service: frontend
+      service-key: FRONTEND
+      image: ghcr.io/${{ github.repository_owner }}/lms-frontend
+      tag: ${{ inputs.tag || needs.image.outputs.tag }}
+
+  production:
+    name: Production (approbation)
+    needs: [image, staging]
+    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: production
+      service: frontend
+      service-key: FRONTEND
+      image: ghcr.io/${{ github.repository_owner }}/lms-frontend
+      tag: ${{ inputs.tag || needs.image.outputs.tag }}
+
+  # Option : hébergement du site statique sur Vercel (en plus ou à la place de l'image Docker)
+  vercel:
+    name: Vercel (production)
+    needs: production
+    if: ${{ !cancelled() && needs.production.result == 'success' && vars.VERCEL_PROJECT_ID != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build et déploiement Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          npx --yes vercel@65.9.0 pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx --yes vercel@65.9.0 build --prod --token="$VERCEL_TOKEN"
+          URL=$(npx --yes vercel@65.9.0 deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "Site publié sur Vercel : $URL" >> "$GITHUB_STEP_SUMMARY"

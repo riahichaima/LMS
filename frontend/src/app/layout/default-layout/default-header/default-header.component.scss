@@ -1,0 +1,136 @@
+.icon-btn {
+  position: relative;
+}
+
+.count-badge {
+  position: absolute;
+  top: 2px;
+  right: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--cui-danger);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+.notif-menu {
+  width: min(360px, calc(100vw - 24px));
+}
+
+.notif-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cui-border-color);
+}
+
+.notif-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notif-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 14px;
+  white-space: normal;
+  border-bottom: 1px solid var(--cui-border-color-translucent);
+
+  &.unread {
+    background: rgba(var(--cui-primary-rgb), 0.07);
+
+    .title::after {
+      content: '';
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-left: 6px;
+      border-radius: 50%;
+      background: var(--cui-primary);
+      vertical-align: middle;
+    }
+  }
+}
+
+.notif-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(var(--cui-primary-rgb), 0.12);
+  color: var(--cui-primary);
+}
+
+.notif-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+
+  .title { font-weight: 600; font-size: 0.875rem; }
+  .body {
+    font-size: 0.8rem;
+    color: var(--cui-secondary-color);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .time { font-size: 0.72rem; color: var(--cui-secondary-color); margin-top: 2px; }
+}
+
+.toast-stack {
+  position: fixed;
+  top: 72px;
+  right: 16px;
+  z-index: 1080;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(340px, calc(100vw - 32px));
+}
+
+.rt-toast {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+  border-left: 4px solid var(--cui-primary);
+  animation: toast-in 0.2s ease-out;
+}
+
+.rt-toast-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0;
+
+  span {
+    font-size: 0.8rem;
+    color: var(--cui-secondary-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}

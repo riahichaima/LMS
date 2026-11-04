@@ -1,0 +1,93 @@
+<app-page-header title="Formations" icon="cilLibraryAdd" subtitle="Supervisez les cours de la plateforme et attribuez leurs formateurs.">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="loadData()">
+    <svg cIcon name="cilReload" size="sm" class="me-1"></svg>Actualiser
+  </button>
+</app-page-header>
+
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-body>
+        <c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">
+          {{ errorMessage() }}
+        </c-alert>
+        <c-alert color="success" *ngIf="successMessage()" dismissible class="mb-3">
+          {{ successMessage() }}
+        </c-alert>
+
+        <div *ngIf="loading()" class="text-center py-4">
+          <c-spinner color="primary"></c-spinner>
+          <p class="mt-2 text-muted">Chargement des cours...</p>
+        </div>
+
+        <table cTable [hover]="true" [responsive]="true" *ngIf="!loading()">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Titre de la Formation</th>
+              <th>Description</th>
+              <th>Enseignant Attribué</th>
+              <th>Statut</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of courses()">
+              <td>#{{ c.id }}</td>
+              <td class="fw-semibold">{{ c.title }}</td>
+              <td>{{ c.description }}</td>
+              <td>
+                <span *ngIf="c.teacherName" class="lms-pill lms-pill--neutral">
+                  {{ c.teacherName }}
+                </span>
+                <span *ngIf="!c.teacherName" class="text-muted fst-italic">Non attribué</span>
+              </td>
+              <td>
+                <c-badge [color]="c.status === 'PUBLISHED' ? 'success' : 'warning'">
+                  {{ c.status || 'PUBLISHED' }}
+                </c-badge>
+              </td>
+              <td class="text-end">
+                <button
+                  cButton
+                  color="primary"
+                  size="sm"
+                  (click)="openAssignModal(c)"
+                >
+                  <svg cIcon name="cilUserFollow" class="me-1"></svg> Assigner Formateur
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="courses().length === 0">
+              <td colspan="6" class="text-center py-3 text-muted">
+                Aucune formation enregistrée.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
+
+<!-- Modal Assignment -->
+<c-modal [(visible)]="assignModalVisible" id="assignModal">
+  <c-modal-header>
+    <h5 cModalTitle>Assigner un enseignant à "{{ selectedCourse?.title }}"</h5>
+  </c-modal-header>
+  <c-modal-body>
+    <label class="form-label fw-bold mb-2">Choisir un Enseignant :</label>
+    <select cSelect [(ngModel)]="selectedTeacherId" class="form-select">
+      <option [ngValue]="null">-- Sélectionner --</option>
+      <option *ngFor="let t of teachers()" [ngValue]="t.id">
+        {{ t.name }} ({{ t.email }})
+      </option>
+    </select>
+  </c-modal-body>
+  <c-modal-footer>
+    <button cButton color="secondary" (click)="assignModalVisible.set(false)">Annuler</button>
+    <button cButton color="primary" (click)="saveAssignment()" [disabled]="!selectedTeacherId">
+      Assigner
+    </button>
+  </c-modal-footer>
+</c-modal>

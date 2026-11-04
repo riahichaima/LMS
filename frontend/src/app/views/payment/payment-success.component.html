@@ -1,0 +1,50 @@
+<c-row class="justify-content-center">
+  <c-col md="8" lg="6">
+    <c-card class="mt-4">
+      <c-card-body class="p-5 text-center">
+        <ng-container [ngSwitch]="state()">
+          <div *ngSwitchCase="'checking'">
+            <c-spinner color="primary" class="mb-3"></c-spinner>
+            <h4>Vérification du paiement…</h4>
+            <p class="text-body-secondary">Nous attendons la confirmation de Stripe. Cela prend quelques secondes.</p>
+          </div>
+
+          <div *ngSwitchCase="'confirmed'">
+            <svg cIcon name="cilCheck" size="3xl" class="text-success mb-3"></svg>
+            <h4>Paiement confirmé</h4>
+            <p class="text-body-secondary">
+              Merci ! Votre paiement de <strong>{{ status()?.amount | currency:'USD' }}</strong> pour
+              « <strong>{{ status()?.courseTitle }}</strong> » est confirmé. Vous avez maintenant accès au cours.
+            </p>
+            <a cButton color="primary" routerLink="/my-enrollments" class="me-2">Accéder à mes cours</a>
+            <a cButton color="secondary" variant="outline" routerLink="/courses">Catalogue</a>
+          </div>
+
+          <div *ngSwitchCase="'waiting'">
+            <c-spinner color="warning" class="mb-3"></c-spinner>
+            <h4>Confirmation en attente</h4>
+            <p class="text-body-secondary">
+              Stripe n'a pas encore confirmé le paiement. L'accès au cours sera ouvert automatiquement dès réception
+              de la confirmation : vous pouvez consulter « Mes inscriptions » dans quelques instants.
+            </p>
+            <a cButton color="primary" routerLink="/my-enrollments">Mes inscriptions</a>
+          </div>
+
+          <div *ngSwitchCase="'failed'">
+            <h4 class="text-danger">Paiement non abouti</h4>
+            <p class="text-body-secondary">
+              {{ status()?.failureMessage || 'Le paiement a été annulé ou a expiré. Aucun accès n\'a été ouvert.' }}
+            </p>
+            <a cButton color="primary" routerLink="/courses">Retour au catalogue</a>
+          </div>
+
+          <div *ngSwitchCase="'error'">
+            <h4 class="text-danger">Vérification impossible</h4>
+            <p class="text-body-secondary">{{ errorMessage() }}</p>
+            <a cButton color="primary" routerLink="/courses">Retour au catalogue</a>
+          </div>
+        </ng-container>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

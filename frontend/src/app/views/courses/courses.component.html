@@ -1,0 +1,139 @@
+<app-page-header title="Catalogue des formations" icon="cilBook"
+                 subtitle="Trouvez une formation par son nom, son enseignant ou votre budget." />
+
+<c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+<c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+<c-alert color="warning" *ngIf="isStudent && !paymentsEnabled()" class="mb-3">
+  Le paiement en ligne n'est pas encore configuré : les cours payants ne peuvent pas être achetés pour le moment.
+</c-alert>
+
+<!-- Filtres -->
+<section class="filters card mb-4" aria-label="Filtrer les formations">
+  <div class="filters__grid">
+    <div class="filters__field filters__field--search">
+      <label class="form-label" for="f-search">Rechercher une formation</label>
+      <div class="input-group">
+        <span class="input-group-text"><svg cIcon name="cilSearch" size="sm"></svg></span>
+        <input id="f-search" type="search" class="form-control" placeholder="Nom du cours, sujet…"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+    </div>
+    <div class="filters__field">
+      <label class="form-label" for="f-teacher">Enseignant</label>
+      <select id="f-teacher" class="form-select" [ngModel]="teacher()" (ngModelChange)="teacher.set($event)">
+        <option value="">Tous les enseignants</option>
+        <option *ngFor="let t of teachers()" [value]="t">{{ t }}</option>
+      </select>
+    </div>
+    <div class="filters__field">
+      <label class="form-label" for="f-type">Prix</label>
+      <select id="f-type" class="form-select" [ngModel]="priceType()" (ngModelChange)="priceType.set($event)">
+        <option value="">Gratuits et payants</option>
+        <option value="FREE">Gratuits uniquement</option>
+        <option value="PAID">Payants uniquement</option>
+      </select>
+    </div>
+    <div class="filters__field">
+      <label class="form-label" for="f-sort">Trier par</label>
+      <select id="f-sort" class="form-select" [ngModel]="sort()" (ngModelChange)="sort.set($event)">
+        <option value="relevance">Pertinence</option>
+        <option value="price-asc">Prix croissant</option>
+        <option value="price-desc">Prix décroissant</option>
+        <option value="rating">Mieux notées</option>
+        <option value="recent">Plus récentes</option>
+      </select>
+    </div>
+    <div class="filters__field filters__field--budget" *ngIf="maxPrice() > 0">
+      <label class="form-label d-flex justify-content-between" for="f-budget">
+        <span>Mon budget</span>
+        <strong class="text-primary">{{ budget() === null ? 'Sans limite' : ('≤ ' + (budget() | currency:'USD':'symbol':'1.0-0')) }}</strong>
+      </label>
+      <input id="f-budget" type="range" class="form-range" min="0" [max]="maxPrice()" step="1"
+             [value]="budget() ?? maxPrice()" (input)="onBudget($any($event.target).value)"
+             [attr.aria-valuetext]="budget() === null ? 'Sans limite' : budget() + ' dollars'" />
+      <div class="filters__budget-scale"><span>Gratuit</span><span>{{ maxPrice() | currency:'USD':'symbol':'1.0-0' }}</span></div>
+    </div>
+  </div>
+  <div class="filters__footer">
+    <span class="text-body-secondary small">
+      <strong class="text-body">{{ filteredCourses().length }}</strong> formation(s) sur {{ courses().length }}
+    </span>
+    <button type="button" class="btn btn-sm btn-link text-decoration-none" *ngIf="activeFilters() > 0 || sort() !== 'relevance'" (click)="resetFilters()">
+      <svg cIcon name="cilFilterX" size="sm" class="me-1"></svg>Effacer les filtres
+    </button>
+  </div>
+</section>
+
+<div *ngIf="loading()" class="text-center py-5">
+  <c-spinner color="primary"></c-spinner>
+  <p class="mt-2 text-body-secondary">Chargement des formations…</p>
+</div>
+
+<app-empty-state *ngIf="!loading() && courses().length === 0" icon="cilBook"
+                 title="Aucune formation pour le moment" text="Les nouvelles formations apparaîtront ici dès leur publication." />
+
+<app-empty-state *ngIf="!loading() && courses().length > 0 && filteredCourses().length === 0" icon="cilFilter"
+                 title="Aucune formation ne correspond à vos filtres" text="Essayez un autre enseignant, un budget plus élevé ou un autre mot-clé.">
+  <button type="button" class="btn btn-outline-primary btn-sm" (click)="resetFilters()">Effacer les filtres</button>
+</app-empty-state>
+
+<div class="course-grid" *ngIf="!loading() && filteredCourses().length > 0">
+  <article class="course card" *ngFor="let course of filteredCourses()">
+    <div class="course__banner" [class.course__banner--free]="course.pricingType !== 'PAID'">
+      <svg cIcon name="cilEducation" class="course__banner-icon" aria-hidden="true"></svg>
+      <span class="lms-pill" [class.lms-pill--success]="course.pricingType !== 'PAID'" [class.lms-pill--primary]="course.pricingType === 'PAID'">
+        {{ course.pricingType === 'PAID' ? 'Payant' : 'Gratuit' }}
+      </span>
+      <span class="lms-pill lms-pill--neutral ms-1" *ngIf="course.level">{{ course.level }}</span>
+      <span class="course__enrolled" *ngIf="isStudent && isEnrolled(course)"><svg cIcon name="cilCheck" size="sm"></svg> Inscrit</span>
+    </div>
+
+    <div class="card-body d-flex flex-column">
+      <h2 class="course__title">{{ course.title }}</h2>
+
+      <div class="d-flex align-items-center gap-2 mb-2 small" *ngIf="course.id">
+        <ng-container *ngIf="ratings().get(course.id) as rt; else noRating">
+          <app-star-rating [value]="rt.average" [size]="15" />
+          <span class="fw-semibold">{{ rt.average }}</span>
+          <span class="text-body-secondary">({{ rt.count }} avis)</span>
+        </ng-container>
+        <ng-template #noRating><span class="text-body-secondary">Pas encore noté</span></ng-template>
+      </div>
+
+      <p class="course__desc text-body-secondary">{{ course.description }}</p>
+
+      <div class="course__meta">
+        <span *ngIf="course.teacherName">
+          <svg cIcon name="cilUser" size="sm" class="me-1"></svg>
+          <a *ngIf="course.teacherId; else plainName" [routerLink]="['/profile', course.teacherId]">{{ course.teacherName }}</a>
+          <ng-template #plainName>{{ course.teacherName }}</ng-template>
+        </span>
+        <span><svg cIcon name="cilLayers" size="sm" class="me-1"></svg>{{ course.chapters?.length || 0 }} chapitres · {{ lessonCount(course) }} leçons</span>
+      </div>
+
+      <div class="course__footer">
+        <span class="course__price" [class.text-success]="course.pricingType !== 'PAID'">
+          {{ course.pricingType === 'PAID' ? (course.price | currency:'USD') : 'Gratuit' }}
+        </span>
+
+        <ng-container *ngIf="isStudent">
+          <a *ngIf="isEnrolled(course)" class="btn btn-sm btn-outline-primary" [routerLink]="['/learn', course.id]">
+            <svg cIcon name="cilMediaPlay" size="sm" class="me-1"></svg>Accéder
+          </a>
+          <ng-container *ngIf="!isEnrolled(course)">
+            <button *ngIf="course.pricingType !== 'PAID'" type="button" class="btn btn-sm btn-success text-white"
+                    (click)="enroll(course)" [disabled]="busyId() === course.id">
+              <c-spinner *ngIf="busyId() === course.id" size="sm" class="me-1"></c-spinner>
+              S'inscrire gratuitement
+            </button>
+            <button *ngIf="course.pricingType === 'PAID'" type="button" class="btn btn-sm btn-primary"
+                    (click)="buy(course)" [disabled]="busyId() === course.id || !paymentsEnabled()">
+              <c-spinner *ngIf="busyId() === course.id" size="sm" class="me-1"></c-spinner>
+              Acheter le cours
+            </button>
+          </ng-container>
+        </ng-container>
+      </div>
+    </div>
+  </article>
+</div>

@@ -1,0 +1,25 @@
+<c-row class="justify-content-center">
+  <c-col md="8" lg="6">
+    <c-card class="mt-4">
+      <c-card-body class="p-5 text-center">
+        <c-spinner *ngIf="loading()" color="primary"></c-spinner>
+
+        <ng-container *ngIf="!loading()">
+          <ng-container *ngIf="!alreadyPaid(); else paid">
+            <h4>Paiement annulé</h4>
+            <p class="text-body-secondary">
+              Vous avez annulé le paiement<span *ngIf="courseTitle()"> de « <strong>{{ courseTitle() }}</strong> »</span>.
+              Aucun montant n'a été débité. Vous pouvez réessayer à tout moment.
+            </p>
+            <a cButton color="primary" routerLink="/courses">Retour au catalogue</a>
+          </ng-container>
+          <ng-template #paid>
+            <h4 class="text-success">Paiement déjà confirmé</h4>
+            <p class="text-body-secondary">Le paiement avait abouti avant l'annulation : vous avez accès au cours.</p>
+            <a cButton color="primary" routerLink="/my-enrollments">Accéder à mes cours</a>
+          </ng-template>
+        </ng-container>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

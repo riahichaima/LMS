@@ -1,0 +1,16 @@
+# Lancer le LMS complet en local à partir du code (sans passer par GitHub) :
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+# Monorepo : les dossiers backend/, frontend/ et ai/ sont à côté de deploy/.
+services:
+  backend:
+    image: lms-backend:local
+    build:
+      context: ../backend
+  frontend:
+    image: lms-frontend:local
+    build:
+      context: ../frontend
+  ai:
+    image: lms-ai:local
+    build:
+      context: ../ai

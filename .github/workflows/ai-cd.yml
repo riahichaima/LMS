@@ -1,0 +1,130 @@
+# CD du service IA : image Docker → scan Trivy → GHCR → staging → production (approbation).
+# Le service IA n'est jamais exposé sur Internet : seul le backend l'appelle (réseau interne).
+# Retour arrière : « Run workflow » avec le tag (SHA) d'une ancienne version.
+name: AI CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-cd.yml'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag d'une image existante à redéployer (retour arrière). Vide = construire le commit courant."
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-cd
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: ai
+
+jobs:
+  image:
+    name: Image Docker (build, Trivy, GHCR)
+    if: inputs.tag == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    outputs:
+      image: ${{ steps.vars.outputs.image }}
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: vars
+        run: |
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/lms-ai" >> "$GITHUB_OUTPUT"
+          echo "tag=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construction
+        uses: docker/build-push-action@v7
+        with:
+          context: ai
+          load: true
+          tags: |
+            ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+            ${{ steps.vars.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.description=LMS - service IA FastAPI
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,mode=max,scope=ai
+
+      - name: Vérification de l'image (démarrage + /api/live)
+        run: |
+          docker run -d --name lms-ai -p 8000:8000 "${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}"
+          for _ in $(seq 1 30); do curl -fsS localhost:8000/api/live && break; sleep 1; done
+          curl -fsS localhost:8000/api/live | grep -q '"ok"'
+          docker rm -f lms-ai
+
+      - name: Scan Trivy (rapport)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          format: sarif
+          output: trivy-image.sarif
+          severity: CRITICAL,HIGH
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-image.sarif
+          category: ai-image
+
+      - name: Barrière Trivy (aucune faille critique corrigeable)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Publication sur GHCR
+        run: docker push --all-tags "${{ steps.vars.outputs.image }}"
+
+  staging:
+    name: Staging
+    needs: image
+    if: ${{ !cancelled() && (needs.image.result == 'success' || needs.image.result == 'skipped') }}
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: staging
+      service: ai
+      service-key: AI
+      image: ghcr.io/${{ github.repository_owner }}/lms-ai
+      tag: ${{ inputs.tag || needs.image.outputs.tag }}
+
+  production:
+    name: Production (approbation)
+    needs: [image, staging]
+    if: ${{ !cancelled() && needs.staging.result == 'success' }}
+    uses: ./.github/workflows/_deploy.yml
+    secrets: inherit
+    with:
+      environment: production
+      service: ai
+      service-key: AI
+      image: ghcr.io/${{ github.repository_owner }}/lms-ai
+      tag: ${{ inputs.tag || needs.image.outputs.tag }}

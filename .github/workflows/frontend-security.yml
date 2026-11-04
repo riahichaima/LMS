@@ -1,0 +1,114 @@
+# Sécurité du frontend : CodeQL (TypeScript), secrets (Gitleaks), dépendances npm vulnérables (npm audit + Trivy),
+# nouvelles dépendances des pull requests. Résultats dans l'onglet « Security ».
+name: Frontend Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-security.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-security.yml'
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-security-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  codeql:
+    name: CodeQL (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          source-root: frontend
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: frontend-codeql
+
+  secrets:
+    name: Secrets exposés (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Fichiers actuels (bloquant)
+        run: >-
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo zricethezav/gitleaks:v8.30.1
+          dir frontend --redact --no-banner --exit-code 1
+      - name: Historique complet (rapport hebdomadaire)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        continue-on-error: true
+        run: >-
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo zricethezav/gitleaks:v8.30.1
+          git . --redact --no-banner --exit-code 1
+
+  dependencies:
+    name: Dépendances vulnérables (npm audit + Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: npm audit (dépendances livrées aux utilisateurs, failles critiques)
+        run: npm audit --omit=dev --audit-level=critical
+      - name: Rapport Trivy (onglet Security)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: frontend
+          scanners: vuln
+          format: sarif
+          output: trivy-deps.sarif
+          severity: CRITICAL,HIGH,MEDIUM
+      - uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: trivy-deps.sarif
+          category: frontend-dependencies
+
+  dependency-review:
+    name: Nouvelles dépendances (pull request)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

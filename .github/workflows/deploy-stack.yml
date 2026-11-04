@@ -1,0 +1,81 @@
+# Installation / mise à jour de TOUTE la plateforme sur le serveur (première mise en ligne, changement
+# du docker-compose, du Caddyfile ou de la supervision). Les mises à jour du code passent par les workflows CD.
+# Pré-requis sur le serveur : Docker + fichier .env dans DEPLOY_PATH (modèle : deploy/.env.example).
+name: Déploiement complet (serveur Docker)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environnement cible
+        type: choice
+        options: [staging, production]
+        default: staging
+      profiles:
+        description: "Options docker compose (ex. : https,monitoring) — vide = aucune"
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-stack-${{ inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  stack:
+    name: Plateforme complète → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Vérifier la configuration
+        env:
+          HOST: ${{ secrets.DEPLOY_SSH_HOST }}
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "::error::Secret DEPLOY_SSH_HOST manquant dans l'environnement '${{ inputs.environment }}' (voir deploy/README.md)"
+            exit 1
+          fi
+
+      - name: Copier les fichiers de déploiement
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ vars.DEPLOY_SSH_PORT || 22 }}
+          source: deploy/docker-compose.yml,deploy/Caddyfile,deploy/.env.example,deploy/monitoring
+          target: ${{ vars.DEPLOY_PATH || '/opt/lms' }}
+          strip_components: 1
+
+      - name: Démarrer la plateforme
+        uses: appleboy/ssh-action@v1
+        env:
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/lms' }}
+          PROFILES: ${{ inputs.profiles }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+        with:
+          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          username: ${{ secrets.DEPLOY_SSH_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ vars.DEPLOY_SSH_PORT || 22 }}
+          envs: DEPLOY_PATH,PROFILES,GHCR_USER,GHCR_TOKEN
+          script: |
+            set -eu
+            cd "$DEPLOY_PATH"
+            if [ ! -f .env ]; then
+              echo "❌ $DEPLOY_PATH/.env absent : copier .env.example en .env et le remplir, puis relancer."
+              exit 1
+            fi
+            if [ -n "$GHCR_TOKEN" ]; then echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin; fi
+            ARGS=""
+            for p in $(echo "$PROFILES" | tr ',' ' '); do ARGS="$ARGS --profile $p"; done
+            docker compose $ARGS pull
+            docker compose $ARGS up -d --remove-orphans --wait --wait-timeout 600
+            docker compose $ARGS ps
+            docker image prune -f >/dev/null

@@ -1,0 +1,81 @@
+<button type="button" class="chat-fab" (click)="toggle()" [attr.aria-expanded]="open()"
+        [attr.aria-label]="open() ? 'Fermer le tuteur IA' : 'Ouvrir le tuteur IA du cours'"
+        [attr.title]="open() ? 'Fermer' : 'Tuteur IA : explications et résumés de vos cours'">
+  <svg cIcon [name]="open() ? 'cilX' : 'cilChatBubble'" size="xl"></svg>
+</button>
+
+<section class="chat-panel shadow-lg" *ngIf="open()" aria-label="Tuteur IA du cours">
+  <header class="chat-header">
+    <div>
+      <strong>Tuteur IA</strong>
+      <div class="small opacity-75 text-truncate">{{ lessonTitle() || activeCourseTitle() || 'Choisissez un cours' }}</div>
+    </div>
+    <button type="button" class="btn-close btn-close-white" aria-label="Fermer" (click)="toggle()"></button>
+  </header>
+
+  <!-- Widget global : choix du cours parmi les inscriptions -->
+  <div class="chat-course" *ngIf="isGlobal()">
+    <select class="form-select form-select-sm" aria-label="Cours à étudier"
+            [ngModel]="selectedCourseId()" (ngModelChange)="selectCourse($event)" [disabled]="loading()">
+      <option [ngValue]="null">{{ coursesLoading() && myCourses().length === 0 ? 'Chargement…' : '— Choisir un cours —' }}</option>
+      <option *ngFor="let c of myCourses()" [ngValue]="c.id">{{ c.title }}</option>
+    </select>
+  </div>
+
+  <div class="chat-body" #scrollArea>
+    <div *ngIf="isGlobal() && !coursesLoading() && myCourses().length === 0" class="chat-welcome">
+      <p class="mb-0">Inscrivez-vous à un cours depuis le <strong>Catalogue Formations</strong> pour discuter avec le tuteur IA.</p>
+    </div>
+
+    <div *ngIf="isGlobal() && myCourses().length > 0 && !activeCourseId()" class="chat-welcome">
+      <p class="mb-0">Bonjour ! Choisissez un cours ci-dessus : je vous l'explique et je peux vous en faire un résumé téléchargeable.</p>
+    </div>
+
+    <div *ngIf="activeCourseId() && messages().length === 0" class="chat-welcome">
+      <p class="mb-2">Bonjour ! Je connais le contenu de ce cours. Posez-moi une question ou demandez un résumé :</p>
+      <div class="d-flex flex-wrap gap-2">
+        <button *ngIf="lessonId()" type="button" class="chip" (click)="summarize('lesson')">Résumer cette leçon</button>
+        <button type="button" class="chip" (click)="summarize('course')">Résumer tout le cours</button>
+        <button type="button" class="chip"
+                (click)="draft = lessonId() ? 'Explique-moi simplement la notion principale de cette leçon' : 'Explique-moi simplement les notions principales de ce cours'; send()">
+          Expliquer les notions principales
+        </button>
+      </div>
+    </div>
+
+    <div *ngFor="let m of messages()" class="chat-msg" [class.from-user]="m.role === 'user'">
+      <div *ngIf="m.role === 'user'" class="bubble">{{ m.content }}</div>
+      <div *ngIf="m.role === 'assistant'" class="bubble">
+        <div class="md-content" [innerHTML]="m.content | markdown"></div>
+        <div *ngIf="!m.local" class="download-bar">
+          <span class="small">{{ m.summaryTitle ? "Télécharger le résumé :" : "Télécharger :" }}</span>
+          <button type="button" class="chip" (click)="downloadPdf(m)" aria-label="Télécharger le résumé en PDF">
+            <svg cIcon name="cilCloudDownload" size="sm"></svg> PDF
+          </button>
+          <button type="button" class="chip" (click)="downloadText(m)" aria-label="Télécharger le résumé en texte">
+            <svg cIcon name="cilCloudDownload" size="sm"></svg> Texte
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="loading()" class="chat-msg">
+      <div class="bubble typing" aria-label="Le tuteur écrit"><span></span><span></span><span></span></div>
+    </div>
+    <div *ngIf="error()" class="small text-danger px-1">{{ error() }}</div>
+  </div>
+
+  <div class="chat-actions" *ngIf="activeCourseId() && messages().length > 0">
+    <button *ngIf="lessonId()" type="button" class="chip" (click)="summarize('lesson')" [disabled]="loading()">Résumé leçon</button>
+    <button type="button" class="chip" (click)="summarize('course')" [disabled]="loading()">Résumé cours</button>
+  </div>
+
+  <form class="chat-input" (ngSubmit)="send()">
+    <textarea [(ngModel)]="draft" name="draft" rows="1"
+              [placeholder]="activeCourseId() ? 'Posez votre question sur le cours…' : 'Choisissez d\'abord un cours'"
+              (keydown)="onKeydown($event)" [disabled]="loading() || !activeCourseId()" aria-label="Votre question"></textarea>
+    <button type="submit" class="send" [disabled]="loading() || !draft.trim() || !activeCourseId()" aria-label="Envoyer">
+      <svg cIcon name="cilSend"></svg>
+    </button>
+  </form>
+</section>

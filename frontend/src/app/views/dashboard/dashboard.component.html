@@ -1,0 +1,308 @@
+<!-- Bandeau d'accueil -->
+<section class="lms-hero card mb-4">
+  <div class="hero">
+    <div class="hero__text">
+      <span class="hero__eyebrow">{{ currentUser?.role | roleLabel }}</span>
+      <h1 class="hero__title">Bienvenue, {{ currentUser?.name }} !</h1>
+      <p class="hero__sub lms-hero__sub mb-0">
+        @if (authService.isStudent()) { Reprenez vos cours là où vous les avez laissés. }
+        @else if (authService.isTeacher()) { Suivez vos cours, vos étudiants et leurs résultats en un coup d'œil. }
+        @else { Vue d'ensemble de la plateforme : utilisateurs, formations et inscriptions. }
+      </p>
+    </div>
+    <div class="hero__actions">
+      @if (authService.isStudent()) {
+        <a class="btn btn-light hero__btn" routerLink="/courses"><svg cIcon name="cilBook" class="me-1"></svg>Catalogue</a>
+      } @else if (authService.isTeacher()) {
+        <a class="btn btn-light hero__btn" routerLink="/teacher/courses"><svg cIcon name="cilPlus" class="me-1"></svg>Studio de cours</a>
+      } @else {
+        <a class="btn btn-light hero__btn" routerLink="/admin/users"><svg cIcon name="cilPeople" class="me-1"></svg>Utilisateurs</a>
+      }
+      @if (authService.isStudent()) {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/my-enrollments"><svg cIcon name="cilLibrary" class="me-1"></svg>Mes inscriptions</a>
+      } @else if (authService.isTeacher()) {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/teacher/quiz-tp"><svg cIcon name="cilTask" class="me-1"></svg>Quiz & TP</a>
+      } @else {
+        <a class="btn hero__btn hero__btn--ghost" routerLink="/ai-assistant"><svg cIcon name="cilLightbulb" class="me-1"></svg>Assistant IA</a>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ========================================== -->
+<!-- 1. TABLEAU DE BORD ADMINISTRATEUR -->
+<!-- ========================================== -->
+<div *ngIf="authService.isAdmin()">
+  <div class="stat-grid stat-grid--3 mb-4">
+    <app-stat-card label="Utilisateurs inscrits" icon="cilPeople" tone="info"
+                   [value]="adminStats()?.totalUsers || recentUsers().length || 0" hint="Total des comptes sur la plateforme" />
+    <app-stat-card label="Formations" icon="cilBook" tone="success"
+                   [value]="adminStats()?.totalCourses || 0" hint="Cours créés dans le catalogue" />
+    <app-stat-card label="Inscriptions" icon="cilUserFollow" tone="warning"
+                   [value]="adminStats()?.totalEnrollments || 0" hint="Inscriptions des étudiants aux cours" />
+  </div>
+
+  <c-card class="mb-4">
+    <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <span>Derniers utilisateurs créés</span>
+      <a class="btn btn-primary btn-sm" routerLink="/admin/users">Gérer les utilisateurs</a>
+    </c-card-header>
+    <c-card-body class="p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of recentUsers()">
+              <td class="fw-semibold">{{ u.name }}</td>
+              <td class="text-body-secondary">{{ u.email }}</td>
+              <td><span class="lms-pill" [ngClass]="'lms-pill--' + (u.role | roleTone)">{{ u.role | roleLabel }}</span></td>
+              <td>
+                <span class="lms-pill" [ngClass]="u.enabled !== false ? 'lms-pill--success' : 'lms-pill--neutral'">
+                  {{ u.enabled !== false ? 'Actif' : 'Inactif' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <app-empty-state *ngIf="recentUsers().length === 0" icon="cilPeople" title="Aucun utilisateur récent" />
+    </c-card-body>
+  </c-card>
+</div>
+
+<!-- ========================================== -->
+<!-- 2. TABLEAU DE BORD ENSEIGNANT -->
+<!-- ========================================== -->
+<div *ngIf="authService.isTeacher()">
+  <div *ngIf="loading() && !tracking()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="trackingError()" color="danger">{{ trackingError() }}</c-alert>
+
+  <ng-container *ngIf="tracking() as t">
+    <div class="stat-grid mb-4">
+      <app-stat-card label="Étudiants" icon="cilPeople" tone="primary" [value]="t.kpis.students"
+                     [hint]="t.kpis.courses + ' cours · ' + t.kpis.activeLast7Days + ' actif(s) cette semaine'" />
+      <app-stat-card label="Progression moyenne" icon="cilChartLine" tone="info" [value]="t.kpis.averageProgress + '%'"
+                     [hint]="t.kpis.completed + ' cours terminé(s) · ' + t.kpis.completionRate + '%'">
+        <c-progress class="mt-2" [value]="t.kpis.averageProgress" [height]="6" color="info"></c-progress>
+      </app-stat-card>
+      <app-stat-card label="Notes moyennes" icon="cilStar" tone="warning"
+                     [value]="t.kpis.quizAverage !== null ? t.kpis.quizAverage + '%' : '—'"
+                     [hint]="'Quiz · TP : ' + (t.kpis.assignmentAverage !== null ? t.kpis.assignmentAverage + '%' : '—') + ' · réussite : ' + (t.kpis.passRate !== null ? t.kpis.passRate + '%' : '—')" />
+      <app-stat-card label="Participation" icon="cilTask" tone="success" [value]="t.kpis.participationRate + '%'"
+                     [hint]="t.kpis.submissions + ' copie(s) rendue(s) (quiz + TP)'" />
+    </div>
+
+    <ul class="nav nav-pills lms-tabs mb-3" role="tablist" aria-label="Tableau de bord enseignant">
+      <li class="nav-item">
+        <button type="button" role="tab" class="nav-link" [class.active]="teacherView() === 'overview'" (click)="setTeacherView('overview')">
+          <svg cIcon name="cilSpeedometer" size="sm"></svg>Vue d'ensemble
+        </button>
+      </li>
+      <li class="nav-item">
+        <button type="button" role="tab" class="nav-link" [class.active]="teacherView() === 'suivi'" (click)="setTeacherView('suivi')">
+          <svg cIcon name="cilChartLine" size="sm"></svg>Suivi des étudiants
+        </button>
+      </li>
+    </ul>
+
+    <!-- Suivi détaillé par cours (anciennement « Suivi pédagogique ») -->
+    <app-teacher-tracking *ngIf="teacherView() === 'suivi'" [embedded]="true" />
+
+    <ng-container *ngIf="teacherView() === 'overview'">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Mes cours</span>
+        <div class="d-flex flex-wrap gap-2">
+          <a class="btn btn-outline-primary btn-sm" routerLink="/teacher/courses"><svg cIcon name="cilPlus" class="me-1"></svg>Studio de cours</a>
+          <button type="button" class="btn btn-primary btn-sm" (click)="setTeacherView('suivi')"><svg cIcon name="cilChartLine" class="me-1"></svg>Suivi des étudiants</button>
+        </div>
+      </c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive" *ngIf="t.courses.length > 0">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Cours</th>
+                <th class="text-center">Étudiants</th>
+                <th style="min-width: 160px">Progression moyenne</th>
+                <th class="text-center">Quiz</th>
+                <th class="text-center">TP</th>
+                <th class="text-center">Participation</th>
+                <th class="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of t.courses">
+                <td>
+                  <span class="fw-semibold">{{ c.title }}</span>
+                  <span class="lms-pill ms-2" [ngClass]="c.pricingType === 'PAID' ? 'lms-pill--warning' : 'lms-pill--success'">{{ c.pricingType === 'PAID' ? 'Payant' : 'Gratuit' }}</span>
+                  <div class="small text-body-secondary">{{ c.assessments }} évaluation(s) · {{ c.completed }} terminé(s)</div>
+                </td>
+                <td class="text-center">{{ c.students }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <c-progress class="flex-grow-1" [value]="c.averageProgress" [height]="8"></c-progress>
+                    <span class="small fw-bold">{{ c.averageProgress }}%</span>
+                  </div>
+                </td>
+                <td class="text-center"><c-badge [color]="scoreColor(c.quizAverage)">{{ c.quizAverage !== null ? c.quizAverage + '%' : '—' }}</c-badge></td>
+                <td class="text-center"><c-badge [color]="scoreColor(c.assignmentAverage)">{{ c.assignmentAverage !== null ? c.assignmentAverage + '%' : '—' }}</c-badge></td>
+                <td class="text-center">{{ c.participationRate }}%</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-outline-primary btn-sm" (click)="setTeacherView('suivi', c.courseId)">Étudiants</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <app-empty-state *ngIf="t.courses.length === 0" icon="cilBook" title="Aucun cours créé"
+                         text="Publiez votre première formation depuis le studio de cours.">
+          <a class="btn btn-primary btn-sm" routerLink="/teacher/courses">Ouvrir le studio</a>
+        </app-empty-state>
+      </c-card-body>
+    </c-card>
+
+    <c-card class="mb-4">
+      <c-card-header>Derniers résultats de vos étudiants</c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive" *ngIf="t.recentSubmissions.length > 0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Type</th><th>Évaluation</th><th>Étudiant</th><th>Cours</th><th>Date</th><th class="text-end">Note</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of t.recentSubmissions">
+                <td><span class="lms-pill" [ngClass]="r.type === 'QUIZ' ? 'lms-pill--info' : 'lms-pill--primary'">{{ r.type === 'QUIZ' ? 'Quiz' : 'TP' }}</span></td>
+                <td>{{ r.title }}</td>
+                <td>{{ r.studentName }}</td>
+                <td class="text-body-secondary">{{ r.courseTitle }}</td>
+                <td class="text-body-secondary text-nowrap">{{ r.submittedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-end"><c-badge [color]="scoreColor(r.percent)">{{ r.percent }}%</c-badge></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <app-empty-state *ngIf="t.recentSubmissions.length === 0" icon="cilTask" title="Aucune copie rendue pour le moment"
+                         text="Les quiz et TP rendus par vos étudiants apparaîtront ici." />
+      </c-card-body>
+    </c-card>
+    </ng-container>
+  </ng-container>
+</div>
+
+<!-- ========================================== -->
+<!-- 3. TABLEAU DE BORD ÉTUDIANT -->
+<!-- ========================================== -->
+<div *ngIf="authService.isStudent()">
+  <div *ngIf="loading() && !stats()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="statsError()" color="danger">{{ statsError() }}</c-alert>
+
+  <ng-container *ngIf="stats() as s">
+    <div class="stat-grid mb-4">
+      <app-stat-card label="Avancement moyen" icon="cilChartLine" tone="info" [value]="s.averageProgress + '%'">
+        <c-progress class="mt-2" [value]="s.averageProgress" [height]="6" color="info"></c-progress>
+      </app-stat-card>
+      <app-stat-card label="Cours suivis" icon="cilBook" tone="primary" [value]="s.coursesEnrolled"
+                     [hint]="s.coursesCompleted + ' terminé(s)'" />
+      <app-stat-card label="Leçons terminées" icon="cilCheckCircle" tone="success"
+                     [value]="s.lessonsCompleted + ' / ' + s.totalLessons" hint="Sur l'ensemble de vos cours" />
+      <app-stat-card label="Moyenne aux quiz" icon="cilStar" tone="warning"
+                     [value]="s.quizAverage !== null ? s.quizAverage + '%' : '—'"
+                     [hint]="s.quizzesTaken + ' quiz passé(s) · TP : ' + (s.assignmentAverage !== null ? s.assignmentAverage + '%' : '—') + ' (' + s.assignmentsSubmitted + ' rendu(s))'" />
+    </div>
+
+    <!-- Graphiques de progression (données réelles) -->
+    <div class="card mb-4" *ngIf="studentCharts() as ch">
+      <div class="card-header">Ma progression</div>
+      <div class="card-body">
+        <div class="rings">
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.courses.data" [options]="doughnutOptions" [height]="150" aria-label="Pourcentage lu de mes cours" />
+              <div class="ring__center"><strong>{{ ch.courses.pct }}%</strong><span>lu</span></div>
+            </div>
+            <figcaption><strong>Cours</strong><span>{{ ch.courses.pct }} % lu · {{ 100 - ch.courses.pct }} % restant</span></figcaption>
+          </figure>
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.quiz.data" [options]="doughnutOptions" [height]="150" aria-label="Quiz passés" />
+              <div class="ring__center"><strong>{{ ch.quiz.pct }}%</strong><span>quiz</span></div>
+            </div>
+            <figcaption><strong>Quiz</strong><span>{{ ch.quiz.done }} passé(s) sur {{ ch.quiz.total }}</span></figcaption>
+          </figure>
+          <figure class="ring">
+            <div class="ring__chart">
+              <c-chart type="doughnut" [data]="ch.tp.data" [options]="doughnutOptions" [height]="150" aria-label="TP rendus" />
+              <div class="ring__center"><strong>{{ ch.tp.pct }}%</strong><span>TP</span></div>
+            </div>
+            <figcaption><strong>TP</strong><span>{{ ch.tp.done }} rendu(s) sur {{ ch.tp.total }}</span></figcaption>
+          </figure>
+        </div>
+        <div class="bars mt-4" *ngIf="s.courses.length">
+          <div class="small fw-semibold text-body-secondary mb-2">Avancement par cours</div>
+          <div class="bars__chart" [style.height.px]="50 + s.courses.length * 40">
+            <c-chart type="bar" [data]="ch.bars" [options]="barOptions" [height]="50 + s.courses.length * 40"
+                     aria-label="Avancement de chaque cours en pourcentage" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <c-card class="mb-4">
+      <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Mes cours & avancement</span>
+        <a class="btn btn-outline-primary btn-sm" routerLink="/courses">Explorer le catalogue</a>
+      </c-card-header>
+      <c-card-body>
+        <app-empty-state *ngIf="s.courses.length === 0" icon="cilBook" title="Vous n'êtes inscrit à aucun cours"
+                         text="Parcourez le catalogue pour trouver une formation.">
+          <a class="btn btn-primary btn-sm" routerLink="/courses">Voir le catalogue</a>
+        </app-empty-state>
+        <div *ngFor="let c of s.courses; let last = last" class="progress-row" [class.progress-row--last]="last">
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="min-w-0">
+              <strong>{{ c.title }}</strong>
+              <span class="lms-pill ms-2" [ngClass]="c.isCompleted ? 'lms-pill--success' : 'lms-pill--primary'">{{ c.isCompleted ? 'Terminé' : 'En cours' }}</span>
+              <div class="small text-body-secondary">
+                {{ c.lessonsCompleted }} / {{ c.totalLessons }} leçons
+                · Quiz : {{ c.quizAverage !== null ? c.quizAverage + '%' : '—' }}
+                · TP : {{ c.assignmentAverage !== null ? c.assignmentAverage + '%' : '—' }}
+                <span *ngIf="c.lastAccessedAt"> · Dernier accès : {{ c.lastAccessedAt | date:'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+            <a class="btn btn-primary btn-sm" [routerLink]="['/learn', c.courseId]">
+              <svg cIcon name="cilMediaPlay" class="me-1"></svg>{{ c.progressPercentage > 0 ? 'Continuer' : 'Commencer' }}
+            </a>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <c-progress class="flex-grow-1" [value]="c.progressPercentage" [height]="8"
+                        [color]="c.isCompleted ? 'success' : 'primary'"></c-progress>
+            <span class="small fw-bold progress-row__pct">{{ c.progressPercentage }}%</span>
+          </div>
+        </div>
+      </c-card-body>
+    </c-card>
+
+    <c-card class="mb-4">
+      <c-card-header>Derniers résultats</c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive" *ngIf="s.recentResults.length > 0">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Type</th><th>Évaluation</th><th>Cours</th><th>Date</th><th class="text-end">Note</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let r of s.recentResults">
+                <td><span class="lms-pill" [ngClass]="r.type === 'QUIZ' ? 'lms-pill--info' : 'lms-pill--primary'">{{ r.type === 'QUIZ' ? 'Quiz' : 'TP' }}</span></td>
+                <td>{{ r.title }}</td>
+                <td class="text-body-secondary">{{ r.courseTitle }}</td>
+                <td class="text-body-secondary text-nowrap">{{ r.submittedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td class="text-end"><c-badge [color]="scoreColor(r.percent)">{{ r.percent }}%</c-badge></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <app-empty-state *ngIf="s.recentResults.length === 0" icon="cilTask" title="Aucun quiz ni TP passé pour le moment"
+                         text="Vos résultats s'afficheront ici après votre première évaluation." />
+      </c-card-body>
+    </c-card>
+  </ng-container>
+</div>

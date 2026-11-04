@@ -1,0 +1,81 @@
+# CI du frontend : installation, tests unitaires (Vitest dans Chromium), build de production.
+# SonarCloud facultatif (variable SONAR_PROJECT_KEY + secret SONAR_TOKEN).
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  build-test:
+    name: Tests + build (Angular)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Installation (npm ci)
+        run: npm ci --no-audit --no-fund
+
+      - name: Navigateur des tests (Chromium)
+        run: npx playwright install --with-deps --only-shell chromium
+
+      - name: Tests unitaires
+        run: npx ng test --watch=false
+
+      - name: Build de production (budgets de taille vérifiés)
+        run: npx ng build --configuration production
+
+      - name: Taille du site
+        run: |
+          echo "### Build frontend" >> "$GITHUB_STEP_SUMMARY"
+          echo "Taille totale du site : $(du -sh dist/coreui-free-angular-admin-template/browser | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: frontend/dist/coreui-free-angular-admin-template/browser
+          retention-days: 7
+
+      - name: SonarCloud (qualité)
+        if: vars.SONAR_PROJECT_KEY != '' && github.event_name != 'pull_request'
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          projectBaseDir: frontend
+          args: >-
+            -Dsonar.host.url=https://sonarcloud.io
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=src
+            -Dsonar.exclusions=**/*.spec.ts,src/assets/**

@@ -1,0 +1,64 @@
+<div class="bi" role="presentation" (click)="skip()" title="Cliquer pour passer">
+  <div class="bi-backdrop"></div>
+
+  <!-- Traits lumineux : ellipses fines parcourues par des traînées de lumière -->
+  <svg class="bi-lines" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="bi-trail-grad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-color="#1fa2ff" stop-opacity="0" />
+        <stop offset=".6" stop-color="#1fa2ff" stop-opacity=".9" />
+        <stop offset="1" stop-color="#ffffff" />
+      </linearGradient>
+    </defs>
+    <ellipse class="bi-track" cx="500" cy="500" rx="430" ry="170" transform="rotate(-18 500 500)" />
+    <ellipse class="bi-track" cx="500" cy="500" rx="380" ry="250" transform="rotate(28 500 500)" />
+    <ellipse class="bi-track" cx="500" cy="500" rx="470" ry="120" transform="rotate(70 500 500)" />
+    <ellipse class="bi-trail bi-trail--halo" cx="500" cy="500" rx="430" ry="170" transform="rotate(-18 500 500)" pathLength="1000" />
+    <ellipse class="bi-trail" cx="500" cy="500" rx="430" ry="170" transform="rotate(-18 500 500)" pathLength="1000" />
+    <ellipse class="bi-trail" cx="500" cy="500" rx="380" ry="250" transform="rotate(28 500 500)" pathLength="1000" />
+    <ellipse class="bi-trail" cx="500" cy="500" rx="470" ry="120" transform="rotate(70 500 500)" pathLength="1000" />
+  </svg>
+
+  <!-- Reflets qui traversent l'écran -->
+  <div class="bi-streaks" aria-hidden="true">
+    <span class="bi-streak"></span>
+    <span class="bi-streak"></span>
+  </div>
+
+  <div class="bi-stage">
+    <!-- Particules et étoiles en orbite -->
+    <div class="bi-orbits" aria-hidden="true">
+      @for (o of orbits; track $index) {
+        <div class="bi-orbit" [style.width.%]="o.radius * 2" [style.height.%]="o.radius * 2">
+          @for (d of o.dots; track $index) {
+            <span class="bi-dot" [class.bi-star]="d.star" [style.transform]="'rotate(' + d.angle + 'deg)'">
+              <i [style.width.px]="d.size" [style.height.px]="d.size" [style.margin-left.px]="-d.size / 2" [style.margin-top.px]="-d.size / 2"></i>
+            </span>
+          }
+        </div>
+      }
+    </div>
+
+    <div class="bi-float">
+      <div class="bi-glow" aria-hidden="true"></div>
+      <!-- Anneau tracé au trait autour du logo -->
+      <svg class="bi-ring" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="bi-ring-base" cx="50" cy="50" r="47" />
+        <circle class="bi-ring-draw" cx="50" cy="50" r="47" transform="rotate(-90 50 50)" />
+      </svg>
+      <div class="bi-disc"><span class="bi-sheen" aria-hidden="true"></span></div>
+      <img #logo class="bi-logo" [src]="logoSrc()" alt="LMS" />
+    </div>
+  </div>
+
+  <!-- Slogan existant, lettre par lettre -->
+  <p class="bi-slogan" [attr.aria-label]="slogan()">
+    @for (word of words(); track $index; let last = $last) {
+      <span class="bi-word" aria-hidden="true">
+        @for (ch of word; track $index) { <span class="bi-letter">{{ ch }}</span> }
+      </span>@if (!last) {<span class="bi-space" aria-hidden="true">{{ ' ' }}</span>}
+    }
+  </p>
+
+  <div class="bi-flash" aria-hidden="true"></div>
+</div>

@@ -1,0 +1,60 @@
+<app-page-header title="Demandes compte admin" icon="cilUserFollow"
+                 subtitle="Acceptez ou refusez les personnes qui demandent un compte administrateur.">
+  <span class="lms-pill lms-pill--warning">{{ pending().length }} en attente</span>
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
+<c-row>
+  <c-col xs="12">
+    <c-card class="mb-4">
+      <c-card-header class="d-flex justify-content-between align-items-center">
+        <span>Demandes en attente</span>
+      </c-card-header>
+      <c-card-body>
+        <p class="text-body-secondary">
+          Les personnes ci-dessous se sont inscrites en tant qu'administrateur.
+          <strong>Approuver</strong> : elles deviennent administrateur.
+          <strong>Ne pas approuver</strong> : la demande est refusée et le compte est supprimé.
+        </p>
+
+        <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+        <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+
+        <div *ngIf="loading()" class="text-center py-4"><c-spinner color="primary"></c-spinner></div>
+
+        <table cTable [hover]="true" [responsive]="true" *ngIf="!loading()" class="mb-0">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Email vérifié</th>
+              <th class="text-end">Décision</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of pending()">
+              <td class="fw-semibold">{{ a.name }}</td>
+              <td>{{ a.email }}</td>
+              <td>
+                <c-badge [color]="a.enabled ? 'success' : 'secondary'">{{ a.enabled ? 'Oui' : 'Pas encore' }}</c-badge>
+              </td>
+              <td class="text-end text-nowrap">
+                <button cButton color="success" size="sm" class="me-2 text-white" (click)="approve(a)" [disabled]="busyId() === a.id">
+                  <svg cIcon name="cilCheck" class="me-1"></svg> Approuver
+                </button>
+                <button cButton color="danger" variant="outline" size="sm" (click)="reject(a)" [disabled]="busyId() === a.id">
+                  Ne pas approuver
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="pending().length === 0">
+              <td colspan="4" class="text-center text-body-secondary py-4">Aucune demande de compte administrateur.</td>
+            </tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

@@ -1,0 +1,146 @@
+<!--<c-header class="mb-4 d-print-none" position="sticky">-->
+<ng-container>
+  <c-container [fluid]="true" class="border-bottom px-4">
+    <button
+      [cSidebarToggle]="sidebarId()"
+      cHeaderToggler
+      class="btn"
+      toggle="visible"
+      style="margin-inline-start: -14px;"
+      aria-label="Toggle sidebar navigation"
+    >
+      <svg cIcon name="cilMenu" size="lg"></svg>
+    </button>
+
+    <c-header-nav class="ms-auto">
+      <!-- Notifications temps réel -->
+      <c-dropdown alignment="end" variant="nav-item" [autoClose]="'outside'">
+        <button [caret]="false" cDropdownToggle class="icon-btn" aria-label="Notifications" (click)="toasts.set([])">
+          <svg cIcon class="my-1" name="cilBell" size="lg"></svg>
+          <span *ngIf="messaging.unreadNotifications() > 0" class="count-badge">
+            {{ messaging.unreadNotifications() > 99 ? '99+' : messaging.unreadNotifications() }}
+          </span>
+        </button>
+        <div cDropdownMenu class="notif-menu p-0">
+          <div class="notif-head">
+            <strong>Notifications</strong>
+            <button type="button" class="btn btn-link btn-sm p-0" *ngIf="messaging.unreadNotifications() > 0"
+                    (click)="messaging.markAllNotificationsRead()">Tout marquer comme lu</button>
+          </div>
+          <div class="notif-list">
+            <button type="button" *ngFor="let n of latestNotifications()" cDropdownItem class="notif-item"
+                    [class.unread]="!n.read" (click)="open(n)">
+              <span class="notif-icon"><svg cIcon [name]="iconFor(n)"></svg></span>
+              <span class="notif-text">
+                <span class="title">{{ n.title }}</span>
+                <span class="body">{{ n.message }}</span>
+                <span class="time">{{ ago(n.createdAt) }}</span>
+              </span>
+            </button>
+            <div *ngIf="latestNotifications().length === 0" class="text-center text-body-secondary small py-4">
+              Aucune notification pour le moment.
+            </div>
+          </div>
+        </div>
+      </c-dropdown>
+
+      <!-- Messagerie interne -->
+      <a *ngIf="canMessage()" cNavLink routerLink="/messages" class="icon-btn" aria-label="Messagerie">
+        <svg cIcon class="my-1" name="cilEnvelopeOpen" size="lg"></svg>
+        <span *ngIf="messaging.unreadMessages() > 0" class="count-badge">
+          {{ messaging.unreadMessages() > 99 ? '99+' : messaging.unreadMessages() }}
+        </span>
+      </a>
+    </c-header-nav>
+
+    <c-header-nav class="ms-0">
+      <div class="nav-item py-1">
+        <div class="vr h-100 mx-2 text-body text-opacity-75"></div>
+      </div>
+      <ng-container *ngTemplateOutlet="themeDropdown" />
+      <div class="nav-item py-1">
+        <div class="vr h-100 mx-2 text-body text-opacity-75"></div>
+      </div>
+    </c-header-nav>
+
+    <c-header-nav class="mx-0">
+      <ng-container *ngTemplateOutlet="userDropdown" />
+    </c-header-nav>
+
+  </c-container>
+  <c-container [fluid]="true" class="px-4">
+    <app-breadcrumb />
+  </c-container>
+</ng-container>
+<!--</c-header>-->
+
+<!-- Toasts des notifications reçues en temps réel -->
+<div class="toast-stack" aria-live="polite">
+  <div *ngFor="let t of toasts()" class="rt-toast shadow" role="status">
+    <span class="notif-icon"><svg cIcon [name]="iconFor(t.notification)"></svg></span>
+    <button type="button" class="rt-toast-body" (click)="open(t.notification, t.id)">
+      <strong>{{ t.notification.title }}</strong>
+      <span>{{ t.notification.message }}</span>
+    </button>
+    <button type="button" class="btn-close" aria-label="Fermer" (click)="dismiss(t.id)"></button>
+  </div>
+</div>
+
+<ng-template #userDropdown>
+  <c-dropdown [popperOptions]="{ placement: 'bottom-start' }" variant="nav-item">
+    <button [caret]="false" cDropdownToggle class="py-0 pe-0" aria-label="Open user menu">
+      <app-avatar [name]="profileService.me()?.name || currentUser()?.name" [url]="profileService.me()?.avatarUrl" [size]="38" />
+    </button>
+    <ul cDropdownMenu class="pt-0 w-auto">
+      <li>
+        <h6 cDropdownHeader class="bg-body-secondary text-body-secondary fw-semibold py-2 rounded-top">
+          {{ currentUser()?.name || 'Mon Compte' }}
+          <c-badge color="info" class="ms-1" *ngIf="currentUser()?.role">{{ currentUser()?.role }}</c-badge>
+        </h6>
+      </li>
+      <li>
+        <a cDropdownItem routerLink="/profile">
+          <svg cIcon class="me-2" name="cilUser"></svg>
+          Mon profil
+        </a>
+      </li>
+      <li *ngIf="canMessage()">
+        <a cDropdownItem routerLink="/messages">
+          <svg cIcon class="me-2" name="cilEnvelopeOpen"></svg>
+          Messagerie
+          <c-badge *ngIf="messaging.unreadMessages() > 0" class="ms-2 float-end" color="success">{{ messaging.unreadMessages() }}</c-badge>
+        </a>
+      </li>
+      <li>
+        <hr cDropdownDivider />
+      </li>
+      <li>
+        <button cDropdownItem (click)="logout()">
+          <svg cIcon class="me-2" name="cilAccountLogout"></svg>
+          Déconnexion
+        </button>
+      </li>
+    </ul>
+  </c-dropdown>
+</ng-template>
+
+<ng-template #themeDropdown>
+  <c-dropdown alignment="end" variant="nav-item">
+    <button [caret]="false" cDropdownToggle aria-label="Open theme picker">
+      <svg cIcon [name]="icons()" size="lg"></svg>
+    </button>
+    <div cDropdownMenu>
+      @for (mode of colorModes; track mode.name) {
+        <button
+          (click)="colorMode.set(mode.name)"
+          [active]="colorMode()===mode.name"
+          cDropdownItem
+          class="d-flex align-items-center"
+        >
+          <svg cIcon class="me-2" [name]="mode.icon" size="lg"></svg>
+          {{ mode.text }}
+        </button>
+      }
+    </div>
+  </c-dropdown>
+</ng-template>

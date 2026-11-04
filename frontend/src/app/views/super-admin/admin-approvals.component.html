@@ -1,0 +1,74 @@
+<app-page-header title="Espace super administrateur" icon="cilSpeedometer"
+                 subtitle="Toutes les missions d'un administrateur, plus la validation des nouveaux administrateurs.">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
+<c-row>
+  <c-col xs="12">
+
+    <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+
+    <!-- Chiffres de la plateforme -->
+    <div class="stat-grid mb-4" *ngIf="stats() as s">
+      <app-stat-card label="Utilisateurs" icon="cilPeople" tone="info" [value]="s.totalUsers" />
+      <app-stat-card label="Formations" icon="cilBook" tone="success" [value]="s.totalCourses" />
+      <app-stat-card label="Inscriptions aux cours" icon="cilUserFollow" tone="primary" [value]="s.totalEnrollments" />
+      <app-stat-card label="Demandes admin en attente" icon="cilClock" tone="warning" [highlight]="pending().length > 0" [value]="pending().length" />
+    </div>
+
+    <!-- Mission propre au super administrateur -->
+    <c-card class="mb-4 request-banner">
+      <c-card-body class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <span class="request-banner__icon"><svg cIcon name="cilUserFollow"></svg></span>
+          <div>
+            <strong>Demandes compte admin</strong>
+            <div class="small text-body-secondary">
+              {{ pending().length }} personne(s) attendent votre décision pour devenir administrateur.
+            </div>
+          </div>
+        </div>
+        <a class="btn btn-primary" routerLink="/super-admin/demandes">Voir les demandes</a>
+      </c-card-body>
+    </c-card>
+
+    <!-- Missions d'administration -->
+    <h2 class="section-title">Missions d'administration</h2>
+    <div class="mission-grid mb-4">
+      <a *ngFor="let m of missions" [routerLink]="m.link" class="mission card">
+        <span class="mission__icon"><svg cIcon [name]="m.icon"></svg></span>
+        <span class="mission__title">{{ m.title }}</span>
+        <span class="mission__text">{{ m.text }}</span>
+        <svg cIcon name="cilArrowRight" size="sm" class="mission__arrow"></svg>
+      </a>
+    </div>
+
+    <!-- Administrateurs en place -->
+    <c-card class="mb-4">
+      <c-card-header>Administrateurs <span class="lms-pill lms-pill--success ms-1">{{ approved().length }}</span></c-card-header>
+      <c-card-body>
+        <table cTable [hover]="true" [responsive]="true" class="mb-0">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Compte</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of approved()">
+              <td class="fw-semibold">{{ a.name }}</td>
+              <td>{{ a.email }}</td>
+              <td><span class="lms-pill" [ngClass]="a.enabled ? 'lms-pill--success' : 'lms-pill--neutral'">{{ a.enabled ? 'Actif' : 'Inactif' }}</span></td>
+            </tr>
+            <tr *ngIf="approved().length === 0">
+              <td colspan="3" class="text-center text-body-secondary py-3">Aucun administrateur.</td>
+            </tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

@@ -1,0 +1,20 @@
+# Reverse proxy HTTPS (profil « https ») : certificats Let's Encrypt obtenus et renouvelés automatiquement.
+# APP_DOMAIN et API_DOMAIN doivent pointer (DNS) vers l'adresse IP du serveur.
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy frontend:8080
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	# Les métriques internes ne sortent jamais du serveur
+	@interne path /actuator/*
+	respond @interne 404
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	# WebSocket (/ws) et longues générations IA : pas de délai d'attente côté proxy
+	reverse_proxy backend:8090
+}

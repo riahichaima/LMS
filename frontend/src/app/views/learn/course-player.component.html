@@ -1,0 +1,274 @@
+<div *ngIf="loading()" class="text-center py-5">
+  <c-spinner color="primary"></c-spinner>
+  <p class="mt-2 text-body-secondary">Chargement du cours…</p>
+</div>
+
+<c-alert *ngIf="error()" color="danger" class="mb-3">
+  {{ error() }}
+  <div class="mt-2" *ngIf="!view()"><a routerLink="/courses" class="alert-link">Retour au catalogue</a></div>
+</c-alert>
+
+<ng-container *ngIf="view() as v">
+  <!-- En-tête : titre et progression -->
+  <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+    <div>
+      <a routerLink="/my-enrollments" class="small text-decoration-none">
+        <svg cIcon name="cilArrowLeft" size="sm" class="me-1"></svg>Mes inscriptions
+      </a>
+      <h2 class="mb-1 mt-1">{{ v.course.title }}</h2>
+      <small class="text-body-secondary" *ngIf="v.course.teacherName">Enseignant :
+        <a *ngIf="v.course.teacherId; else plainTeacher" [routerLink]="['/profile', v.course.teacherId]">{{ v.course.teacherName }}</a>
+        <ng-template #plainTeacher>{{ v.course.teacherName }}</ng-template>
+      </small>
+      <a *ngIf="v.course.teacherId" class="small ms-2 text-decoration-none" routerLink="/messages"
+         [queryParams]="{ with: v.course.teacherId }">
+        <svg cIcon name="cilEnvelopeOpen" size="sm" class="me-1"></svg>Contacter le formateur
+      </a>
+    </div>
+    <div class="course-progress">
+      <div class="d-flex justify-content-between small mb-1">
+        <span>Progression</span><strong>{{ progress() }}%</strong>
+      </div>
+      <c-progress [value]="progress()" [color]="progress() >= 100 ? 'success' : 'primary'" [height]="10"></c-progress>
+    </div>
+  </div>
+
+  <!-- Avis : étoiles du cours, j'aime / commentaires du cours, évaluation du formateur en % -->
+  <app-course-feedback class="d-block mb-4" [courseId]="v.course.id!" [teacherId]="v.course.teacherId" [teacherName]="v.course.teacherName" />
+
+  <c-row>
+    <!-- Programme du cours -->
+    <c-col lg="4" class="mb-4">
+      <c-card class="outline">
+        <c-card-header><strong>Programme</strong></c-card-header>
+        <c-card-body class="p-0">
+          <div *ngFor="let chapter of chapters(); let ci = index" class="chapter">
+            <div class="chapter-title">Chapitre {{ ci + 1 }} · {{ chapter.title }}</div>
+            <button *ngFor="let lesson of chapter.lessons" type="button" class="lesson-item"
+                    [class.active]="lesson.id === currentLesson()?.id" (click)="selectLesson(lesson)">
+              <svg cIcon [name]="isDone(lesson) ? 'cilCheckCircle' : 'cilMediaPlay'" class="me-2 flex-shrink-0"
+                   [class.text-success]="isDone(lesson)"></svg>
+              <span class="text-start flex-grow-1">{{ lesson.title }}</span>
+              <span class="lesson-pct" [class.lesson-pct--done]="lessonPercent(lesson) >= 100">{{ lessonPercent(lesson) }}%</span>
+            </button>
+
+            <ng-container *ngIf="assessmentsOf(chapter) as a">
+              <div *ngIf="a.quizzes.length || a.assignments.length" class="chapter-assessments">
+                <div class="small fw-semibold text-body-secondary mb-1">Évaluations du chapitre</div>
+                <a *ngFor="let q of a.quizzes" [routerLink]="['/learn/quiz', q.id]" class="assessment-link">
+                  <svg cIcon name="cilTask" class="me-1"></svg>
+                  <span class="flex-grow-1">
+                    Quiz · {{ levelLabels[q.difficultyLevel] || q.difficultyLevel }}
+                    <ng-container *ngTemplateOutlet="rulesTpl; context: { $implicit: q.schedule }"></ng-container>
+                  </span>
+                  <c-badge *ngIf="q.bestScore !== null" [color]="q.bestScore >= 60 ? 'success' : 'warning'">{{ q.bestScore }}%</c-badge>
+                </a>
+                <a *ngFor="let tp of a.assignments" [routerLink]="['/learn/tp', tp.id]" class="assessment-link">
+                  <svg cIcon name="cilCode" class="me-1"></svg>
+                  <span class="flex-grow-1">
+                    TP · {{ levelLabels[tp.difficultyLevel] || tp.difficultyLevel }}
+                    <ng-container *ngTemplateOutlet="rulesTpl; context: { $implicit: tp.schedule }"></ng-container>
+                  </span>
+                  <c-badge *ngIf="tp.bestScore !== null" [color]="tp.bestScore >= 60 ? 'success' : 'warning'">{{ tp.bestScore }}%</c-badge>
+                </a>
+              </div>
+            </ng-container>
+            <div *ngIf="filesOf(chapter).length" class="chapter-assessments">
+              <div class="small fw-semibold text-body-secondary mb-1">Sujets à rendre</div>
+              <a *ngFor="let f of filesOf(chapter)" [href]="'#file-' + f.id" class="assessment-link">
+                <svg cIcon name="cilFile" class="me-1"></svg>
+                <span class="flex-grow-1">
+                  {{ f.type === 'QUIZ' ? 'Quiz' : 'TP' }} · {{ f.title }}
+                  <ng-container *ngTemplateOutlet="rulesTpl; context: { $implicit: f.schedule }"></ng-container>
+                </span>
+                <c-badge *ngIf="f.mySubmission?.grade != null" color="success">{{ f.mySubmission?.grade }}/20</c-badge>
+                <c-badge *ngIf="f.mySubmission && f.mySubmission.grade == null" color="info">Rendu</c-badge>
+              </a>
+            </div>
+          </div>
+          <p *ngIf="chapters().length === 0" class="p-3 mb-0 text-body-secondary">Ce cours n'a pas encore de leçon.</p>
+        </c-card-body>
+      </c-card>
+
+    </c-col>
+
+    <!-- Leçon ouverte -->
+    <c-col lg="8">
+      <c-card *ngIf="currentLesson() as lesson" class="mb-4">
+        <c-card-header class="d-flex justify-content-between align-items-center gap-2">
+          <strong>{{ lesson.title }}</strong>
+          <c-badge *ngIf="isDone(lesson)" color="success">Terminée</c-badge>
+        </c-card-header>
+        <c-card-body>
+          <p *ngIf="lesson.description" class="lesson-description">{{ lesson.description }}</p>
+
+          <div *ngFor="let r of lesson.resources" class="resource">
+            <div class="resource-head">
+              <div class="resource-title">{{ r.title }}</div>
+              <div class="res-progress" *ngIf="r.id" [title]="'Avancement : ' + pct(r) + ' %'">
+                <div class="res-progress__bar"><span [style.width.%]="pct(r)" [class.done]="pct(r) >= 90"></span></div>
+                <span class="res-progress__pct">{{ pct(r) }} %</span>
+              </div>
+            </div>
+
+            <ng-container [ngSwitch]="kind(r)">
+              <!-- PDF affiché dans la page -->
+              <ng-container *ngSwitchCase="'pdf'">
+                <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
+                <app-pdf-viewer *ngIf="file(r)?.status === 'ready'" [src]="$any(file(r)).url" [initialPercent]="pct(r)"
+                                (progress)="onPdfProgress(r, $event)" />
+              </ng-container>
+
+              <!-- Vidéo / audio lus dans le lecteur -->
+              <ng-container *ngSwitchCase="'video'">
+                <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
+                <video *ngIf="file(r)?.status === 'ready'" class="media" controls preload="metadata" [src]="$any(file(r)).url"
+                       (timeupdate)="onMediaTime(r, $event)" (ended)="onMediaEnded(r)"></video>
+              </ng-container>
+              <ng-container *ngSwitchCase="'audio'">
+                <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
+                <audio *ngIf="file(r)?.status === 'ready'" class="w-100" controls preload="metadata" [src]="$any(file(r)).url"
+                       (timeupdate)="onMediaTime(r, $event)" (ended)="onMediaEnded(r)"></audio>
+              </ng-container>
+
+              <ng-container *ngSwitchCase="'youtube'">
+                <div class="ratio ratio-16x9" *ngIf="youtubeEmbed(r) as embed; else linkTpl">
+                  <iframe [src]="embed" [title]="r.title" allowfullscreen
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"></iframe>
+                </div>
+                <button *ngIf="pct(r) < 100" type="button" class="btn btn-sm btn-outline-success mt-2" (click)="markResourceDone(r)">
+                  <svg cIcon name="cilCheck" size="sm" class="me-1"></svg>J'ai regardé cette vidéo
+                </button>
+              </ng-container>
+
+              <!-- Lien externe : ouvert dans un nouvel onglet -->
+              <ng-container *ngSwitchCase="'link'">
+                <ng-container *ngTemplateOutlet="linkTpl"></ng-container>
+              </ng-container>
+
+              <ng-container *ngSwitchCase="'text'">
+                <p class="mb-0 text-body-secondary">{{ r.title }}</p>
+              </ng-container>
+
+              <ng-container *ngSwitchDefault>
+                <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
+              </ng-container>
+            </ng-container>
+
+            <ng-template #linkTpl>
+              <a cButton color="primary" variant="outline" [href]="r.externalUrl" target="_blank" rel="noopener noreferrer" (click)="markResourceDone(r)">
+                <svg cIcon name="cilExternalLink" class="me-1"></svg> Ouvrir le lien
+              </a>
+              <div class="small text-body-secondary mt-1 text-break">{{ r.externalUrl }}</div>
+            </ng-template>
+
+            <!-- J'aime / Je n'aime pas + commentaires sous chaque contenu -->
+            <app-feedback-thread *ngIf="r.id" kind="resource" [targetId]="r.id" />
+          </div>
+
+          <c-alert *ngIf="!lesson.resources?.length" color="light" class="mb-0">
+            Cette leçon ne contient pas encore de ressource.
+          </c-alert>
+
+          <div class="d-flex flex-wrap gap-2 justify-content-between mt-4">
+            <button cButton [color]="isDone(lesson) ? 'success' : 'primary'" (click)="markCompleted()"
+                    [disabled]="completing() || isDone(lesson)">
+              <c-spinner *ngIf="completing()" size="sm" class="me-1"></c-spinner>
+              <svg *ngIf="!completing()" cIcon name="cilCheck" class="me-1"></svg>
+              {{ isDone(lesson) ? 'Leçon terminée' : 'Marquer comme terminée' }}
+            </button>
+            <button *ngIf="nextLesson() as next" cButton color="secondary" variant="outline" (click)="selectLesson(next)">
+              Leçon suivante <svg cIcon name="cilArrowRight" class="ms-1"></svg>
+            </button>
+          </div>
+        </c-card-body>
+      </c-card>
+    </c-col>
+  </c-row>
+
+  <!-- Quiz / TP importés par l'enseignant : sujet à télécharger, copie à rendre, note -->
+  <c-card *ngIf="allFiles().length" class="mb-4">
+    <c-card-header><strong>Quiz et TP à rendre</strong></c-card-header>
+    <c-card-body>
+      <c-alert *ngIf="copyMessage()" color="info" [dismissible]="true" (visibleChange)="copyMessage.set('')" class="py-2">{{ copyMessage() }}</c-alert>
+      <div *ngFor="let f of allFiles()" class="sub-file" [id]="'file-' + f.id">
+        <div class="sub-file__main">
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+            <span class="badge" [ngClass]="f.type === 'QUIZ' ? 'bg-primary' : 'bg-info'">{{ f.type === 'QUIZ' ? 'Quiz' : 'TP' }}</span>
+            <strong>{{ f.title }}</strong>
+            <span class="small text-body-secondary">· {{ levelLabels[f.difficultyLevel] || f.difficultyLevel }} · {{ f.chapterTitle }}</span>
+          </div>
+          <div class="small text-body-secondary" *ngIf="f.instructions">{{ f.instructions }}</div>
+          <div class="sub-file__rules" *ngIf="f.dueAt || f.durationMinutes">
+            <span *ngIf="f.durationMinutes"><svg cIcon name="cilClock" size="sm" class="me-1"></svg>Durée : {{ formatDuration(f.durationMinutes) }}</span>
+            <span *ngIf="f.dueAt" [class.text-danger]="f.schedule?.closed"><svg cIcon name="cilCalendar" size="sm" class="me-1"></svg>
+              {{ f.schedule?.closed ? 'Fermé depuis le' : 'À rendre avant le' }} {{ formatDue(f.dueAt) }}</span>
+          </div>
+          <app-countdown *ngIf="scheduleState(f.schedule, true) === 'running' && f.schedule as s" class="mt-2"
+                         [startedAt]="s.startedAt!" [endsAt]="s.endsAt!" [serverNow]="v.serverNow || s.startedAt!" (expired)="onFileTimeUp(f)" />
+          <div *ngIf="scheduleState(f.schedule, true) === 'done' && f.schedule?.expired && !f.mySubmission" class="small text-danger mt-1">
+            Temps écoulé : aucune copie rendue.
+          </div>
+          <div class="small mt-1" *ngIf="f.mySubmission as s">
+            <span class="text-success" *ngIf="s.grade != null"><strong>Note : {{ s.grade }}/20</strong></span>
+            <span class="text-info" *ngIf="s.grade == null">Copie rendue le {{ s.submittedAt | date:'dd/MM/yyyy HH:mm' }} · en attente de correction</span>
+            <div *ngIf="s.feedback" class="sub-file__feedback">{{ s.feedback }}</div>
+          </div>
+        </div>
+        <div class="sub-file__actions">
+          <!-- Sujet minuté : le chrono démarre au téléchargement -->
+          <button *ngIf="scheduleState(f.schedule, true) === 'gate'" type="button" class="btn btn-sm btn-primary"
+                  (click)="startFile(f)" [disabled]="startingFile() === f.id"
+                  [title]="'Le chrono de ' + formatDuration(f.durationMinutes) + ' démarre et le sujet est téléchargé'">
+            <svg cIcon name="cilMediaPlay" size="sm" class="me-1"></svg>Commencer ({{ formatDuration(f.durationMinutes) }})
+          </button>
+          <button *ngIf="scheduleState(f.schedule, true) !== 'gate' && scheduleState(f.schedule, true) !== 'closed'" type="button"
+                  class="btn btn-sm btn-outline-primary" (click)="downloadSubject(f)">
+            <svg cIcon name="cilCloudDownload" size="sm" class="me-1"></svg>Sujet ({{ fileSize(f.sizeBytes) }})
+          </button>
+          <button *ngIf="f.mySubmission" type="button" class="btn btn-sm btn-link" (click)="downloadCopy(f)">Ma copie</button>
+          <label *ngIf="canUpload(f)" class="btn btn-sm mb-0" [ngClass]="f.mySubmission ? 'btn-outline-secondary' : 'btn-primary'"
+                 [class.disabled]="uploadingCopy() === f.id">
+            <input type="file" hidden [accept]="accepted" (change)="submitCopy(f, $event)" />
+            <svg cIcon name="cilCloudUpload" size="sm" class="me-1"></svg>
+            {{ uploadingCopy() === f.id ? 'Envoi… ' + copyProgress() + ' %' : (f.mySubmission ? 'Remplacer ma copie' : 'Rendre ma copie') }}
+          </label>
+        </div>
+      </div>
+    </c-card-body>
+  </c-card>
+
+  <app-course-chatbot [courseId]="v.course.id!" [courseTitle]="v.course.title"
+                      [lessonId]="currentLesson()?.id" [lessonTitle]="currentLesson()?.title"></app-course-chatbot>
+</ng-container>
+
+<!-- État de chargement d'un fichier protégé (PDF, vidéo...) -->
+<ng-template #fileTpl let-r="r">
+  <ng-container [ngSwitch]="file(r)?.status">
+    <div *ngSwitchCase="'loading'" class="text-body-secondary small py-2">
+      <c-spinner size="sm" class="me-2"></c-spinner>Chargement du fichier…
+    </div>
+    <c-alert *ngSwitchCase="'error'" color="warning" class="py-2 mb-2">Le fichier n'a pas pu être chargé.</c-alert>
+    <div *ngSwitchCase="'ready'" class="mb-2">
+      <button type="button" class="btn btn-link btn-sm p-0" (click)="download(r)">
+        <svg cIcon name="cilFile" size="sm" class="me-1"></svg>Télécharger
+      </button>
+    </div>
+  </ng-container>
+</ng-template>
+
+<!-- Date limite / durée / état d'un quiz ou TP (liste du programme) -->
+<ng-template #rulesTpl let-s>
+  <ng-container *ngIf="s">
+    <span *ngIf="s.durationMinutes && !s.startedAt && !s.closed" class="rule-chip">
+      <svg cIcon name="cilClock" size="sm"></svg>{{ formatDuration(s.durationMinutes) }}
+    </span>
+    <span *ngIf="s.startedAt && !s.submitted && !s.expired" class="rule-chip rule-chip--live">En cours</span>
+    <span *ngIf="s.autoSubmitted" class="rule-chip rule-chip--warn">Envoyé auto</span>
+    <span *ngIf="s.startedAt && s.expired && !s.submitted && !s.autoSubmitted" class="rule-chip rule-chip--warn">Temps écoulé</span>
+    <span *ngIf="s.dueAt && !s.closed && !s.submitted" class="rule-chip" [title]="'À rendre avant le ' + formatDue(s.dueAt)">
+      <svg cIcon name="cilCalendar" size="sm"></svg>{{ formatDue(s.dueAt) }}
+    </span>
+    <span *ngIf="s.closed && !s.startedAt" class="rule-chip rule-chip--closed">Fermé</span>
+  </ng-container>
+</ng-template>

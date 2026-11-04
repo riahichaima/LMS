@@ -1,0 +1,18 @@
+# Ni secrets (clé Azure), ni environnement virtuel, ni fichiers de travail dans l'image
+.git
+.github
+.env
+.env.*
+venv
+uploads
+tests
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+*.log
+Dockerfile
+.dockerignore
+requirements-dev.txt
+pyproject.toml
