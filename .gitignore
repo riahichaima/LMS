@@ -1,0 +1,14 @@
+# Racine du monorepo : chaque dossier (backend/, frontend/, ai/) garde aussi son propre .gitignore
+
+# Secrets : jamais dans Git (modèles autorisés : .env.example)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Systèmes et éditeurs
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

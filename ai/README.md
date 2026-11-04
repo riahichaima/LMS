@@ -67,7 +67,7 @@ générer le quiz et le TP selon le niveau choisi par le professeur.
 | `AZURE_CHAT_DEPLOYMENT` | `gpt-4.1-mini` | déploiement chat + images |
 | `AZURE_TRANSCRIBE_DEPLOYMENT` | `gpt-4o-mini-transcribe` | déploiement transcription |
 | `VIDEO_FRAME_COUNT` | `8` | images analysées par vidéo (0 = désactivé) |
-| `BACKEND_ROOT_DIR` | `../lms` | dossier du backend : les `file_path` envoyés (ex. `uploads/videos/x.pdf`) sont relatifs à ce dossier |
+| `BACKEND_ROOT_DIR` | `../backend` (monorepo) ou `../lms` | dossier du backend : les `file_path` envoyés (ex. `uploads/videos/x.pdf`) sont relatifs à ce dossier |
 | `MAX_CONTENT_CHARS` | `60000` | taille max du contenu envoyé au modèle |
 
 ## Lancement

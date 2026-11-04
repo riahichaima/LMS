@@ -27,7 +27,8 @@ class Settings(BaseSettings):
 
     # Dossier de travail du backend Spring Boot : les `file_path` envoyés par le
     # backend (ex: "uploads/videos/<uuid>.pdf") sont relatifs à ce dossier.
-    BACKEND_ROOT_DIR: str = str(BASE_DIR.parent / "lms")
+    # Monorepo : ../backend ; anciens dossiers séparés : ../lms ; Docker : variable BACKEND_ROOT_DIR.
+    BACKEND_ROOT_DIR: str = str(BASE_DIR.parent / ("backend" if (BASE_DIR.parent / "backend").is_dir() else "lms"))
 
     # Taille max du contenu du cours envoyé au modèle
     MAX_CONTENT_CHARS: int = 60000
