@@ -63,9 +63,10 @@ jobs:
               sys.exit(f'Services sans limite de mémoire : {missing}')
           EOF
 
+      # Mêmes variables qu'en production : seul API_DOMAIN est défini (les options vides ne doivent rien casser)
       - name: Caddyfile valide (image officielle Caddy)
         run: >-
-          docker run --rm -e API_DOMAIN=api.example.com -e ACME_EMAIL=ci@example.com
+          docker run --rm -e API_DOMAIN=api.example.com -e APP_DOMAIN=
           -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
           caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 

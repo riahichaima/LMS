@@ -1,8 +1,6 @@
 # Reverse proxy HTTPS (profil « https ») : certificats Let's Encrypt obtenus et renouvelés automatiquement.
 # API_DOMAIN doit pointer (DNS) vers l'adresse IP du serveur (ex. lms-api-chaima.swedencentral.cloudapp.azure.com).
-{
-	email {$ACME_EMAIL}
-}
+# (Pas d'option « email » globale : Let's Encrypt fonctionne sans, et une valeur vide empêcherait Caddy de démarrer.)
 
 # API du LMS : seule entrée publique du serveur
 {$API_DOMAIN} {

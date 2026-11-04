@@ -123,7 +123,6 @@ services:
     environment:
       API_DOMAIN: ${API_DOMAIN:-localhost}
       APP_DOMAIN: ${APP_DOMAIN:-}
-      ACME_EMAIL: ${ACME_EMAIL:-}
     ports:
       - '80:80'
       - '443:443'
