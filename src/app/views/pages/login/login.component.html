@@ -36,8 +36,9 @@
 
         <c-input-group class="mb-3">
           <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
-          <input name="password" [(ngModel)]="password" autoComplete="current-password" cFormControl
+          <input #pwd name="password" [(ngModel)]="password" autoComplete="current-password" cFormControl
                  placeholder="Mot de passe" type="password" required />
+          <app-password-toggle [input]="pwd" />
         </c-input-group>
 
         <div class="auth__links">

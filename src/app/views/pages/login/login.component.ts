@@ -1,3 +1,4 @@
+import { PasswordToggleComponent } from '../../../shared/password-toggle.component';
 import { Component, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -18,7 +19,7 @@ import { GoogleSigninError } from '../../../shared/google-signin.component';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [
+  imports: [PasswordToggleComponent, 
     CommonModule,
     FormsModule,
     RouterLink,

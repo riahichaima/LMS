@@ -26,7 +26,8 @@ import { CountdownComponent } from '../../shared/countdown.component';
 import { CourseFeedbackComponent } from '../../shared/course-feedback.component';
 import { FeedbackThreadComponent } from '../../shared/feedback-thread.component';
 
-type FileState = { status: 'loading' } | { status: 'ready'; url: string; safeUrl: SafeResourceUrl } | { status: 'error' };
+// url : adresse blob utilisée telle quelle par <audio>/<video> (un SafeResourceUrl y est refusé par Angular)
+type FileState = { status: 'loading' } | { status: 'ready'; url: string } | { status: 'error' };
 
 const LEVEL_LABELS: Record<string, string> = {
   BEGINNER: 'Débutant',
@@ -376,7 +377,7 @@ export class CoursePlayerComponent implements OnInit, OnDestroy {
         // Type MIME fiable pour l'affichage intégré (le serveur peut renvoyer octet-stream)
         const type = this.kind(r) === 'pdf' ? 'application/pdf' : (r.mimeType || blob.type);
         const url = URL.createObjectURL(type ? new Blob([blob], { type }) : blob);
-        this.files.update(f => ({ ...f, [id]: { status: 'ready', url, safeUrl: this.sanitizer.bypassSecurityTrustResourceUrl(url) } }));
+        this.files.update(f => ({ ...f, [id]: { status: 'ready', url } }));
       },
       error: () => this.files.update(f => ({ ...f, [id]: { status: 'error' } }))
     });

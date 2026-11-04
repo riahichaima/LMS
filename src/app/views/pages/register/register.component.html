@@ -73,13 +73,15 @@
             <input name="password" [(ngModel)]="password" autoComplete="new-password" cFormControl
                    placeholder="Mot de passe (Ex: Pass1234!)"
                    title="8 caractères min., une majuscule, une minuscule, un chiffre et un caractère spécial"
-                   type="password" required />
+                   type="password" required #pwd />
+            <app-password-toggle [input]="pwd" />
           </c-input-group>
 
           <c-input-group class="mb-4">
             <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
             <input name="confirmPassword" [(ngModel)]="confirmPassword" autoComplete="new-password" cFormControl
-                   placeholder="Confirmer le mot de passe" type="password" required />
+                   placeholder="Confirmer le mot de passe" type="password" required #pwd2 />
+            <app-password-toggle [input]="pwd2" />
           </c-input-group>
 
           <button class="auth__submit" type="submit" [disabled]="loading()">

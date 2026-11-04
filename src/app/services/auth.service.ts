@@ -48,6 +48,11 @@ export class AuthService {
   public userRole = computed(() => this.currentUserSignal()?.role || '');
 
   constructor(private http: HttpClient, private router: Router) {
+    // Connexion / déconnexion dans un autre onglet : la session (localStorage) est partagée entre onglets.
+    // Sans ce rechargement, cet onglet garderait l'interface de l'ancien compte en envoyant le jeton du nouveau (403).
+    window.addEventListener('storage', event => {
+      if (event.key === 'lms_token' || event.key === null) window.location.reload();
+    });
     if (this.getToken() && !this.currentUserSignal()) {
       // Token invalide au démarrage : on vide la session sans quitter la page (l'accueil reste affiché)
       this.fetchCurrentUser().subscribe({

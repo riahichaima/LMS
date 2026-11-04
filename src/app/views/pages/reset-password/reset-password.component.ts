@@ -1,3 +1,4 @@
+import { PasswordToggleComponent } from '../../../shared/password-toggle.component';
 import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -21,7 +22,7 @@ import { AuthService, PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from '../../../s
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [
+  imports: [PasswordToggleComponent, 
     CommonModule,
     FormsModule,
     RouterLink,

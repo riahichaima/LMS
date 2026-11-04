@@ -122,12 +122,12 @@
               <!-- Vidéo / audio lus dans le lecteur -->
               <ng-container *ngSwitchCase="'video'">
                 <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
-                <video *ngIf="file(r)?.status === 'ready'" class="media" controls preload="metadata" [src]="$any(file(r)).safeUrl"
+                <video *ngIf="file(r)?.status === 'ready'" class="media" controls preload="metadata" [src]="$any(file(r)).url"
                        (timeupdate)="onMediaTime(r, $event)" (ended)="onMediaEnded(r)"></video>
               </ng-container>
               <ng-container *ngSwitchCase="'audio'">
                 <ng-container *ngTemplateOutlet="fileTpl; context: { r: r }"></ng-container>
-                <audio *ngIf="file(r)?.status === 'ready'" class="w-100" controls [src]="$any(file(r)).safeUrl"
+                <audio *ngIf="file(r)?.status === 'ready'" class="w-100" controls preload="metadata" [src]="$any(file(r)).url"
                        (timeupdate)="onMediaTime(r, $event)" (ended)="onMediaEnded(r)"></audio>
               </ng-container>
 
