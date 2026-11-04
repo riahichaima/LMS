@@ -8,7 +8,7 @@ Render, Azure App Service ou Vercel pour le frontend.
 
 ```mermaid
 flowchart LR
-    dev([Développeuse]) -->|git push / pull request| gh[GitHub<br/>3 branches]
+    dev([Développeuse]) -->|git push / pull request| gh[GitHub<br/>monorepo · main]
     gh --> ci[CI<br/>build + tests]
     gh --> sec[Sécurité<br/>CodeQL · Gitleaks · Trivy · Dependabot]
     ci --> img[Image Docker<br/>+ scan Trivy]
@@ -49,18 +49,19 @@ flowchart LR
 
 ## 2. Les pipelines
 
-Chaque composant vit sur sa branche et possède ses propres workflows (`.github/workflows/`).
+Monorepo : les 3 composants sont sur `main`, dans `backend/`, `frontend/` et `ai/`. Chaque workflow
+(`.github/workflows/`) ne se déclenche que si le dossier de son composant change.
 
-| Workflow | Branche | Déclenchement | Rôle | Bloquant |
+| Workflow | Dossier surveillé | Déclenchement | Rôle | Bloquant |
 |---|---|---|---|---|
-| **Backend CI** | `LMS-Backend-Spring` | push, pull request | Maven + JUnit sur une vraie base MySQL 8.4, couverture JaCoCo, SonarCloud | ✅ |
-| **Frontend CI** | `LMS-Frontend` | push, pull request | Tests Vitest (Chromium), build de production avec budgets de taille | ✅ |
-| **AI CI** | `LMS-AI` | push, pull request | Ruff + pytest : validation JSON des QCM, correction, API (sans appeler Azure) | ✅ |
-| **… Security** (×3) | les 3 | push, PR, chaque lundi | CodeQL, Gitleaks, Trivy / npm audit / pip-audit, Dependency Review | ✅ failles critiques, secrets |
-| **… CD** (×3) | les 3 | push, manuel | Image Docker → Trivy → GHCR → staging → production (approbation) | ✅ faille critique dans l'image |
-| **Déploiement complet** | `LMS-Backend-Spring` | manuel | Copie `docker-compose.yml` sur le serveur et démarre toute la plateforme | — |
-| **Test de charge (k6)** | `LMS-Backend-Spring` | manuel | N utilisateurs simultanés : p95, taux d'erreur | seuils k6 |
-| **Dependabot** | les 3 | chaque lundi | Pull requests de mise à jour (Maven, npm, pip, Docker, Actions) | — |
+| **Backend CI** | `backend/` | push, pull request | Maven + JUnit sur une vraie base MySQL 8.4, couverture JaCoCo, SonarCloud | ✅ |
+| **Frontend CI** | `frontend/` | push, pull request | Tests Vitest (Chromium), build de production avec budgets de taille | ✅ |
+| **AI CI** | `ai/` | push, pull request | Ruff + pytest : validation JSON des QCM, correction, API (sans appeler Azure) | ✅ |
+| **… Security** (×3) | son dossier | push, PR, chaque lundi | CodeQL, Gitleaks, Trivy / npm audit / pip-audit, Dependency Review | ✅ failles critiques, secrets |
+| **… CD** (×3) | son dossier | push, manuel | Image Docker → Trivy → GHCR → staging → production (approbation) | ✅ faille critique dans l'image |
+| **Déploiement complet** | `deploy/` | manuel | Copie `docker-compose.yml` sur le serveur et démarre toute la plateforme | — |
+| **Test de charge (k6)** | `deploy/k6/` | manuel | N utilisateurs simultanés : p95, taux d'erreur | seuils k6 |
+| **Dependabot** | les 3 dossiers | chaque lundi | Pull requests de mise à jour (Maven, npm, pip, Docker, Actions) | — |
 
 Les résultats de sécurité apparaissent dans l'onglet **Security** du dépôt, les rapports de tests et de
 couverture dans les **artefacts** de chaque exécution.
@@ -71,7 +72,7 @@ couverture dans les **artefacts** de chaque exécution.
 
 1. **Settings → Environments** : créer `staging` et `production`.
    Sur `production`, cocher **Required reviewers** (vous-même) : chaque mise en production attend votre clic.
-2. **Settings → Branches → Branch protection** sur les 3 branches : exiger une pull request et les checks
+2. **Settings → Branches → Branch protection** (ou *Rulesets*) sur `main` : exiger une pull request et les checks
    *CI* et *Security* avant la fusion.
 3. **Settings → Code security** : activer *Dependency graph*, *Dependabot alerts* et *Code scanning*.
 4. Après la première exécution des CD, rendre les 3 paquets publics (**Packages → lms-… → Package settings →
@@ -124,7 +125,7 @@ dans `.env`, puis `docker compose --profile https up -d`.
 
 #### Option D — Vercel pour le frontend
 
-- **Le plus simple** : importer le dépôt dans Vercel (branche `LMS-Frontend`) et définir la variable `API_URL`.
+- **Le plus simple** : importer le dépôt dans Vercel (branche `main`, **Root Directory** = `frontend`) et définir la variable `API_URL`.
   `vercel.json` contient déjà la commande de build, le dossier publié, le cache et les en-têtes de sécurité.
 - **Depuis GitHub Actions** : secret `VERCEL_TOKEN`, variables `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `API_URL`
   dans l'environnement `production`.
@@ -139,8 +140,8 @@ secret `SONAR_TOKEN`.
 
 ## 4. Au quotidien
 
-- **Mettre à jour** : pousser sur la branche du composant → CI, sécurité, image, staging, puis production après
-  approbation. Seul le service modifié redémarre.
+- **Mettre à jour** : pull request vers `main` → CI et sécurité du composant modifié ; après la fusion : image, staging,
+  puis production après approbation. Seul le service modifié redémarre.
 - **Retour arrière** : *Actions → … CD → Run workflow* en indiquant le tag (12 premiers caractères du SHA) d'une
   version précédente. Si un nouveau conteneur ne devient pas « healthy », le serveur revient tout seul à
   l'ancienne version.

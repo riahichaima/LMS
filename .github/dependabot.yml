@@ -1,12 +1,11 @@
 # Mises à jour automatiques des dépendances (pull requests hebdomadaires).
-# Ce fichier est lu sur la branche par défaut (LMS-Backend-Spring) et surveille les 3 branches du LMS.
+# Monorepo : un suivi par dossier (backend/, frontend/, ai/), pull requests vers main.
 version: 2
 
 updates:
   # ── Backend Spring Boot ──
   - package-ecosystem: maven
-    directory: /
-    target-branch: LMS-Backend-Spring
+    directory: /backend
     schedule: { interval: weekly, day: monday }
     open-pull-requests-limit: 5
     groups:
@@ -16,12 +15,10 @@ updates:
         patterns: ['*']
         exclude-patterns: ['org.springframework*', 'io.micrometer*']
   - package-ecosystem: docker
-    directory: /
-    target-branch: LMS-Backend-Spring
+    directory: /backend
     schedule: { interval: weekly }
   - package-ecosystem: github-actions
     directory: /
-    target-branch: LMS-Backend-Spring
     schedule: { interval: weekly }
     groups:
       actions:
@@ -29,8 +26,7 @@ updates:
 
   # ── Frontend Angular ──
   - package-ecosystem: npm
-    directory: /
-    target-branch: LMS-Frontend
+    directory: /frontend
     schedule: { interval: weekly, day: monday }
     open-pull-requests-limit: 5
     groups:
@@ -41,34 +37,15 @@ updates:
       outils-de-test:
         patterns: ['vitest', '@vitest/*', 'playwright', 'jsdom']
   - package-ecosystem: docker
-    directory: /
-    target-branch: LMS-Frontend
+    directory: /frontend
     schedule: { interval: weekly }
-  - package-ecosystem: github-actions
-    directory: /
-    target-branch: LMS-Frontend
-    schedule: { interval: weekly }
-    groups:
-      actions:
-        patterns: ['*']
-
-  # ── Service IA FastAPI ──
   - package-ecosystem: pip
-    directory: /
-    target-branch: LMS-AI
+    directory: /ai
     schedule: { interval: weekly, day: monday }
     open-pull-requests-limit: 5
     groups:
       python:
         patterns: ['*']
   - package-ecosystem: docker
-    directory: /
-    target-branch: LMS-AI
+    directory: /ai
     schedule: { interval: weekly }
-  - package-ecosystem: github-actions
-    directory: /
-    target-branch: LMS-AI
-    schedule: { interval: weekly }
-    groups:
-      actions:
-        patterns: ['*']
