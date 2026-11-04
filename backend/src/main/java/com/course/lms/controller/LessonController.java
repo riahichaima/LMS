@@ -126,7 +126,7 @@ public class LessonController {
     }
 
     @GetMapping("/lessons/resources/{id}/download")
-    public ResponseEntity<org.springframework.core.io.ByteArrayResource> downloadResource(@PathVariable Long id) {
+    public ResponseEntity<org.springframework.core.io.Resource> downloadResource(@PathVariable Long id) {
         // Fichier d'un cours payant : réservé aux acheteurs, à l'enseignant et aux administrateurs
         courseAccessService.requireResourceAccess(id);
         try {
@@ -142,8 +142,8 @@ public class LessonController {
                 return ResponseEntity.notFound().build();
             }
 
-            byte[] data = java.nio.file.Files.readAllBytes(physicalFile.toPath());
-            org.springframework.core.io.ByteArrayResource byteArrayResource = new org.springframework.core.io.ByteArrayResource(data);
+            // Envoi en flux depuis le disque (pas de chargement en mémoire : vidéos lourdes, plusieurs étudiants)
+            org.springframework.core.io.Resource fileResource = new org.springframework.core.io.FileSystemResource(physicalFile);
 
             MediaType mediaType;
             String contentType = resource.getMimeType();
@@ -164,10 +164,12 @@ public class LessonController {
             }
 
             return ResponseEntity.ok()
-                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                            org.springframework.http.ContentDisposition.attachment()
+                                    .filename(filename, java.nio.charset.StandardCharsets.UTF_8).build().toString())
                     .contentType(mediaType)
-                    .contentLength(data.length)
-                    .body(byteArrayResource);
+                    .contentLength(physicalFile.length())
+                    .body(fileResource);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
         }

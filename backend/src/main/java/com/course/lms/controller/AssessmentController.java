@@ -28,6 +28,9 @@ public class AssessmentController {
     @Autowired
     private com.course.lms.repository.UserRepository userRepository;
 
+    @Autowired
+    private com.course.lms.service.AiRateLimiter aiRateLimiter;
+
     /**
      * Generate assessments (Quiz and/or Assignment) for selected chapters
      * Teacher only endpoint
@@ -37,6 +40,7 @@ public class AssessmentController {
     public ResponseEntity<AssessmentGenerationResponse> generateAssessments(
             @RequestBody AssessmentGenerationRequest request,
             org.springframework.security.core.Authentication auth) {
+        aiRateLimiter.check(auth.getName(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
         return ResponseEntity.ok(assessmentService.generateAssessments(request, auth.getName()));
     }
 
@@ -44,6 +48,7 @@ public class AssessmentController {
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<AssessmentGenerationResponse> generateQuiz(
             @RequestBody QuizGenerationRequest request) {
+        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
         return ResponseEntity.ok(assessmentService.generateQuiz(request));
     }
 
@@ -51,6 +56,7 @@ public class AssessmentController {
     @PreAuthorize("hasRole('TEACHER')")
     public ResponseEntity<AssessmentGenerationResponse> generateAssignment(
             @RequestBody AssignmentGenerationRequest request) {
+        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
         return ResponseEntity.ok(assessmentService.generateAssignment(request));
     }
 
@@ -88,6 +94,7 @@ public class AssessmentController {
     @PreAuthorize("hasRole('STUDENT')")
     public CompletableFuture<ResponseEntity<SubmissionCorrectionResponse>> correctSubmission(
             @RequestBody SubmissionCorrectionRequest request) {
+        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.CORRECTION);
         return assessmentService.correctSubmissionAsync(request)
                 .thenApply(response -> ResponseEntity.ok(response));
     }
@@ -110,6 +117,7 @@ public class AssessmentController {
             throw new SecurityException("Tu ne peux rendre un quiz que pour toi-même.");
         }
         courseAccessService.requireQuizAccess(quizId);
+        aiRateLimiter.check(student.getEmail(), com.course.lms.service.AiRateLimiter.Usage.CORRECTION);
         // Date limite / chrono : après la fin du temps, ce sont les réponses enregistrées qui sont corrigées
         String answers = scheduleService.beginSubmission(student, "QUIZ", quizId, studentAnswers);
         Long sid = student.getId();

@@ -17,6 +17,13 @@ public class LmsAiController {
     private final LmsAiService lmsAiService;
 
     @Autowired
+    private com.course.lms.service.AiRateLimiter aiRateLimiter;
+
+    private static String currentEmail() {
+        return org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+
+    @Autowired
     public LmsAiController(LmsAiService lmsAiService) {
         this.lmsAiService = lmsAiService;
     }
@@ -35,8 +42,10 @@ public class LmsAiController {
      * Envoyer un PDF, TXT ou autre document vers LMS_AI.
      */
     @PostMapping(value = "/text/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
     public Mono<ResponseEntity<LmsAiContentUploadResponse>> uploadText(
             @RequestParam("file") MultipartFile file) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
         return lmsAiService.uploadTextFile(file)
                 .map(ResponseEntity::ok);
     }
@@ -46,8 +55,10 @@ public class LmsAiController {
      * Envoyer une question et récupérer la réponse du Text Agent.
      */
     @PostMapping("/text/ask")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
     public Mono<ResponseEntity<LmsAiQuestionResponse>> askText(
             @Valid @RequestBody LmsAiQuestionRequest request) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
         return lmsAiService.askTextAgent(request)
                 .map(ResponseEntity::ok);
     }
@@ -57,10 +68,12 @@ public class LmsAiController {
      * Envoyer une vidéo locale ou une URL YouTube vers LMS_AI.
      */
     @PostMapping(value = "/video/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
     public Mono<ResponseEntity<Object>> uploadVideo(
             @RequestParam(value = "file", required = false) MultipartFile file,
             @RequestParam(value = "url", required = false) String url,
             @RequestParam(value = "title", required = false) String title) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
 
         if (file != null && !file.isEmpty()) {
             return lmsAiService.uploadVideoFile(file)
@@ -83,8 +96,10 @@ public class LmsAiController {
      * Poser une question sur une vidéo déjà indexée.
      */
     @PostMapping("/video/ask")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN') or hasRole('TEACHER')")
     public Mono<ResponseEntity<LmsAiQuestionResponse>> askVideo(
             @Valid @RequestBody LmsAiQuestionRequest request) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
         return lmsAiService.askVideoAgent(request)
                 .map(ResponseEntity::ok);
     }

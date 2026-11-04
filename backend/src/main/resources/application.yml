@@ -36,8 +36,9 @@ spring:
             enable: true
   servlet:
     multipart:
-      max-file-size: ${MAX_UPLOAD_SIZE:500MB}
-      max-request-size: ${MAX_UPLOAD_SIZE:500MB}
+      # 200 Mo : vidéos de cours courtes (au-delà, lien YouTube conseillé) ; aligné sur Caddy
+      max-file-size: ${MAX_UPLOAD_SIZE:200MB}
+      max-request-size: ${MAX_UPLOAD_SIZE:200MB}
 
 server:
   port: ${SERVER_PORT:8090}
@@ -85,6 +86,12 @@ app:
     turn-username: ${TURN_USERNAME:}
     turn-credential: ${TURN_CREDENTIAL:}
     reminder-check-ms: ${MEETING_REMINDER_CHECK_MS:60000}
+  # Limite d'appels à l'IA par utilisateur et par heure (protège le crédit Azure) ; 0 = illimité
+  ai:
+    rate-limit:
+      chat-per-hour: ${AI_CHAT_PER_HOUR:30}
+      generation-per-hour: ${AI_GENERATION_PER_HOUR:10}
+      correction-per-hour: ${AI_CORRECTION_PER_HOUR:30}
   # Connexion avec Google : Client ID OAuth « Application Web » (Google Cloud Console). Vide = bouton masqué.
   google:
     client-id: ${GOOGLE_CLIENT_ID:}

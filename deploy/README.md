@@ -80,33 +80,65 @@ couverture dans les **artefacts** de chaque exécution.
 
 ### 3.2 Choisir l'hébergement
 
-#### Option A — Un serveur avec Docker (recommandée : VPS, VM Azure Students, serveur de l'école)
+#### Option A — Déploiement retenu pour le PFE : VM Azure (backend, IA, base) + Vercel (frontend)
 
-```bash
-# Sur le serveur (Ubuntu) : installer Docker
-curl -fsSL https://get.docker.com | sh
-sudo mkdir -p /opt/lms && sudo chown $USER /opt/lms
-# Copier deploy/docker-compose.yml et deploy/.env.example dans /opt/lms
-cd /opt/lms && cp .env.example .env && nano .env      # remplir les secrets
-openssl rand -base64 64                               # pour JWT_SECRET
-docker compose up -d                                  # + --profile https / monitoring si besoin
+```
+Navigateur ──► Vercel (Angular)                         https://lms-chaima.vercel.app
+     └───────► VM Azure Sweden Central, Standard_B2als_v2 https://lms-api-chaima.swedencentral.cloudapp.azure.com
+                 Caddy (HTTPS, seul service public) → backend → MySQL
+                                                     └→ service IA → Azure AI Foundry
 ```
 
-Puis dans GitHub (environnements `staging` / `production`) :
-
-| Nom | Type | Exemple |
+| Ressource | Réglage | Coût indicatif (40 jours, 24h/24) |
 |---|---|---|
-| `DEPLOY_SSH_HOST` | secret | `203.0.113.10` |
-| `DEPLOY_SSH_USER` | secret | `ubuntu` |
-| `DEPLOY_SSH_KEY` | secret | clé privée SSH (la clé publique dans `~/.ssh/authorized_keys` du serveur) |
-| `DEPLOY_PATH` | variable | `/opt/lms` |
-| `HEALTH_URL_BACKEND` | variable | `https://api.mon-lms.com/readyz` |
-| `HEALTH_URL_FRONTEND` | variable | `https://app.mon-lms.com/healthz` |
+| VM | Ubuntu 24.04, **Standard_B2als_v2** (2 vCPU, 4 Go), disque Standard SSD 30 Go | ≈ 37 $ |
+| IP publique | Statique + étiquette DNS `lms-api-chaima` | ≈ 5 $ |
+| Pare-feu (NSG) | 80 et 443 ouverts ; 22 (SSH) limité à votre adresse IP | — |
+| Vercel | Plan gratuit | 0 $ |
 
-Le workflow **Déploiement complet** peut aussi copier les fichiers et démarrer la plateforme à votre place.
+**1. Serveur** (une fois connecté en SSH avec la clé) :
 
-**HTTPS** : faire pointer deux noms de domaine vers le serveur, remplir `APP_DOMAIN`, `API_DOMAIN`, `ACME_EMAIL`
-dans `.env`, puis `docker compose --profile https up -d`.
+```bash
+sudo apt update && sudo apt -y upgrade && sudo apt -y install unattended-upgrades
+sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable
+sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+curl -fsSL https://get.docker.com | sudo sh && sudo usermod -aG docker $USER   # puis se reconnecter
+```
+
+**2. Plateforme** :
+
+```bash
+sudo mkdir -p /opt/lms && sudo chown $USER /opt/lms && cd /opt/lms
+git clone https://github.com/riahichaima/LMS.git && cd LMS/deploy
+cp .env.example .env && nano .env && chmod 600 .env   # secrets : jamais dans Git ni dans un chat
+docker compose pull && docker compose up -d --wait
+docker compose ps                                     # tous les services « healthy »
+(crontab -l 2>/dev/null; echo "0 3 * * * /opt/lms/LMS/deploy/backup.sh >> /opt/lms/backup.log 2>&1") | crontab -
+```
+
+Les images `lms-backend` et `lms-ai` doivent être publiques sur GHCR (**Packages → Package settings → Change
+visibility**), sinon `docker login ghcr.io` avec un jeton `read:packages`.
+
+**3. Frontend Vercel** : importer le dépôt, **Root Directory** = `frontend`, **Production Branch** = `main`,
+variable `API_URL` = `https://<API_DOMAIN>`. Reporter ensuite l'adresse Vercel dans `PUBLIC_APP_URL` du `.env`
+et relancer `docker compose up -d`.
+
+**4. Vérifications** : `https://<API_DOMAIN>/livez` répond, connexion depuis le site Vercel sans erreur CORS,
+ports internes fermés depuis l'extérieur (`3306`, `8000`, `8090`, `8091`).
+
+| Opération | Commande (dans `deploy/`) |
+|---|---|
+| Mettre à jour après une fusion sur `main` | `./update.sh` |
+| Retour arrière | `BACKEND_TAG=<ancien tag>` dans `.env`, puis `./update.sh` |
+| Sauvegarder maintenant | `./backup.sh` (base + fichiers, 7 jours conservés) |
+| Restaurer | `./restore.sh /opt/lms/backups/lms_db_<date>.sql.gz [uploads_<date>.tar.gz]` |
+| Journaux | `docker compose logs -f backend` |
+
+**Déploiement automatique (facultatif)** : dans GitHub, environnements `staging` / `production` avec les secrets
+`DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY` et la variable `DEPLOY_PATH` = `/opt/lms/LMS/deploy` :
+les workflows CD mettent alors à jour le service concerné après chaque fusion (retour arrière automatique
+si le health check échoue).
 
 #### Option B — Render
 
@@ -166,8 +198,9 @@ secret `SONAR_TOKEN`.
 ```bash
 cd deploy
 cp .env.example .env          # remplir au moins DB_PASSWORD, DB_ROOT_PASSWORD, JWT_SECRET, SUPER_ADMIN_PASSWORD
+                              # et mettre COMPOSE_PROFILES=frontend (pas de HTTPS en local)
 docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
-# Site : http://localhost   API : http://localhost:8090
+# Site : http://localhost:8081   API : http://localhost:8090
 ```
 
 ## 6. Résultats mesurés (validation locale du 01/11/2026)

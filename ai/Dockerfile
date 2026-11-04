@@ -7,7 +7,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     UVICORN_WORKERS=2
 
-RUN groupadd --system lms && useradd --system --gid lms --home-dir /app lms
+# Correctifs de sécurité des paquets système (Debian) et pip à jour (alertes Trivy de l'image)
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/* \
+ && pip install --no-cache-dir --upgrade pip \
+ && groupadd --system lms && useradd --system --gid lms --home-dir /app lms
 WORKDIR /app
 
 # Dépendances d'abord : couche mise en cache tant que requirements.txt ne change pas

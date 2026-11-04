@@ -21,6 +21,9 @@ public class StudentLearningController {
     @Autowired
     private StudentLearningService learningService;
 
+    @Autowired
+    private com.course.lms.service.AiRateLimiter aiRateLimiter;
+
     private static String currentEmail() {
         return SecurityContextHolder.getContext().getAuthentication().getName();
     }
@@ -51,6 +54,7 @@ public class StudentLearningController {
     @PostMapping("/assignments/{assignmentId}/submit")
     public ResponseEntity<Map<String, Object>> submitAssignment(@PathVariable Long assignmentId,
                                                                 @RequestBody Map<String, String> body) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.CORRECTION);
         return ResponseEntity.ok(learningService.submitAssignment(assignmentId, body.get("answer"), currentEmail()));
     }
 
@@ -62,6 +66,7 @@ public class StudentLearningController {
     /** Body : { "messages": [{role, content}], "action": "chat" | "summary", "lessonId": 12 } */
     @PostMapping("/courses/{courseId}/chat")
     public ResponseEntity<Map<String, Object>> chat(@PathVariable Long courseId, @RequestBody Map<String, Object> body) {
+        aiRateLimiter.check(currentEmail(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
         return ResponseEntity.ok(learningService.courseChat(courseId, body, currentEmail()));
     }
 }

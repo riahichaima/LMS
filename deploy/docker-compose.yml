@@ -1,29 +1,45 @@
-# LMS — déploiement complet sur n'importe quel serveur avec Docker (VPS, VM Azure, serveur de l'école…)
+# LMS — déploiement sur un serveur avec Docker (VM Azure B2als_v2 : 2 vCPU, 4 Go)
 #
-#   cp .env.example .env      # puis remplir les valeurs
-#   docker compose up -d      # base + IA + backend + frontend
-#   docker compose --profile https up -d        # + HTTPS automatique (Caddy, nom de domaine requis)
-#   docker compose --profile monitoring up -d   # + Prometheus et Grafana
+#   cp .env.example .env      # puis remplir les valeurs (jamais dans Git)
+#   docker compose up -d      # profils lus dans .env (COMPOSE_PROFILES=https par défaut)
 #
+# Architecture : seul Caddy (ports 80/443, HTTPS automatique) est public. Le backend, le service IA
+# et la base restent sur le réseau Docker interne. Le frontend est hébergé par Vercel ;
+# le profil « frontend » permet de le servir depuis ce serveur à la place.
 # Les images sont construites et scannées par GitHub Actions puis publiées sur GitHub Container Registry.
-# Les workflows CD mettent à jour un service à la fois (variables *_TAG du fichier .env).
 name: lms
 
+# Journaux limités (10 Mo × 3 par service) : le disque ne se remplit pas
+x-logs: &logs
+  logging:
+    driver: json-file
+    options:
+      max-size: '10m'
+      max-file: '3'
+
 services:
-  # MySQL 8.4 LTS : base officiellement prise en charge par le pilote du backend (mysql-connector-j),
-  # identique à Azure Database for MySQL. (En développement, XAMPP MariaDB reste utilisable.)
+  # MySQL 8.4 LTS : base officiellement prise en charge par le pilote du backend (mysql-connector-j)
   db:
     image: mysql:8.4
     restart: unless-stopped
+    <<: *logs
+    # Réglages pour une petite VM : cache InnoDB limité, statistiques internes désactivées
+    command: >-
+      --innodb-buffer-pool-size=256M
+      --performance-schema=OFF
+      --max-connections=60
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+    mem_limit: 600m
     environment:
       MYSQL_DATABASE: lms_db
       MYSQL_USER: ${DB_USERNAME:-lms}
       MYSQL_PASSWORD: ${DB_PASSWORD:?Définir DB_PASSWORD dans .env}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Définir DB_ROOT_PASSWORD dans .env}
+      TZ: ${APP_TIMEZONE:-Africa/Tunis}
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      # TCP uniquement disponible une fois l'initialisation terminée
       test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent']
       interval: 10s
       timeout: 5s
@@ -35,11 +51,16 @@ services:
   ai:
     image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-ai:${AI_TAG:-latest}
     restart: unless-stopped
+    <<: *logs
+    mem_limit: 700m
     environment:
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
       AZURE_CHAT_DEPLOYMENT: ${AZURE_CHAT_DEPLOYMENT:-gpt-4.1-mini}
       AZURE_TRANSCRIBE_DEPLOYMENT: ${AZURE_TRANSCRIBE_DEPLOYMENT:-gpt-4o-mini-transcribe}
+      # Un seul processus (mémoire) ; images extraites par vidéo (coût Azure) réglables
+      UVICORN_WORKERS: '1'
+      VIDEO_FRAME_COUNT: ${VIDEO_FRAME_COUNT:-4}
       # Fichiers des cours déposés par le backend (volume partagé, lecture seule)
       BACKEND_ROOT_DIR: /backend
     volumes:
@@ -50,20 +71,29 @@ services:
   backend:
     image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-backend:${BACKEND_TAG:-latest}
     restart: unless-stopped
+    <<: *logs
+    # Java utilise ~75 % de cette limite (réglage de l'image) : environ 1 Go de mémoire pour l'application
+    mem_limit: 1300m
     depends_on:
       db: { condition: service_healthy }
       ai: { condition: service_started }
     environment:
-      DB_URL: jdbc:mysql://db:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false
+      DB_URL: jdbc:mysql://db:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=UTF-8
       DB_USERNAME: ${DB_USERNAME:-lms}
       DB_PASSWORD: ${DB_PASSWORD}
+      JPA_SHOW_SQL: 'false'
       JWT_SECRET: ${JWT_SECRET:?Définir JWT_SECRET dans .env}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-superadmin@lms.com}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Définir SUPER_ADMIN_PASSWORD dans .env}
       SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Administrateur}
+      # Adresse du frontend (Vercel) : liens des emails, retours Stripe et seule origine autorisée (CORS)
       FRONTEND_URL: ${PUBLIC_APP_URL:-http://localhost}
       APP_CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost}
       LMS_AI_URL: http://ai:8000
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-200MB}
+      AI_CHAT_PER_HOUR: ${AI_CHAT_PER_HOUR:-30}
+      AI_GENERATION_PER_HOUR: ${AI_GENERATION_PER_HOUR:-10}
+      AI_CORRECTION_PER_HOUR: ${AI_CORRECTION_PER_HOUR:-30}
       MAIL_HOST: ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
       MAIL_PORT: ${MAIL_PORT:-2525}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
@@ -78,17 +108,44 @@ services:
     volumes:
       - uploads:/app/uploads
     ports:
-      - '${BACKEND_PORT:-8090}:8090'
+      # Accessible seulement depuis le serveur lui-même (diagnostic) : Internet passe par Caddy
+      - '${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8090}:8090'
     networks: [interne, web]
 
+  # ── HTTPS (profil « https ») : certificat Let's Encrypt automatique pour API_DOMAIN
+  caddy:
+    image: caddy:2-alpine
+    profiles: [https]
+    restart: unless-stopped
+    <<: *logs
+    mem_limit: 128m
+    depends_on: [backend]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost}
+      APP_DOMAIN: ${APP_DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [web]
+
+  # ── Option (profil « frontend ») : site Angular servi par ce serveur au lieu de Vercel
   frontend:
     image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-frontend:${FRONTEND_TAG:-latest}
+    profiles: [frontend]
     restart: unless-stopped
+    <<: *logs
+    mem_limit: 64m
     environment:
       # Adresse publique de l'API, injectée au démarrage (même image pour tous les serveurs)
       API_URL: ${PUBLIC_API_URL:-http://localhost:8090}
     ports:
-      - '${FRONTEND_PORT:-80}:8080'
+      - '${FRONTEND_BIND:-127.0.0.1}:${FRONTEND_PORT:-8081}:8080'
     healthcheck:
       test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:8080/healthz']
       interval: 30s
@@ -96,30 +153,13 @@ services:
       retries: 3
     networks: [web]
 
-  # ── Option HTTPS : certificats Let's Encrypt automatiques (APP_DOMAIN et API_DOMAIN doivent pointer vers le serveur)
-  caddy:
-    image: caddy:2-alpine
-    profiles: [https]
-    restart: unless-stopped
-    depends_on: [frontend, backend]
-    environment:
-      APP_DOMAIN: ${APP_DOMAIN:-}
-      API_DOMAIN: ${API_DOMAIN:-}
-      ACME_EMAIL: ${ACME_EMAIL:-}
-    ports:
-      - '80:80'
-      - '443:443'
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
-    networks: [web]
-
-  # ── Option supervision : métriques du backend (port interne 8091) et tableau de bord Grafana
+  # ── Option supervision (profil « monitoring ») : métriques du backend et tableau de bord Grafana
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: [monitoring]
     restart: unless-stopped
+    <<: *logs
+    mem_limit: 256m
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -129,10 +169,13 @@ services:
     image: grafana/grafana:12.1.0
     profiles: [monitoring]
     restart: unless-stopped
+    <<: *logs
+    mem_limit: 256m
     depends_on: [prometheus]
     environment:
       GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Définir GRAFANA_ADMIN_PASSWORD dans .env}
+      # Obligatoire avec le profil « monitoring » (Grafana reste accessible seulement depuis le serveur)
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
       GF_USERS_ALLOW_SIGN_UP: 'false'
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
