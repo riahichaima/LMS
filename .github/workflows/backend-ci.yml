@@ -4,10 +4,17 @@ name: Backend CI
 
 on:
   push:
-    branches: [LMS-Backend-Spring]
-    paths-ignore: ['**.md', 'deploy/**', '*Postman_Collection.json']
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '!backend/**.md'
+      - '.github/workflows/backend-ci.yml'
   pull_request:
-    branches: [LMS-Backend-Spring]
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '!backend/**.md'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +23,10 @@ permissions:
 concurrency:
   group: backend-ci-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: backend
 
 jobs:
   build-test:
@@ -49,7 +60,7 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-
+          cache-dependency-path: backend/pom.xml
       - name: Compilation + tests + couverture
         run: bash mvnw -B -ntp verify
 
@@ -72,8 +83,8 @@ jobs:
         with:
           name: backend-test-reports
           path: |
-            target/surefire-reports/
-            target/site/jacoco/
+            backend/target/surefire-reports/
+            backend/target/site/jacoco/
           retention-days: 14
 
       - name: SonarCloud (qualité + couverture)

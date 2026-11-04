@@ -5,8 +5,11 @@ name: Frontend CD
 
 on:
   push:
-    branches: [LMS-Frontend]
-    paths-ignore: ['**.md']
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-cd.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +23,10 @@ permissions:
 concurrency:
   group: frontend-cd
   cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: frontend
 
 jobs:
   image:
@@ -53,7 +60,7 @@ jobs:
       - name: Construction
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: frontend
           load: true
           tags: |
             ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}
@@ -141,6 +148,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
       - name: Build et déploiement Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

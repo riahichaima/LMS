@@ -4,9 +4,17 @@ name: AI Security
 
 on:
   push:
-    branches: [LMS-AI]
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-security.yml'
   pull_request:
-    branches: [LMS-AI]
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-security.yml'
   schedule:
     - cron: '0 3 * * 1'
   workflow_dispatch:
@@ -17,6 +25,10 @@ permissions:
 concurrency:
   group: ai-security-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ai
 
 jobs:
   codeql:
@@ -33,6 +45,7 @@ jobs:
         with:
           languages: python
           build-mode: none
+          source-root: ai
           queries: security-extended
       - uses: github/codeql-action/analyze@v4
         with:
@@ -48,13 +61,13 @@ jobs:
           fetch-depth: 0
       - name: Fichiers actuels (bloquant)
         run: >-
-          docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1
-          dir . --redact --no-banner --exit-code 1
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo zricethezav/gitleaks:v8.30.1
+          dir ai --redact --no-banner --exit-code 1
       - name: Historique complet (rapport hebdomadaire)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         continue-on-error: true
         run: >-
-          docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:v8.30.1
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo zricethezav/gitleaks:v8.30.1
           git . --redact --no-banner --exit-code 1
 
   dependencies:
@@ -77,6 +90,7 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
+          scan-ref: ai
           scanners: vuln
           format: sarif
           output: trivy-deps.sarif

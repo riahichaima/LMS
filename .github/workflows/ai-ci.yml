@@ -4,10 +4,17 @@ name: AI CI
 
 on:
   push:
-    branches: [LMS-AI]
-    paths-ignore: ['**.md']
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-ci.yml'
   pull_request:
-    branches: [LMS-AI]
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +23,10 @@ permissions:
 concurrency:
   group: ai-ci-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: ai
 
 jobs:
   lint-test:
@@ -31,7 +42,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          cache-dependency-path: ai/requirements-dev.txt
 
       - name: Installation
         run: pip install -r requirements-dev.txt
@@ -57,7 +68,7 @@ jobs:
         if: always()
         with:
           name: ai-test-report
-          path: pytest-report.xml
+          path: ai/pytest-report.xml
           retention-days: 14
 
       - name: SonarCloud (qualité)
@@ -66,6 +77,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
+          projectBaseDir: ai
           args: >-
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}

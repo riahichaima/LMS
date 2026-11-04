@@ -5,8 +5,11 @@ name: Backend CD
 
 on:
   push:
-    branches: [LMS-Backend-Spring]
-    paths-ignore: ['**.md', 'deploy/**', '*Postman_Collection.json', '.github/dependabot.yml']
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '!backend/**.md'
+      - '.github/workflows/backend-cd.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +23,10 @@ permissions:
 concurrency:
   group: backend-cd
   cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: backend
 
 jobs:
   image:
@@ -53,7 +60,7 @@ jobs:
       - name: Construction
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: backend
           load: true
           tags: |
             ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}

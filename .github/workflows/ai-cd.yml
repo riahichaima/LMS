@@ -5,8 +5,11 @@ name: AI CD
 
 on:
   push:
-    branches: [LMS-AI]
-    paths-ignore: ['**.md']
+    branches: [main]
+    paths:
+      - 'ai/**'
+      - '!ai/**.md'
+      - '.github/workflows/ai-cd.yml'
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +23,10 @@ permissions:
 concurrency:
   group: ai-cd
   cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: ai
 
 jobs:
   image:
@@ -53,7 +60,7 @@ jobs:
       - name: Construction
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: ai
           load: true
           tags: |
             ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}

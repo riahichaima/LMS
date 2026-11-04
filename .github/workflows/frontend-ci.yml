@@ -4,10 +4,17 @@ name: Frontend CI
 
 on:
   push:
-    branches: [LMS-Frontend]
-    paths-ignore: ['**.md']
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-ci.yml'
   pull_request:
-    branches: [LMS-Frontend]
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '!frontend/**.md'
+      - '.github/workflows/frontend-ci.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,6 +23,10 @@ permissions:
 concurrency:
   group: frontend-ci-${{ github.ref }}
   cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: frontend
 
 jobs:
   build-test:
@@ -31,7 +42,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-
+          cache-dependency-path: frontend/package-lock.json
       - name: Installation (npm ci)
         run: npm ci --no-audit --no-fund
 
@@ -52,7 +63,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: frontend-dist
-          path: dist/coreui-free-angular-admin-template/browser
+          path: frontend/dist/coreui-free-angular-admin-template/browser
           retention-days: 7
 
       - name: SonarCloud (qualité)
@@ -61,6 +72,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
+          projectBaseDir: frontend
           args: >-
             -Dsonar.host.url=https://sonarcloud.io
             -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
