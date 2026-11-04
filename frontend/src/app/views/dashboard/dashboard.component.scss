@@ -1,0 +1,108 @@
+// Bandeau d'accueil (fond : .lms-hero du thème)
+.hero {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  padding: 1.5rem 1.6rem;
+
+  &__eyebrow {
+    display: inline-block;
+    margin-bottom: .4rem;
+    padding: .15rem .6rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .18);
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+
+  &__title {
+    margin: 0 0 .25rem;
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: #fff;
+  }
+
+  &__actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+  &__btn {
+    font-weight: 600;
+    color: #0d3a8c;
+
+    &--ghost {
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, .45);
+      background: rgba(255, 255, 255, .08);
+
+      &:hover { color: #fff; background: rgba(255, 255, 255, .18); }
+    }
+  }
+}
+
+@media (max-width: 576px) {
+  .hero { padding: 1.2rem; }
+  .hero__title { font-size: 1.25rem; }
+}
+
+// Graphiques de progression (étudiant)
+.rings {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+@media (max-width: 768px) { .rings { grid-template-columns: 1fr; } }
+
+.ring {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .6rem;
+
+  &__chart { position: relative; width: 150px; height: 150px; }
+
+  &__center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+
+    strong { font-size: 1.5rem; font-weight: 700; color: var(--cui-emphasis-color); line-height: 1; }
+    span { font-size: .72rem; color: var(--cui-secondary-color); text-transform: uppercase; letter-spacing: .05em; }
+  }
+
+  figcaption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: .85rem;
+
+    span { color: var(--cui-secondary-color); font-size: .8rem; }
+  }
+}
+
+.bars { position: relative; }
+.bars__chart { position: relative; width: 100%; max-height: 640px; }
+.bars__chart c-chart { display: block; height: 100%; }
+
+// Avancement par cours (étudiant)
+.progress-row {
+  padding: .9rem 0;
+  border-bottom: 1px solid var(--lms-border, var(--cui-border-color));
+
+  &:first-of-type { padding-top: 0; }
+  &--last { border-bottom: 0; padding-bottom: 0; }
+  &__pct { width: 3rem; text-align: right; }
+}
+
+.min-w-0 { min-width: 0; }

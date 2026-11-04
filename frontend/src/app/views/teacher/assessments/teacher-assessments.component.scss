@@ -1,0 +1,182 @@
+.gen__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .gen__layout { grid-template-columns: 1fr; }
+}
+
+.gen__steps { display: grid; gap: 1rem; }
+
+.step {
+  padding: 1.1rem 1.25rem;
+  border-radius: 16px;
+  background: var(--cui-body-bg);
+  border: 1px solid var(--cui-border-color);
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    margin-bottom: .9rem;
+
+    h3 { font-size: 1rem; font-weight: 600; margin: 0; }
+  }
+
+  &__num {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: .8rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #1565e0, #1fa2ff);
+  }
+}
+
+// Chapitres
+.chap-list { display: grid; gap: .4rem; max-height: 320px; overflow: auto; padding-right: 2px; }
+
+.chap {
+  display: flex;
+  gap: .65rem;
+  align-items: flex-start;
+  padding: .55rem .75rem;
+  border-radius: 10px;
+  border: 1px solid var(--cui-border-color);
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+
+  input { margin-top: .2rem; flex-shrink: 0; }
+  &--all { margin-bottom: .5rem; background: var(--cui-tertiary-bg); }
+  &--on { border-color: rgba(var(--cui-primary-rgb), .55); background: rgba(var(--cui-primary-rgb), .05); }
+
+  &__body { display: flex; flex-direction: column; min-width: 0; }
+  &__title { font-weight: 500; }
+  &__meta { display: flex; flex-wrap: wrap; gap: .25rem .6rem; font-size: .75rem; color: var(--cui-secondary-color); }
+}
+
+.fmt {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+
+  svg { width: .75rem; height: .75rem; }
+}
+
+// Formats
+.fmt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: .5rem; }
+
+.fmt-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  padding: .75rem .5rem;
+  border-radius: 12px;
+  border: 1px solid var(--cui-border-color);
+  color: var(--cui-secondary-color);
+  cursor: pointer;
+  text-align: center;
+  transition: all .15s;
+
+  &__label { font-weight: 600; color: var(--cui-body-color); }
+  &__count { font-size: .72rem; }
+
+  &--on {
+    color: var(--cui-primary);
+    border-color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), .07);
+  }
+
+  &:focus-within { outline: 2px solid rgba(var(--cui-primary-rgb), .4); outline-offset: 2px; }
+}
+
+// Quiz / TP
+.kind {
+  display: flex;
+  gap: .6rem;
+  align-items: flex-start;
+  padding: .7rem .85rem;
+  border-radius: 12px;
+  border: 1px solid var(--cui-border-color);
+  cursor: pointer;
+
+  input { margin-top: .25rem; }
+  &--on { border-color: var(--cui-primary); background: rgba(var(--cui-primary-rgb), .05); }
+}
+
+// Niveaux
+.levels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+
+@media (max-width: 576px) {
+  .levels { grid-template-columns: 1fr; }
+}
+
+.level {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .15rem;
+  padding: .65rem .8rem;
+  border-radius: 12px;
+  border: 1px solid var(--cui-border-color);
+  background: transparent;
+  color: var(--cui-body-color);
+  text-align: left;
+  transition: all .15s;
+
+  &__name { font-weight: 600; }
+  &__hint { font-size: .75rem; color: var(--cui-secondary-color); }
+
+  &--on {
+    border-color: var(--cui-primary);
+    background: rgba(var(--cui-primary-rgb), .08);
+
+    .level__name { color: var(--cui-primary); }
+  }
+}
+
+// Rendu
+.timed + .timed { margin-top: .75rem; }
+
+.preset {
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  border: 1px solid var(--cui-border-color);
+  background: transparent;
+  color: var(--cui-body-color);
+  font-size: .78rem;
+
+  &--on { color: #fff; border-color: var(--cui-primary); background: var(--cui-primary); }
+}
+
+// Résumé
+.gen__summary { position: sticky; top: 1rem; }
+
+.summary {
+  padding: 1.1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid rgba(var(--cui-primary-rgb), .25);
+  background: linear-gradient(165deg, rgba(21, 101, 224, .08), rgba(31, 162, 255, .02));
+
+  &__title { display: flex; align-items: center; font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+
+  &__list {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .35rem .75rem;
+    font-size: .85rem;
+    margin-bottom: 1rem;
+
+    dt { font-weight: 500; color: var(--cui-secondary-color); }
+    dd { margin: 0; }
+  }
+
+  &__done { margin-top: 1rem; }
+}

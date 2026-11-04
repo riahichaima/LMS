@@ -1,0 +1,82 @@
+<app-page-header title="Contrôle financier" icon="cilChartPie"
+                 subtitle="Portefeuilles virtuels et transferts simulés : aucun virement bancaire réel (PFE, Stripe en mode test).">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
+<c-row>
+  <c-col xs="12">
+
+    <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+
+    <div class="stat-grid mb-4" *ngIf="wallet() as w">
+      <app-stat-card label="Portefeuille plateforme" icon="cilWallet" tone="primary" [highlight]="true"
+                     [value]="w.availableBalance | currency:'USD'" hint="Commissions encaissées" />
+      <app-stat-card label="Commissions totales" icon="cilChartPie" tone="neutral" [value]="w.totalCommission | currency:'USD'"
+                     [hint]="'Sur ' + (w.grossRevenue | currency:'USD') + ' (' + w.paidPayments + ' ventes)'" />
+      <app-stat-card label="Revenus enseignants" icon="cilPeople" tone="success" [value]="w.totalTeacherEarnings | currency:'USD'"
+                     [hint]="(w.totalPaidOut | currency:'USD') + ' déjà transférés'" />
+      <app-stat-card label="Fonds enseignants détenus" icon="cilClock" tone="warning" [value]="w.teacherFundsHeld | currency:'USD'"
+                     [hint]="w.transfersToSimulate + ' transfert(s) à simuler'" />
+    </div>
+
+    <!-- Transferts simulés -->
+    <c-card class="mb-4">
+      <c-card-header class="d-flex align-items-center gap-2">
+        <strong>Transferts aux enseignants</strong>
+        <c-badge color="info">{{ toSimulate().length }} à simuler</c-badge>
+      </c-card-header>
+      <c-card-body>
+        <p class="small text-body-secondary">Retraits approuvés par un administrateur. Le transfert est simulé : une référence fictive est générée.</p>
+        <table cTable [hover]="true" [responsive]="true" class="mb-0">
+          <thead>
+            <tr><th>#</th><th>Enseignant</th><th class="text-end">Montant</th><th>Approuvé par</th><th>Statut</th><th class="text-end">Action</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of transfers()">
+              <td>{{ t.id }}</td>
+              <td><div class="fw-semibold">{{ t.teacherName }}</div><div class="small text-body-secondary">{{ t.teacherEmail }}</div></td>
+              <td class="text-end fw-semibold">{{ t.amount | currency:'USD' }}</td>
+              <td class="small">{{ t.reviewedBy }}<br /><span class="text-body-secondary">{{ t.reviewedAt | date:'dd/MM/yyyy HH:mm' }}</span></td>
+              <td>
+                <c-badge [color]="t.status === 'PAID' ? 'success' : 'info'">{{ t.status === 'PAID' ? 'Transféré (simulé)' : 'Approuvé' }}</c-badge>
+                <div class="small text-body-secondary" *ngIf="t.transferReference">{{ t.transferReference }}</div>
+              </td>
+              <td class="text-end">
+                <button *ngIf="t.status === 'APPROVED'" cButton color="primary" size="sm" (click)="simulate(t)" [disabled]="busyId() === t.id">
+                  Simuler le transfert
+                </button>
+              </td>
+            </tr>
+            <tr *ngIf="transfers().length === 0"><td colspan="6" class="text-center text-body-secondary py-3">Aucun retrait approuvé.</td></tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+
+    <!-- Historique financier -->
+    <c-card class="mb-4">
+      <c-card-header><strong>Historique financier</strong></c-card-header>
+      <c-card-body>
+        <table cTable [hover]="true" [responsive]="true" class="mb-0">
+          <thead>
+            <tr><th>Date</th><th>Portefeuille</th><th>Opération</th><th class="text-end">Montant</th><th class="text-end">Disponible après</th><th>Détail</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of transactions()">
+              <td class="text-nowrap">{{ tx.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><c-badge [color]="tx.walletType === 'PLATFORM' ? 'primary' : 'secondary'">{{ tx.walletOwner }}</c-badge></td>
+              <td>{{ txLabel(tx.type) }}</td>
+              <td class="text-end fw-semibold">{{ txSign(tx.type) }}{{ tx.amount | currency:'USD' }}</td>
+              <td class="text-end">{{ tx.availableAfter | currency:'USD' }}</td>
+              <td class="small text-body-secondary">{{ tx.description }}</td>
+            </tr>
+            <tr *ngIf="transactions().length === 0"><td colspan="6" class="text-center text-body-secondary py-3">Aucune opération.</td></tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>

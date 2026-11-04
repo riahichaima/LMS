@@ -1,0 +1,196 @@
+<c-alert color="danger" *ngIf="errorMessage()" class="mb-3" [dismissible]="true" (visibleChange)="errorMessage.set('')">{{ errorMessage() }}</c-alert>
+<c-alert color="success" *ngIf="successMessage()" class="mb-3" [dismissible]="true" (visibleChange)="successMessage.set('')">{{ successMessage() }}</c-alert>
+
+<div *ngIf="loading() && courses().length === 0" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+
+<app-empty-state *ngIf="!loading() && courses().length === 0" icon="cilTask" title="Aucun quiz ni TP pour le moment"
+                 text="Générez-les avec l'IA à partir d'un chapitre, ou importez vos propres sujets en fichier.">
+  <button type="button" class="btn btn-primary btn-sm me-2" (click)="navigate.emit('generate')">
+    <svg cIcon name="cilLightbulb" size="sm" class="me-1"></svg>Générer avec l'IA
+  </button>
+  <button type="button" class="btn btn-outline-primary btn-sm" (click)="navigate.emit('files')">
+    <svg cIcon name="cilCloudUpload" size="sm" class="me-1"></svg>Importer un fichier
+  </button>
+</app-empty-state>
+
+<ng-container *ngIf="courses().length > 0">
+  <!-- Statistiques -->
+  <div class="stat-grid mb-3">
+    <app-stat-card label="Quiz" icon="cilListNumbered" tone="primary" [value]="stats().quizzes" [hint]="stats().questions + ' questions au total'" />
+    <app-stat-card label="TP" icon="cilTask" tone="info" [value]="stats().tps" hint="Avec leurs corrigés" />
+    <app-stat-card label="Fichiers importés" icon="cilCloudUpload" tone="success" [value]="importedFiles()" hint="Quiz et TP en fichier" />
+    <app-stat-card label="Copies à corriger" icon="cilPencil" tone="warning" [value]="copiesToGrade()" [highlight]="copiesToGrade() > 0" />
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="fw-semibold mb-2">Répartition par niveau</div>
+          <div *ngFor="let l of stats().levels" class="mb-2">
+            <div class="d-flex justify-content-between small mb-1">
+              <span>{{ levelLabel(l.level) }}</span><strong>{{ l.count }}</strong>
+            </div>
+            <div class="progress" style="height: 7px">
+              <div class="progress-bar" [ngClass]="'bg-' + levelColor(l.level)" [style.width.%]="l.percent"></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="fw-semibold mb-2">Par cours</div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Cours</th><th class="text-center">Quiz</th><th class="text-center">TP</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let c of stats().courses">
+                  <td>{{ c.title }}</td><td class="text-center">{{ c.quizzes }}</td><td class="text-center">{{ c.tps }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filtres -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-2 align-items-center">
+        <div class="col-md-6">
+          <select cSelect aria-label="Cours" [ngModel]="courseFilter()" (ngModelChange)="courseFilter.set(+$event)">
+            <option [ngValue]="0">Tous les cours</option>
+            <option *ngFor="let c of courses()" [ngValue]="c.courseId">{{ c.courseTitle }}</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <select cSelect aria-label="Niveau" [ngModel]="levelFilter()" (ngModelChange)="levelFilter.set($event)">
+            <option value="">Tous les niveaux</option>
+            <option *ngFor="let l of levels" [value]="l">{{ levelLabel(l) }}</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onglets : quiz, TP et corrections -->
+  <ul class="nav nav-pills lms-tabs mb-3" role="tablist">
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'quiz'" (click)="tab.set('quiz')">Quiz <span class="lms-tabs__count lms-tabs__count--neutral">{{ quizzes().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'tp'" (click)="tab.set('tp')">TP <span class="lms-tabs__count lms-tabs__count--neutral">{{ tps().length }}</span></button></li>
+    <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'corrections'" (click)="tab.set('corrections')">Corrections</button></li>
+  </ul>
+
+  <!-- QUIZ (sans les réponses) -->
+  <ng-container *ngIf="tab() === 'quiz'">
+    <div *ngFor="let item of quizzes()" class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <h5 class="mb-1">{{ item.quiz.title }}</h5>
+            <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <c-badge [color]="levelColor(item.quiz.difficultyLevel)">{{ levelLabel(item.quiz.difficultyLevel) }}</c-badge>
+            <span class="lms-pill lms-pill--neutral">{{ item.quiz.questions.length }} questions</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteQuiz(item.quiz)" [disabled]="busyId() === 'q' + item.quiz.id"
+                    title="Supprimer le quiz" [attr.aria-label]="'Supprimer ' + item.quiz.title">
+              <svg cIcon name="cilTrash" size="sm"></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Date limite de rendu et temps de travail -->
+        <app-schedule-editor class="d-block mb-3" kind="QUIZ" [id]="item.quiz.id" [dueAt]="item.quiz.dueAt"
+                             [durationMinutes]="item.quiz.durationMinutes"
+                             (changed)="item.quiz.dueAt = $event.dueAt; item.quiz.durationMinutes = $event.durationMinutes" />
+        <div *ngFor="let q of item.quiz.questions; let i = index" class="mb-3">
+          <div class="fw-semibold mb-1">{{ i + 1 }}. {{ q.questionText }}</div>
+          <ul class="list-unstyled ms-3 mb-0">
+            <li *ngFor="let a of q.answers; let j = index" class="py-1">
+              <span class="text-body-secondary me-1">{{ letter(j) }}.</span> {{ a.answerText }}
+            </li>
+            <li *ngIf="q.answers.length === 0" class="py-1 text-body-secondary fst-italic">Réponse courte</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <app-empty-state *ngIf="quizzes().length === 0" icon="cilFilter" title="Aucun quiz pour ces filtres" />
+  </ng-container>
+
+  <!-- TP (énoncés uniquement) -->
+  <ng-container *ngIf="tab() === 'tp'">
+    <div *ngFor="let item of tps()" class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div>
+            <h5 class="mb-1">{{ item.tp.title }}</h5>
+            <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <c-badge [color]="levelColor(item.tp.difficultyLevel)">{{ levelLabel(item.tp.difficultyLevel) }}</c-badge>
+            <span class="lms-pill lms-pill--neutral">{{ item.exercises.length }} exercices · {{ item.tp.maxPoints }} pts</span>
+            <button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteTp(item.tp)" [disabled]="busyId() === 't' + item.tp.id"
+                    title="Supprimer le TP" [attr.aria-label]="'Supprimer ' + item.tp.title">
+              <svg cIcon name="cilTrash" size="sm"></svg>
+            </button>
+          </div>
+        </div>
+        <app-schedule-editor class="d-block mb-3" kind="TP" [id]="item.tp.id" [dueAt]="item.tp.dueAt"
+                             [durationMinutes]="item.tp.durationMinutes"
+                             (changed)="item.tp.dueAt = $event.dueAt; item.tp.durationMinutes = $event.durationMinutes" />
+        <div *ngFor="let ex of item.exercises" class="mb-3">
+          <h6 class="fw-bold">Exercice {{ ex.number }}</h6>
+          <div class="bg-body-tertiary border rounded p-3" style="white-space: pre-wrap;">{{ ex.statement }}</div>
+        </div>
+      </div>
+    </div>
+    <app-empty-state *ngIf="tps().length === 0" icon="cilFilter" title="Aucun TP pour ces filtres" />
+  </ng-container>
+
+  <!-- CORRECTIONS par niveau -->
+  <ng-container *ngIf="tab() === 'corrections'">
+    <ul class="nav nav-pills lms-tabs mb-3" aria-label="Niveau des corrections">
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="levelFilter() === ''" (click)="levelFilter.set('')">Tous les niveaux</button></li>
+      <li class="nav-item" *ngFor="let l of levels">
+        <button type="button" class="nav-link" [class.active]="levelFilter() === l" (click)="levelFilter.set(l)">{{ levelLabel(l) }}</button>
+      </li>
+    </ul>
+
+    <h5 class="fw-bold mb-3" *ngIf="quizzes().length > 0">Corrigés des quiz</h5>
+    <div *ngFor="let item of quizzes()" class="card border-success-subtle mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <h6 class="mb-1 fw-bold">{{ item.quiz.title }}</h6>
+            <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+          </div>
+          <c-badge [color]="levelColor(item.quiz.difficultyLevel)">{{ levelLabel(item.quiz.difficultyLevel) }}</c-badge>
+        </div>
+        <ol class="mb-0 ps-3">
+          <li *ngFor="let q of item.quiz.questions; let i = index" class="mb-2">
+            <span class="text-body-secondary">{{ q.questionText }}</span><br />
+            <strong class="text-success">{{ q.answers.length ? correctLetter(item.quiz, i) + '. ' : '' }}{{ correctText(item.quiz, i) }}</strong>
+            <div *ngIf="q.explanation" class="small text-body-secondary">{{ q.explanation }}</div>
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <h5 class="fw-bold mb-3 mt-2" *ngIf="tps().length > 0">Corrigés des TP</h5>
+    <div *ngFor="let item of tps()" class="card border-success-subtle mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
+          <div>
+            <h6 class="mb-1 fw-bold">{{ item.tp.title }}</h6>
+            <small class="text-body-secondary">{{ item.courseTitle }} › {{ item.chapterTitle }}</small>
+          </div>
+          <c-badge [color]="levelColor(item.tp.difficultyLevel)">{{ levelLabel(item.tp.difficultyLevel) }}</c-badge>
+        </div>
+        <div *ngFor="let ex of item.exercises" class="mb-3">
+          <div class="fw-semibold">Exercice {{ ex.number }}</div>
+          <div class="border rounded p-3 mt-1" style="white-space: pre-wrap;">{{ ex.solution || 'Pas de solution fournie.' }}</div>
+        </div>
+      </div>
+    </div>
+    <app-empty-state *ngIf="quizzes().length === 0 && tps().length === 0" icon="cilFilter" title="Aucune correction pour ces filtres" />
+  </ng-container>
+</ng-container>

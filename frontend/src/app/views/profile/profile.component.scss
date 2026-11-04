@@ -1,0 +1,28 @@
+// Carte d'identité : bandeau dégradé bleu LMS, photo qui déborde dessus
+.profile-id {
+  overflow: hidden;
+
+  &__cover {
+    height: 96px;
+    background:
+      radial-gradient(420px 160px at 85% 0, rgba(255, 255, 255, .18), transparent 70%),
+      linear-gradient(120deg, #0d3a8c 0%, #1565e0 55%, #3a9af5 100%);
+  }
+
+  &__body { padding-top: 0; }
+
+  &__avatar {
+    margin-top: -52px;
+    padding: 4px;
+    border-radius: 50%;
+    background: var(--cui-body-bg);
+    box-shadow: 0 6px 18px rgba(16, 38, 84, .15);
+  }
+
+  h2 { margin-top: .75rem; font-weight: 700; }
+}
+
+@media (max-width: 576px) {
+  .profile-id__cover { height: 76px; }
+  .profile-id__avatar { margin-top: -44px; }
+}

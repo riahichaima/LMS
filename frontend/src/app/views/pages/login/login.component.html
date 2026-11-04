@@ -1,0 +1,74 @@
+<div class="auth">
+  <div class="auth__top">
+    <a routerLink="/"><img class="auth__logo" src="assets/images/lms-logo-mark.png" alt="LMS — Accueil" /></a>
+    <a class="auth__home" routerLink="/">← Retour à l'accueil</a>
+  </div>
+
+  <div class="auth__card">
+    <div class="auth__form">
+      <form (ngSubmit)="onLogin()">
+        <h1>Connexion</h1>
+        <p class="subtitle">Connectez-vous à votre espace LMS</p>
+
+        <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">
+          {{ errorMessage() }}
+          <div *ngIf="googleNoAccount()" class="mt-2">
+            <a routerLink="/register" class="alert-link">Créer mon compte avec Google</a>
+          </div>
+          <div *ngIf="notVerified()" class="mt-2">
+            <button cButton color="danger" variant="outline" size="sm" type="button"
+                    (click)="resendVerification()" [disabled]="resending()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="resending()"></c-spinner>
+              Renvoyer l'email de vérification
+            </button>
+          </div>
+        </c-alert>
+
+        <c-alert color="info" *ngIf="infoMessage()" class="mb-3">
+          {{ infoMessage() }}
+        </c-alert>
+
+        <c-input-group class="mb-3">
+          <span cInputGroupText><svg cIcon name="cilUser"></svg></span>
+          <input name="email" [(ngModel)]="email" autoComplete="email" cFormControl
+                 placeholder="Adresse e-mail" type="email" required />
+        </c-input-group>
+
+        <c-input-group class="mb-3">
+          <span cInputGroupText><svg cIcon name="cilLockLocked"></svg></span>
+          <input #pwd name="password" [(ngModel)]="password" autoComplete="current-password" cFormControl
+                 placeholder="Mot de passe" type="password" required />
+          <app-password-toggle [input]="pwd" />
+        </c-input-group>
+
+        <div class="auth__links">
+          <a routerLink="/forgot-password">Mot de passe oublié ?</a>
+        </div>
+
+        <button class="auth__submit" type="submit" [disabled]="loading()">
+          <c-spinner aria-hidden="true" size="sm" *ngIf="loading()"></c-spinner>
+          <span *ngIf="!loading()">Se connecter</span>
+        </button>
+
+        <!-- À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) :
+        <app-google-signin mode="signin" (success)="onGoogle()" (failure)="onGoogleError($event)" />
+        -->
+
+        <p class="auth__switch">
+          Vous n'avez pas encore de compte ?<a routerLink="/register">Créer un compte</a>
+        </p>
+      </form>
+    </div>
+
+    <aside class="auth__side">
+      <h2>Nouveau sur LMS ?</h2>
+      <p>Rejoignez la plateforme en tant qu'Étudiant, Enseignant ou Administrateur.</p>
+      <ul>
+        <li>Cours en PDF, vidéo, audio et liens</li>
+        <li>Quiz et TP générés par l'IA</li>
+        <li>Corrections détaillées</li>
+      </ul>
+      <a class="auth__side-btn" routerLink="/register">S'inscrire maintenant</a>
+    </aside>
+  </div>
+</div>

@@ -1,0 +1,104 @@
+<app-page-header title="Mes inscriptions" icon="cilLibrary" subtitle="Vos formations, votre progression et vos avis.">
+  <a class="btn btn-outline-primary btn-sm" routerLink="/courses"><svg cIcon name="cilBook" size="sm" class="me-1"></svg>Catalogue</a>
+</app-page-header>
+
+<c-alert color="danger" *ngIf="errorMessage()" dismissible class="mb-3">{{ errorMessage() }}</c-alert>
+
+<div *ngIf="loading()" class="text-center py-5">
+  <c-spinner color="primary"></c-spinner>
+  <p class="mt-2 text-body-secondary">Chargement de vos inscriptions…</p>
+</div>
+
+<app-empty-state *ngIf="!loading() && enrollments().length === 0" icon="cilLibrary"
+                 title="Vous n'êtes inscrit à aucun cours" text="Parcourez le catalogue pour trouver une formation.">
+  <a class="btn btn-primary btn-sm" routerLink="/courses">Voir le catalogue</a>
+</app-empty-state>
+
+<ng-container *ngIf="!loading() && enrollments().length > 0">
+  <ul class="nav nav-pills enroll-tabs mb-3" role="tablist">
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'all'" (click)="tab.set('all')">
+        Toutes <span class="enroll-tabs__count">{{ enrollments().length }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'progress'" (click)="tab.set('progress')">
+        En cours <span class="enroll-tabs__count">{{ enrollments().length - completedCount() }}</span>
+      </button>
+    </li>
+    <li class="nav-item">
+      <button type="button" class="nav-link" [class.active]="tab() === 'done'" (click)="tab.set('done')">
+        Terminées <span class="enroll-tabs__count">{{ completedCount() }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <app-empty-state *ngIf="visibleEnrollments().length === 0" icon="cilCheckCircle"
+                   [title]="tab() === 'done' ? 'Aucune formation terminée pour le moment' : 'Aucune formation en cours'" />
+
+  <div class="enroll-grid">
+    <article class="enroll card" *ngFor="let enrollment of visibleEnrollments()">
+      <div class="card-body d-flex flex-column">
+        <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+          <h2 class="enroll__title">{{ enrollment.courseTitle || enrollment.course?.title || 'Cours' }}</h2>
+          <span class="lms-pill flex-shrink-0" [ngClass]="isDone(enrollment) ? 'lms-pill--success' : 'lms-pill--primary'">
+            {{ isDone(enrollment) ? 'Terminé' : 'En cours' }}
+          </span>
+        </div>
+
+        <p class="enroll__desc text-body-secondary" *ngIf="enrollment.course?.description">{{ enrollment.course?.description }}</p>
+
+        <div class="d-flex align-items-center gap-2 small mb-2">
+          <ng-container *ngIf="ratings().get(enrollment.courseId) as rt; else noRating">
+            <app-star-rating [value]="rt.average" [size]="15" />
+            <span class="fw-semibold">{{ rt.average }}</span>
+            <span class="text-body-secondary">({{ rt.count }} avis)</span>
+          </ng-container>
+          <ng-template #noRating><span class="text-body-secondary">Pas encore noté</span></ng-template>
+        </div>
+
+        <div class="enroll__meta">
+          <span *ngIf="enrollment.teacherName">
+            <svg cIcon name="cilUser" size="sm" class="me-1"></svg>
+            <a [routerLink]="['/profile', enrollment.teacherId]">{{ enrollment.teacherName }}</a>
+          </span>
+          <span><svg cIcon name="cilCalendar" size="sm" class="me-1"></svg>Inscrit le {{ enrollment.enrolledAt | date:'dd/MM/yyyy' }}</span>
+        </div>
+
+        <div class="enroll__progress">
+          <div class="d-flex justify-content-between small mb-1">
+            <span class="text-body-secondary">Progression</span>
+            <strong>{{ enrollment.progressPercentage }}%</strong>
+          </div>
+          <c-progress [height]="8">
+            <c-progress-bar [value]="enrollment.progressPercentage" [color]="isDone(enrollment) ? 'success' : 'primary'" />
+          </c-progress>
+        </div>
+
+        <div class="mt-auto pt-3 d-flex flex-column gap-2">
+          <a class="btn btn-primary w-100" [routerLink]="['/learn', enrollment.courseId]">
+            <svg cIcon name="cilMediaPlay" class="me-1"></svg>
+            {{ enrollment.progressPercentage > 0 ? 'Continuer le cours' : 'Commencer le cours' }}
+          </a>
+          <button class="btn btn-outline-primary w-100" type="button" (click)="openFeedback(enrollment)"
+                  title="Noter le cours, aimer, commenter et évaluer le formateur">
+            <svg cIcon name="cilStar" class="me-1"></svg>Donner mon avis
+          </button>
+        </div>
+      </div>
+    </article>
+  </div>
+</ng-container>
+
+<!-- Fenêtre « Donner mon avis » : étoiles du cours, évaluation du formateur (%), j'aime / commentaires -->
+<c-modal [visible]="!!feedbackFor()" (visibleChange)="!$event && closeFeedback()" size="lg" alignment="center" id="feedbackModal">
+  <c-modal-header>
+    <h5 cModalTitle>Votre avis · {{ feedbackFor()?.courseTitle }}</h5>
+    <button type="button" class="btn-close" aria-label="Fermer" (click)="closeFeedback()"></button>
+  </c-modal-header>
+  <c-modal-body>
+    @if (feedbackFor(); as e) {
+      <app-course-feedback mode="full" [courseId]="e.courseId" [teacherId]="e.teacherId" [teacherName]="e.teacherName" />
+    }
+  </c-modal-body>
+</c-modal>

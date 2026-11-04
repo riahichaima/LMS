@@ -1,0 +1,87 @@
+<div class="mx-auto" style="max-width: 860px">
+  <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" (click)="location.back()">
+    <svg cIcon name="cilArrowLeft" size="sm" class="me-1"></svg>Retour au cours
+  </button>
+
+  <div *ngIf="loading()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="error()" color="danger" class="my-3">{{ error() }}</c-alert>
+
+  <!-- Avant de commencer (quiz minuté) ou date limite dépassée -->
+  <app-attempt-gate *ngIf="!loading() && showGate() && attempt() as a" [state]="a" kindLabel="quiz"
+                    [busy]="starting()" (start)="start()" />
+
+  <ng-container *ngIf="quiz() as q">
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-1 mb-3">
+      <h2 class="mb-0">{{ q.title }}</h2>
+      <c-badge color="info">{{ q.questions.length }} questions</c-badge>
+      <c-badge *ngIf="q.passingScore" color="secondary">Réussite : {{ q.passingScore }}%</c-badge>
+      <c-badge *ngIf="attempt()?.durationMinutes" color="primary">
+        <svg cIcon name="cilClock" size="sm" class="me-1"></svg>{{ formatDuration(attempt()?.durationMinutes) }}
+      </c-badge>
+    </div>
+    <p *ngIf="attempt()?.dueAt && !result()" class="small text-body-secondary mb-3">
+      <svg cIcon name="cilCalendar" size="sm" class="me-1"></svg>À rendre avant le {{ formatDue(attempt()?.dueAt) }}
+    </p>
+
+    <!-- Chrono (heure de fin fixée par le serveur) -->
+    <app-countdown *ngIf="running() && attempt() as a" class="mb-3"
+                   [startedAt]="a.startedAt!" [endsAt]="a.endsAt!" [serverNow]="a.serverNow" (expired)="onTimeUp()" />
+
+    <!-- Résultat + correction -->
+    <ng-container *ngIf="result() as r">
+      <c-alert *ngIf="autoSubmitted()" color="warning" class="mb-3">
+        <strong>Temps écoulé.</strong> Ton quiz a été envoyé automatiquement avec les réponses que tu avais choisies.
+      </c-alert>
+      <c-card class="mb-4">
+        <c-card-body class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+          <div>
+            <div class="fs-2 fw-bold" [class.text-success]="r.score >= (q.passingScore || 60)"
+                 [class.text-warning]="r.score < (q.passingScore || 60)">{{ r.score | number:'1.0-1' }}%</div>
+            <div class="text-body-secondary">{{ r.feedback }}</div>
+          </div>
+          <button *ngIf="canRetry()" cButton color="secondary" variant="outline" (click)="retry()">Refaire le quiz</button>
+          <c-badge *ngIf="!canRetry()" color="secondary">Quiz rendu</c-badge>
+        </c-card-body>
+      </c-card>
+
+      <c-card *ngFor="let c of corrections(); let i = index" class="mb-3"
+              [class.border-success]="c.correct" [class.border-danger]="!c.correct">
+        <c-card-body>
+          <div class="d-flex justify-content-between gap-2 mb-2">
+            <strong>{{ i + 1 }}. {{ c.question }}</strong>
+            <c-badge [color]="c.correct ? 'success' : 'danger'">{{ c.correct ? 'Juste' : 'Faux' }}</c-badge>
+          </div>
+          <div class="small">Ta réponse : <span [class.text-danger]="!c.correct">{{ c.student_answer || '(pas de réponse)' }}</span></div>
+          <div *ngIf="!c.correct" class="small">Bonne réponse : <strong class="text-success">{{ c.expected }}</strong></div>
+          <div *ngIf="c.explanation" class="small text-body-secondary mt-1">{{ c.explanation }}</div>
+        </c-card-body>
+      </c-card>
+    </ng-container>
+
+    <!-- Questions -->
+    <form *ngIf="!result()" (ngSubmit)="submit()">
+      <c-card *ngFor="let question of q.questions; let i = index" class="mb-3">
+        <c-card-body>
+          <div class="fw-semibold mb-2">{{ i + 1 }}. {{ question.questionText }}</div>
+          <div class="form-check" *ngFor="let a of question.answers">
+            <input class="form-check-input" type="radio" [name]="'q' + i" [id]="'q' + i + '-' + a.id"
+                   [value]="a.answerText" [(ngModel)]="answers[(i + 1).toString()]" (ngModelChange)="onAnswerChange()"
+                   [disabled]="submitting()" />
+            <label class="form-check-label" [for]="'q' + i + '-' + a.id">{{ a.answerText }}</label>
+          </div>
+        </c-card-body>
+      </c-card>
+
+      <div class="d-flex flex-wrap align-items-center gap-3">
+        <button cButton color="primary" type="submit" [disabled]="submitting() || answeredCount === 0">
+          <c-spinner *ngIf="submitting()" size="sm" class="me-1"></c-spinner>
+          {{ submitting() ? 'Correction en cours…' : 'Valider mes réponses' }}
+        </button>
+        <small class="text-body-secondary">{{ answeredCount }} / {{ q.questions.length }} réponses</small>
+        <small *ngIf="running() && draftSaved()" class="text-success">
+          <svg cIcon name="cilCheckCircle" size="sm" class="me-1"></svg>Réponses enregistrées
+        </small>
+      </div>
+    </form>
+  </ng-container>
+</div>

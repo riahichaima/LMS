@@ -1,0 +1,246 @@
+<app-page-header title="Supervision" icon="cilChartLine" subtitle="Statistiques globales de la plateforme et journal système." />
+
+<ul class="nav nav-pills lms-tabs mb-3" role="tablist" aria-label="Sections de la supervision">
+  <li class="nav-item">
+    <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'stats'" [attr.aria-selected]="tab() === 'stats'" (click)="setTab('stats')">
+      <svg cIcon name="cilChartLine" size="sm"></svg>Statistiques globales
+    </button>
+  </li>
+  <li class="nav-item">
+    <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'logs'" [attr.aria-selected]="tab() === 'logs'" (click)="setTab('logs')">
+      <svg cIcon name="cilList" size="sm"></svg>Journal système
+    </button>
+  </li>
+</ul>
+
+<!-- ═════════════ Statistiques globales ═════════════ -->
+<ng-container *ngIf="tab() === 'stats'">
+  <div *ngIf="statsLoading() && !stats()" class="text-center py-5"><c-spinner color="primary"></c-spinner></div>
+  <c-alert *ngIf="statsError()" color="danger">{{ statsError() }}</c-alert>
+
+  <ng-container *ngIf="stats() as s">
+    <div class="d-flex justify-content-end align-items-center gap-2 small text-body-secondary mb-2">
+      Mis à jour à {{ s.generatedAt | date:'HH:mm:ss' }}
+      <button type="button" class="btn btn-sm btn-link p-0" (click)="loadStats()" [disabled]="statsLoading()">Actualiser</button>
+    </div>
+
+    <!-- Indicateurs clés -->
+    <c-row class="g-3 mb-4">
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-primary h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Utilisateurs</div>
+          <div class="fs-2 fw-bold my-1">{{ s.users.total }}</div>
+          <small class="text-muted">{{ s.users.enabled }} actifs · {{ s.users.disabled }} désactivés / non vérifiés</small>
+          <div *ngIf="s.users.pendingAdmins > 0" class="small mt-1">
+            <c-badge color="warning">{{ s.users.pendingAdmins }} demande(s) admin en attente</c-badge>
+          </div>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-info h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Cours</div>
+          <div class="fs-2 fw-bold my-1">{{ s.courses.total }}</div>
+          <small class="text-muted">{{ s.courses.free }} gratuits · {{ s.courses.paid }} payants · {{ s.courses.teachers }} formateur(s)</small>
+          <div class="small text-muted">{{ s.courses.withoutStudents }} sans étudiant</div>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-success h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Apprentissage</div>
+          <div class="fs-2 fw-bold my-1">{{ s.learning.enrollments }} <span class="fs-6 text-body-secondary">inscriptions</span></div>
+          <small class="text-muted">Progression moyenne {{ s.learning.averageProgress }}% · terminés {{ s.learning.completionRate }}%</small>
+          <div class="small text-muted">{{ s.learning.activeStudents7Days }} étudiant(s) actif(s) sur 7 jours</div>
+        </c-card-body></c-card>
+      </c-col>
+      <c-col sm="6" xl="3">
+        <c-card class="border-start border-start-4 border-start-warning h-100"><c-card-body>
+          <div class="text-body-secondary text-uppercase fw-semibold small">Revenus (test Stripe)</div>
+          <div class="fs-2 fw-bold my-1">{{ s.finance.grossRevenue | number:'1.2-2' }} $</div>
+          <small class="text-muted">{{ s.finance.paidPayments }} paiement(s) · commission {{ s.finance.platformCommission | number:'1.2-2' }} $</small>
+        </c-card-body></c-card>
+      </c-col>
+    </c-row>
+
+    <!-- Activité 30 jours -->
+    <c-card class="mb-4">
+      <c-card-header class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <strong>Activité des 30 derniers jours</strong>
+        <button type="button" class="btn btn-sm btn-link p-0" (click)="showTable.set(!showTable())">
+          {{ showTable() ? 'Voir le graphique' : 'Voir le tableau' }}
+        </button>
+      </c-card-header>
+      <c-card-body>
+        <div *ngIf="!showTable()" class="activity-chart">
+          <c-chart type="line" [height]="300" [data]="chartData()" [options]="chartOptions()" aria-label="Activité quotidienne : connexions, inscriptions aux cours, quiz et TP rendus" />
+        </div>
+        <div *ngIf="showTable()" class="table-responsive activity-table">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Jour</th><th class="text-end" *ngFor="let serie of activitySeries()">{{ serie.label }}</th><th class="text-end">Nouveaux comptes</th><th class="text-end">Paiements</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let day of s.series.days; let i = index">
+                <td>{{ day | date:'dd/MM/yyyy' }}</td>
+                <td class="text-end" *ngFor="let serie of activitySeries()">{{ serie.data[i] }}</td>
+                <td class="text-end">{{ s.series.registrations[i] }}</td>
+                <td class="text-end">{{ s.series.payments[i] }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </c-card-body>
+    </c-card>
+
+    <c-row class="g-3 mb-4">
+      <!-- Répartition des utilisateurs -->
+      <c-col lg="5">
+        <c-card class="h-100">
+          <c-card-header><strong>Utilisateurs par rôle</strong></c-card-header>
+          <c-card-body>
+            <div *ngFor="let r of roles()" class="role-row">
+              <div class="d-flex justify-content-between small mb-1"><span>{{ r.label }}</span><strong>{{ r.count }}</strong></div>
+              <div class="role-track"><div class="role-bar" [style.width.%]="r.pct"></div></div>
+            </div>
+            <div class="small text-body-secondary mt-3">{{ s.users.newLast30Days }} nouveau(x) compte(s) sur 30 jours</div>
+          </c-card-body>
+        </c-card>
+      </c-col>
+
+      <!-- Pédagogie, communication, système -->
+      <c-col lg="7">
+        <c-card class="h-100">
+          <c-card-header><strong>Pédagogie, messagerie et système</strong></c-card-header>
+          <c-card-body>
+            <c-row class="g-3">
+              <c-col xs="6" md="4"><div class="mini"><span>Leçons terminées</span><strong>{{ s.learning.lessonsCompleted }}</strong></div></c-col>
+              <c-col xs="6" md="4"><div class="mini"><span>Quiz passés</span><strong>{{ s.learning.quizSubmissions }}</strong>
+                <c-badge [color]="scoreColor(s.learning.quizAverage)">moy. {{ s.learning.quizAverage !== null ? s.learning.quizAverage + '%' : '—' }}</c-badge></div></c-col>
+              <c-col xs="6" md="4"><div class="mini"><span>TP rendus</span><strong>{{ s.learning.assignmentSubmissions }}</strong>
+                <c-badge [color]="scoreColor(s.learning.assignmentAverage)">moy. {{ s.learning.assignmentAverage !== null ? s.learning.assignmentAverage + '%' : '—' }}</c-badge></div></c-col>
+              <c-col xs="6" md="4"><div class="mini"><span>Messages échangés</span><strong>{{ s.communication.messages }}</strong>
+                <small class="text-body-secondary">{{ s.communication.messagesLast7Days }} sur 7 jours</small></div></c-col>
+              <c-col xs="6" md="4">
+                <button type="button" class="mini mini-link" (click)="showLevel('ERROR')">
+                  <span>Erreurs serveur (24 h)</span><strong [class.text-danger]="s.system.errorsLast24h > 0">{{ s.system.errorsLast24h }}</strong>
+                  <small class="text-body-secondary">Voir les logs</small>
+                </button>
+              </c-col>
+              <c-col xs="6" md="4">
+                <button type="button" class="mini mini-link" (click)="showLevel('SECURITY')">
+                  <span>Alertes sécurité (24 h)</span><strong>{{ s.system.securityLast24h }}</strong>
+                  <small class="text-body-secondary">{{ s.system.logsLast24h }} événement(s) au total</small>
+                </button>
+              </c-col>
+            </c-row>
+          </c-card-body>
+        </c-card>
+      </c-col>
+    </c-row>
+
+    <!-- Cours les plus suivis -->
+    <c-card class="mb-4">
+      <c-card-header><strong>Cours les plus suivis</strong></c-card-header>
+      <c-card-body class="p-0">
+        <div class="table-responsive">
+          <table class="table mb-0 align-middle">
+            <thead><tr><th>Cours</th><th>Formateur</th><th class="text-center">Étudiants</th><th style="min-width: 180px">Progression moyenne</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let c of s.topCourses">
+                <td class="fw-semibold">{{ c.title }}
+                  <c-badge [color]="c.pricingType === 'PAID' ? 'warning' : 'success'" class="ms-2">{{ c.pricingType === 'PAID' ? 'Payant' : 'Gratuit' }}</c-badge>
+                </td>
+                <td class="text-body-secondary">{{ c.teacher || '—' }}</td>
+                <td class="text-center">{{ c.students }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <c-progress class="flex-grow-1" [value]="c.averageProgress" [height]="8"></c-progress>
+                    <span class="small fw-bold">{{ c.averageProgress }}%</span>
+                  </div>
+                </td>
+              </tr>
+              <tr *ngIf="s.topCourses.length === 0"><td colspan="4" class="text-center text-body-secondary py-3">Aucun cours.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </c-card-body>
+    </c-card>
+  </ng-container>
+</ng-container>
+
+<!-- ═════════════ Logs système ═════════════ -->
+<ng-container *ngIf="tab() === 'logs'">
+  <c-card class="mb-3">
+    <c-card-body>
+      <form class="log-filters" (ngSubmit)="applyFilters()">
+        <select class="form-select form-select-sm" name="level" [(ngModel)]="filters.level" aria-label="Niveau">
+          <option value="">Tous les niveaux</option>
+          <option *ngFor="let l of levels" [value]="l">{{ levelLabel(l) }}</option>
+        </select>
+        <select class="form-select form-select-sm" name="category" [(ngModel)]="filters.category" aria-label="Catégorie">
+          <option value="">Toutes les catégories</option>
+          <option *ngFor="let c of categoryKeys" [value]="c">{{ categories[c] }}</option>
+        </select>
+        <input type="search" class="form-control form-control-sm" name="q" [(ngModel)]="filters.q"
+               placeholder="Rechercher (action, utilisateur, IP, chemin…)" aria-label="Rechercher dans les logs">
+        <input type="date" class="form-control form-control-sm" name="from" [(ngModel)]="filters.from" aria-label="Du">
+        <input type="date" class="form-control form-control-sm" name="to" [(ngModel)]="filters.to" aria-label="Au">
+        <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="resetFilters()">Réinitialiser</button>
+        <button type="button" class="btn btn-sm btn-success text-white ms-lg-auto" (click)="exportLogs()" [disabled]="exporting()">
+          <svg cIcon name="cilCloudDownload" class="me-1"></svg>{{ exporting() ? 'Export…' : 'Exporter (CSV)' }}
+        </button>
+      </form>
+    </c-card-body>
+  </c-card>
+
+  <c-alert *ngIf="logsError()" color="danger">{{ logsError() }}</c-alert>
+
+  <c-card>
+    <c-card-header class="d-flex justify-content-between align-items-center">
+      <strong>Journal système</strong>
+      <span class="small text-body-secondary" *ngIf="logs() as p">{{ p.totalElements }} événement(s)</span>
+    </c-card-header>
+    <c-card-body class="p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle log-table">
+          <thead>
+            <tr><th>Date</th><th>Niveau</th><th>Catégorie</th><th>Action</th><th>Utilisateur</th><th>IP</th><th class="text-end">Statut</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="logsLoading() && !logs()"><td colspan="7" class="text-center py-4"><c-spinner size="sm" color="primary"></c-spinner></td></tr>
+            <ng-container *ngFor="let l of logs()?.content">
+              <tr (click)="toggle(l)" class="log-row" [class.table-active]="expanded() === l.id">
+                <td class="text-nowrap small">{{ l.createdAt | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                <td><c-badge [color]="levelColor(l.level)">{{ levelLabel(l.level) }}</c-badge></td>
+                <td class="small">{{ categories[l.category] || l.category }}</td>
+                <td>{{ l.action }}</td>
+                <td class="small">
+                  {{ l.actorEmail || '—' }}
+                  <div *ngIf="l.actorRole" class="text-body-secondary">{{ l.actorRole }}</div>
+                </td>
+                <td class="small text-body-secondary">{{ l.ipAddress || '—' }}</td>
+                <td class="text-end small">{{ l.status ?? '' }}</td>
+              </tr>
+              <tr *ngIf="expanded() === l.id" class="log-detail">
+                <td colspan="7">
+                  <div class="small"><strong>Détail :</strong> {{ l.message || '—' }}</div>
+                  <div class="small text-body-secondary" *ngIf="l.path">
+                    {{ l.httpMethod }} {{ l.path }}<ng-container *ngIf="l.durationMs !== null"> · {{ l.durationMs }} ms</ng-container>
+                  </div>
+                </td>
+              </tr>
+            </ng-container>
+            <tr *ngIf="!logsLoading() && logs()?.content?.length === 0">
+              <td colspan="7" class="text-center text-body-secondary py-4">Aucun événement ne correspond aux filtres.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </c-card-body>
+    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top" *ngIf="logs() as p">
+      <span class="small text-body-secondary">Page {{ p.page + 1 }} / {{ p.totalPages || 1 }}</span>
+      <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-secondary" (click)="goTo(p.page - 1)" [disabled]="p.page === 0 || logsLoading()">Précédent</button>
+        <button type="button" class="btn btn-outline-secondary" (click)="goTo(p.page + 1)" [disabled]="p.page + 1 >= p.totalPages || logsLoading()">Suivant</button>
+      </div>
+    </div>
+  </c-card>
+</ng-container>

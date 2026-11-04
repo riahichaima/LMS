@@ -1,0 +1,119 @@
+<app-page-header title="Gestion financière" icon="cilDollar"
+                 subtitle="Paiements Stripe (mode test), commissions de la plateforme (40 %) et revenus des enseignants (60 %).">
+  <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="loading()" title="Actualiser" aria-label="Actualiser">
+    <svg cIcon name="cilReload" size="sm"></svg>
+  </button>
+</app-page-header>
+
+<c-row>
+  <c-col xs="12">
+
+    <c-alert color="danger" *ngIf="errorMessage()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <c-alert color="success" *ngIf="successMessage()" class="mb-3">{{ successMessage() }}</c-alert>
+
+    <div class="stat-grid mb-4" *ngIf="summary() as s">
+      <app-stat-card label="Paiements confirmés" icon="cilCreditCard" tone="neutral" [value]="s.paidPayments"
+                     [hint]="(s.grossRevenue | currency:'USD') + ' encaissés'" />
+      <app-stat-card label="Commissions plateforme" icon="cilChartPie" tone="primary" [value]="s.platformCommission | currency:'USD'" hint="40 % des ventes" />
+      <app-stat-card label="Revenus enseignants" icon="cilPeople" tone="success" [value]="s.teacherEarnings | currency:'USD'" hint="60 % des ventes" />
+      <app-stat-card label="Retraits en attente" icon="cilClock" tone="warning" [highlight]="true"
+                     [value]="s.pendingWithdrawals | currency:'USD'" [hint]="(s.totalWithdrawn | currency:'USD') + ' déjà transférés'" />
+    </div>
+
+    <ul class="nav nav-pills lms-tabs mb-3" role="tablist">
+      <li class="nav-item">
+        <button type="button" class="nav-link" [class.active]="tab() === 'withdrawals'" (click)="tab.set('withdrawals')">
+          Demandes de retrait <span class="lms-tabs__count" *ngIf="pendingWithdrawals().length">{{ pendingWithdrawals().length }}</span>
+        </button>
+      </li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'payments'" (click)="tab.set('payments')">Paiements</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'commissions'" (click)="tab.set('commissions')">Commissions</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" [class.active]="tab() === 'teachers'" (click)="tab.set('teachers')">Revenus enseignants</button></li>
+    </ul>
+
+    <c-card class="mb-4">
+      <c-card-body>
+        <!-- Retraits -->
+        <table cTable [hover]="true" [responsive]="true" class="mb-0" *ngIf="tab() === 'withdrawals'">
+          <thead>
+            <tr><th>#</th><th>Enseignant</th><th>Date</th><th class="text-end">Montant</th><th>Statut</th><th class="text-end">Décision</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let w of withdrawals()">
+              <td>{{ w.id }}</td>
+              <td><div class="fw-semibold">{{ w.teacherName }}</div><div class="small text-body-secondary">{{ w.teacherEmail }}</div></td>
+              <td>{{ w.requestedAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td class="text-end fw-semibold">{{ w.amount | currency:'USD' }}</td>
+              <td>
+                <c-badge [color]="withdrawalColor(w.status)">{{ withdrawalLabel(w.status) }}</c-badge>
+                <div class="small text-body-secondary" *ngIf="w.adminNote">{{ w.adminNote }}</div>
+              </td>
+              <td class="text-end text-nowrap">
+                <ng-container *ngIf="w.status === 'PENDING'">
+                  <button cButton color="success" size="sm" class="me-2 text-white" (click)="approve(w)" [disabled]="busyId() === w.id">Approuver</button>
+                  <button cButton color="danger" variant="outline" size="sm" (click)="reject(w)" [disabled]="busyId() === w.id">Rejeter</button>
+                </ng-container>
+                <span *ngIf="w.status !== 'PENDING'" class="small text-body-secondary">{{ w.transferReference || w.reviewedBy || '—' }}</span>
+              </td>
+            </tr>
+            <tr *ngIf="withdrawals().length === 0"><td colspan="6" class="text-center text-body-secondary py-3">Aucune demande de retrait.</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Paiements -->
+        <table cTable [hover]="true" [responsive]="true" class="mb-0" *ngIf="tab() === 'payments'">
+          <thead>
+            <tr><th>#</th><th>Date</th><th>Étudiant</th><th>Cours</th><th>Enseignant</th><th class="text-end">Montant</th><th>Statut</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of payments()">
+              <td>{{ p.id }}</td>
+              <td>{{ (p.paidAt || p.createdAt) | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ p.studentName }}</td>
+              <td>{{ p.courseTitle }}</td>
+              <td>{{ p.teacherName }}</td>
+              <td class="text-end fw-semibold">{{ p.amount | currency:'USD' }}</td>
+              <td><c-badge [color]="paymentColor(p.status)">{{ p.status }}</c-badge></td>
+            </tr>
+            <tr *ngIf="payments().length === 0"><td colspan="7" class="text-center text-body-secondary py-3">Aucun paiement.</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Commissions -->
+        <table cTable [hover]="true" [responsive]="true" class="mb-0" *ngIf="tab() === 'commissions'">
+          <thead>
+            <tr><th>Date</th><th>Cours</th><th class="text-end">Prix</th><th class="text-end">Enseignant (60 %)</th><th class="text-end">Plateforme (40 %)</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of paidPayments()">
+              <td>{{ p.paidAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ p.courseTitle }}</td>
+              <td class="text-end">{{ p.amount | currency:'USD' }}</td>
+              <td class="text-end">{{ p.teacherAmount | currency:'USD' }}</td>
+              <td class="text-end text-primary fw-semibold">{{ p.platformCommission | currency:'USD' }}</td>
+            </tr>
+            <tr *ngIf="paidPayments().length === 0"><td colspan="5" class="text-center text-body-secondary py-3">Aucune commission.</td></tr>
+          </tbody>
+        </table>
+
+        <!-- Revenus des enseignants -->
+        <table cTable [hover]="true" [responsive]="true" class="mb-0" *ngIf="tab() === 'teachers'">
+          <thead>
+            <tr><th>Enseignant</th><th class="text-end">Ventes</th><th class="text-end">Gains totaux</th><th class="text-end">Disponible</th><th class="text-end">En attente</th><th class="text-end">Retiré</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of teachers()">
+              <td><div class="fw-semibold">{{ t.teacherName }}</div><div class="small text-body-secondary">{{ t.teacherEmail }}</div></td>
+              <td class="text-end">{{ t.sales }}</td>
+              <td class="text-end fw-semibold">{{ t.totalEarned | currency:'USD' }}</td>
+              <td class="text-end text-success">{{ t.availableBalance | currency:'USD' }}</td>
+              <td class="text-end text-warning">{{ t.pendingBalance | currency:'USD' }}</td>
+              <td class="text-end">{{ t.totalWithdrawn | currency:'USD' }}</td>
+            </tr>
+            <tr *ngIf="teachers().length === 0"><td colspan="6" class="text-center text-body-secondary py-3">Aucun revenu enseignant.</td></tr>
+          </tbody>
+        </table>
+      </c-card-body>
+    </c-card>
+  </c-col>
+</c-row>
