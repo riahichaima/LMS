@@ -19,6 +19,7 @@ import imageio_ffmpeg
 from agents.llm_client import get_llm_client
 from config import TMP_PATH, settings
 from prompts.video_prompts import FRAMES_DESCRIPTION_PROMPT
+from services.content_extractor import is_youtube_url
 
 logger = logging.getLogger(__name__)
 
@@ -125,10 +126,12 @@ def analyze_audio(audio_path: str) -> str:
 
 def analyze_youtube(url: str) -> str:
     """Télécharger une vidéo YouTube (480p max) puis l'analyser."""
+    if not is_youtube_url(url):
+        raise ValueError("Lien refusé : ce n'est pas une vidéo YouTube.")
     workdir = Path(tempfile.mkdtemp(dir=TMP_PATH))
     try:
         _run([sys.executable, "-m", "yt_dlp", "-f", "best[height<=480]/worst", "--ffmpeg-location", FFMPEG,
-              "--no-playlist", "-o", str(workdir / "video.%(ext)s"), url], "yt-dlp")
+              "--no-playlist", "-o", str(workdir / "video.%(ext)s"), "--", url], "yt-dlp")
         video = next(workdir.glob("video.*"), None)
         if video is None:
             raise FileNotFoundError("Vidéo YouTube téléchargée introuvable.")

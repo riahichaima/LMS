@@ -15,6 +15,8 @@ import java.util.Map;
 @Component
 public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response,
                      AuthenticationException authException) throws IOException, ServletException {
@@ -27,14 +29,8 @@ public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
         body.put("message", authException.getMessage());
         body.put("path", request.getServletPath());
         
-        String jsonBody = String.format(
-            "{\"status\":%d,\"error\":\"%s\",\"message\":\"%s\",\"path\":\"%s\"}",
-            HttpServletResponse.SC_UNAUTHORIZED,
-            "Unauthorized",
-            authException.getMessage(),
-            request.getServletPath()
-        );
-        
-        response.getWriter().write(jsonBody);
+        // Sérialisation JSON (caractères spéciaux échappés) : ni injection JSON ni XSS via le chemin demandé
+        response.setCharacterEncoding("UTF-8");
+        JSON.writeValue(response.getWriter(), body);
     }
 }

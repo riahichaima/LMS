@@ -35,7 +35,7 @@ public class FileStorageService {
         String originalFileName = file.getOriginalFilename();
         String extension = getFileExtension(originalFileName);
         String storedFileName = UUID.randomUUID().toString() + "." + extension;
-        String filePath = uploadPath.resolve(storedFileName).toString();
+        String filePath = insideUploadDir(uploadPath, storedFileName).toString();
 
         // Sauvegarder le fichier physiquement
         Files.copy(file.getInputStream(), Paths.get(filePath));
@@ -69,7 +69,7 @@ public class FileStorageService {
         }
         String extension = getFileExtension(originalFileName);
         String storedFileName = UUID.randomUUID().toString() + "." + extension;
-        String filePath = uploadPath.resolve(storedFileName).toString();
+        String filePath = insideUploadDir(uploadPath, storedFileName).toString();
 
         Files.copy(file.getInputStream(), Paths.get(filePath));
         return filePath;
@@ -103,11 +103,27 @@ public class FileStorageService {
         return fileStorageRepository.findAll();
     }
 
-    private String getFileExtension(String fileName) {
+    /**
+     * Extension sûre : lettres et chiffres uniquement (10 caractères max), en minuscules.
+     * Un nom piégé comme « x./../../autre/f » ne peut donc pas sortir du dossier d'upload.
+     */
+    static String getFileExtension(String fileName) {
+        if (fileName == null) return "bin";
         int lastDotIndex = fileName.lastIndexOf('.');
         if (lastDotIndex > 0 && lastDotIndex < fileName.length() - 1) {
-            return fileName.substring(lastDotIndex + 1);
+            String ext = fileName.substring(lastDotIndex + 1).toLowerCase(java.util.Locale.ROOT);
+            if (ext.matches("[a-z0-9]{1,10}")) return ext;
         }
-        return "";
+        return "bin";
+    }
+
+    /** Chemin final du fichier, refusé s'il n'est pas dans le dossier d'upload. */
+    static Path insideUploadDir(Path uploadPath, String storedFileName) {
+        Path root = uploadPath.toAbsolutePath().normalize();
+        Path target = root.resolve(storedFileName).normalize();
+        if (!target.startsWith(root) || !target.getParent().equals(root)) {
+            throw new IllegalArgumentException("Nom de fichier invalide.");
+        }
+        return target;
     }
 }
