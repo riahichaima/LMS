@@ -25,7 +25,7 @@ import java.util.Map;
 
 @RestController
 public class AuthController {
-    
+
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
 
@@ -40,20 +40,17 @@ public class AuthController {
         return ResponseEntity.ok(authResponse);
     }
 
-    // À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) : retirer les commentaires des deux routes ci-dessous
-    // (et des deux lignes /auth/google dans SecurityConfig), puis définir GOOGLE_CLIENT_ID.
-    //
-    // /** Le bouton « Continuer avec Google » n'est affiché que si le serveur a un Client ID Google. */
-    // @GetMapping("/auth/google/config")
-    // public ResponseEntity<Map<String, Object>> googleConfig() {
-    //     return ResponseEntity.ok(Map.of("enabled", googleAuthService.isEnabled(), "clientId", googleAuthService.clientId()));
-    // }
-    //
-    // /** Connexion (page de connexion) ou inscription (page d'inscription, avec le rôle choisi) avec Google. */
-    // @PostMapping("/auth/google")
-    // public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleAuthRequest request) {
-    //     return ResponseEntity.ok(googleAuthService.authenticate(request.credential(), request.role()));
-    // }
+    /** Le bouton « Continuer avec Google » n'est affiché que si le serveur a un Client ID Google. */
+    @GetMapping("/auth/google/config")
+    public ResponseEntity<Map<String, Object>> googleConfig() {
+        return ResponseEntity.ok(Map.of("enabled", googleAuthService.isEnabled(), "clientId", googleAuthService.clientId()));
+    }
+
+    /** Connexion (page de connexion) ou inscription (page d'inscription, avec le rôle choisi) avec Google. */
+    @PostMapping("/auth/google")
+    public ResponseEntity<AuthResponse> google(@Valid @RequestBody GoogleAuthRequest request) {
+        return ResponseEntity.ok(googleAuthService.authenticate(request.credential(), request.role()));
+    }
 
     @GetMapping("/auth/me")
     public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
@@ -92,7 +89,7 @@ public class AuthController {
         request.setRole("STUDENT");
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
-    
+
     @GetMapping("/auth/verify")
     public ResponseEntity<Map<String, String>> verifyEmail(@RequestParam String token) {
         authService.verifyEmail(token);

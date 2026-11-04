@@ -89,9 +89,7 @@
             <span *ngIf="!loading()">Créer mon compte</span>
           </button>
 
-          <!-- À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) :
           <app-google-signin mode="signup" [role]="role()" (success)="onGoogle()" (failure)="onGoogleError($event)" />
-          -->
 
           <p class="auth__switch">
             Vous avez déjà un compte ?<a routerLink="/login">Se connecter</a>

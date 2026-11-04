@@ -13,13 +13,12 @@ import {
   AlertComponent
 } from '@coreui/angular';
 import { AuthService, PASSWORD_PATTERN, PASSWORD_RULE_MESSAGE } from '../../../services/auth.service';
-// À RÉACTIVER APRÈS LE DÉPLOIEMENT (connexion Google) : remettre GoogleSigninComponent dans imports: [...] ci-dessous
-import { GoogleSigninError } from '../../../shared/google-signin.component';
+import { GoogleSigninComponent, GoogleSigninError } from '../../../shared/google-signin.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [PasswordToggleComponent, 
+  imports: [PasswordToggleComponent, GoogleSigninComponent, 
     CommonModule,
     FormsModule,
     RouterLink,
