@@ -1,0 +1,73 @@
+# Vérification des fichiers de déploiement (deploy/) avant chaque fusion :
+# docker-compose valide pour chaque option, seul Caddy exposé sur Internet, Caddyfile valide, scripts shell sûrs.
+name: Deploy Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: deploy
+
+jobs:
+  check:
+    name: docker-compose · Caddyfile · scripts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fichier .env de test (valeurs factices, jamais utilisées en production)
+        run: |
+          cp .env.example ci.env
+          sed -i -e 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-db/' \
+                 -e 's/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=ci-root/' \
+                 -e 's/^JWT_SECRET=.*/JWT_SECRET=ci-only-secret/' \
+                 -e 's/^SUPER_ADMIN_PASSWORD=.*/SUPER_ADMIN_PASSWORD=ci-admin/' \
+                 -e 's/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=ci-grafana/' ci.env
+
+      - name: docker-compose valide (sans option, https, frontend, monitoring)
+        run: |
+          for profiles in "" https https,frontend https,monitoring; do
+            echo "→ profils : ${profiles:-aucun}"
+            COMPOSE_PROFILES="$profiles" docker compose --env-file ci.env config -q
+          done
+
+      - name: Seul Caddy est exposé sur Internet
+        run: |
+          COMPOSE_PROFILES=https,frontend,monitoring docker compose --env-file ci.env config --format json > config.json
+          python3 - <<'EOF'
+          import json, sys
+          services = json.load(open('config.json'))['services']
+          public = [(name, p.get('published')) for name, s in services.items() for p in s.get('ports', [])
+                    if (p.get('host_ip') or '0.0.0.0') in ('0.0.0.0', '::')]
+          print('Ports publics :', public)
+          bad = [n for n, _ in public if n != 'caddy']
+          if bad:
+              sys.exit(f'Services exposés sur Internet alors qu\'ils doivent rester internes : {bad}')
+          missing = [n for n, s in services.items() if not s.get('mem_limit')]
+          if missing:
+              sys.exit(f'Services sans limite de mémoire : {missing}')
+          EOF
+
+      - name: Caddyfile valide (image officielle Caddy)
+        run: >-
+          docker run --rm -e API_DOMAIN=api.example.com -e ACME_EMAIL=ci@example.com
+          -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine
+          caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+
+      - name: Scripts shell (ShellCheck)
+        run: shellcheck backup.sh restore.sh update.sh

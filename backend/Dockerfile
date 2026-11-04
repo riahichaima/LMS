@@ -14,7 +14,9 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests \
 
 # ── 2. Exécution ────────────────────────────────────────────────
 FROM eclipse-temurin:17-jre-jammy
+# Correctifs de sécurité des paquets système, puis curl (health check)
 RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
  && apt-get install -y --no-install-recommends curl \
  && rm -rf /var/lib/apt/lists/* \
  && groupadd --system lms && useradd --system --gid lms --home-dir /app lms

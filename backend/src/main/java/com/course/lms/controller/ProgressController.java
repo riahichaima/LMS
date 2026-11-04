@@ -17,6 +17,9 @@ public class ProgressController {
     @Autowired
     private ProgressAnalysisService progressAnalysisService;
 
+    @Autowired
+    private com.course.lms.service.AiRateLimiter aiRateLimiter;
+
     /**
      * Analyze student performance and get recommendations
      * Student and Teacher endpoint
@@ -26,6 +29,7 @@ public class ProgressController {
     public CompletableFuture<ResponseEntity<StudentRecommendationsResponse>> analyzeProgress(
             @PathVariable Long studentId,
             @PathVariable Long courseId) {
+        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
         return progressAnalysisService.analyzeStudentPerformanceAsync(studentId, courseId)
                 .thenApply(ResponseEntity::ok);
     }

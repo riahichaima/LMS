@@ -1,20 +1,36 @@
 # Reverse proxy HTTPS (profil « https ») : certificats Let's Encrypt obtenus et renouvelés automatiquement.
-# APP_DOMAIN et API_DOMAIN doivent pointer (DNS) vers l'adresse IP du serveur.
+# API_DOMAIN doit pointer (DNS) vers l'adresse IP du serveur (ex. lms-api-chaima.swedencentral.cloudapp.azure.com).
 {
 	email {$ACME_EMAIL}
 }
 
-{$APP_DOMAIN} {
-	encode zstd gzip
-	reverse_proxy frontend:8080
-}
-
+# API du LMS : seule entrée publique du serveur
 {$API_DOMAIN} {
 	encode zstd gzip
+
+	# Fichiers des cours : 200 Mo maximum (aligné sur MAX_UPLOAD_SIZE du backend)
+	request_body {
+		max_size 210MB
+	}
+
 	# Les métriques internes ne sortent jamais du serveur
 	@interne path /actuator/*
 	respond @interne 404
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-	# WebSocket (/ws) et longues générations IA : pas de délai d'attente côté proxy
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# WebSocket (/ws : visio, notifications) et longues générations IA : pas de délai d'attente côté proxy
 	reverse_proxy backend:8090
 }
+
+# Option : frontend servi par ce serveur (profil « frontend ») au lieu de Vercel.
+# Définir APP_DOMAIN dans .env puis décommenter ce bloc.
+# {$APP_DOMAIN} {
+# 	encode zstd gzip
+# 	reverse_proxy frontend:8080
+# }

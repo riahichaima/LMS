@@ -5,7 +5,8 @@ import com.course.lms.model.User;
 import com.course.lms.repository.UserRepository;
 import com.course.lms.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -44,7 +45,7 @@ public class FileController {
 
     // Endpoint pour télécharger un fichier (tout le monde)
     @GetMapping("/download/{fileName}")
-    public ResponseEntity<ByteArrayResource> downloadFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> downloadFile(@PathVariable String fileName) {
         try {
             FileStorage fileStorage = fileStorageService.getFileByStoredName(fileName);
             
@@ -54,8 +55,8 @@ public class FileController {
                 return ResponseEntity.notFound().build();
             }
             
-            byte[] data = fileStorageService.getFileContent(fileName);
-            ByteArrayResource resource = new ByteArrayResource(data);
+            // Envoi en flux depuis le disque (pas de chargement complet en mémoire)
+            Resource resource = new FileSystemResource(physicalFile);
             
             // Déterminer le content-type correct
             MediaType mediaType;
@@ -81,9 +82,11 @@ public class FileController {
             }
             
             return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileStorage.getOriginalFileName() + "\"")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, org.springframework.http.ContentDisposition.attachment()
+                            .filename(fileStorage.getOriginalFileName() != null ? fileStorage.getOriginalFileName() : fileName,
+                                    java.nio.charset.StandardCharsets.UTF_8).build().toString())
                     .contentType(mediaType)
-                    .contentLength(data.length)
+                    .contentLength(physicalFile.length())
                     .body(resource);
         } catch (Exception e) {
             return ResponseEntity.notFound().build();
