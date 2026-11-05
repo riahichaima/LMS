@@ -6,12 +6,14 @@ import {
   withEnabledBlockingInitialNavigation,
   withHashLocation,
   withInMemoryScrolling,
+  withNavigationErrorHandler,
   withRouterConfig,
   withViewTransitions
 } from '@angular/router';
 import { IconSetService } from '@coreui/icons-angular';
 import { routes } from './app.routes';
 import { authInterceptor } from './services/auth.interceptor';
+import { reloadOnStaleChunk } from './services/stale-chunk';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -28,7 +30,9 @@ export const appConfig: ApplicationConfig = {
       }),
       withEnabledBlockingInitialNavigation(),
       withViewTransitions(),
-      withHashLocation()
+      withHashLocation(),
+      // Onglet resté ouvert pendant une mise en ligne : rechargement sur la nouvelle version
+      withNavigationErrorHandler(reloadOnStaleChunk)
     ),
     IconSetService,
     provideAnimationsAsync()
