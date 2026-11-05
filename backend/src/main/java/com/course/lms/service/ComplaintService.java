@@ -23,6 +23,8 @@ import java.util.Set;
 public class ComplaintService {
 
     public static final Set<String> CATEGORIES = Set.of("TECHNIQUE", "COURS", "PAIEMENT", "COMPTE", "ENSEIGNANT", "AUTRE");
+    /** Raison donnée par un étudiant / enseignant qui supprime son compte (jamais choisie dans le formulaire). */
+    public static final String ACCOUNT_DELETION = "SUPPRESSION";
     private static final Set<String> ADMIN_STATUSES = Set.of(Complaint.IN_PROGRESS, Complaint.RESOLVED, Complaint.REJECTED);
 
     private final ComplaintRepository complaintRepository;
@@ -63,6 +65,26 @@ public class ComplaintService {
         return view(c);
     }
 
+    /**
+     * Raison de la suppression d'un compte, transmise à l'administration comme une réclamation.
+     * Elle reste visible après la suppression (auteur vidé, nom et email conservés).
+     */
+    public void recordAccountDeletion(User author, String reasonLabel, String details) {
+        String role = roleLabel(author);
+        Complaint c = new Complaint();
+        c.setAuthor(author);
+        c.setCategory(ACCOUNT_DELETION);
+        c.setSubject(truncate("Suppression du compte " + role + " : " + reasonLabel, 150));
+        c.setMessage("Raison : " + reasonLabel
+                + (details == null || details.isBlank() ? "" : "\nPrécisions : " + details)
+                + "\nCompte : " + author.getName() + " (" + role + ", " + author.getEmail() + ")");
+        complaintRepository.save(c);
+        notificationService.notifyStaff("🗑️ Compte supprimé : " + author.getName(),
+                author.getName() + " (" + role + ") a supprimé son compte. Raison : « " + reasonLabel + " »"
+                        + (details == null || details.isBlank() ? "" : " — " + details),
+                "COMPLAINT", c.getId());
+    }
+
     @Transactional(readOnly = true)
     public List<ComplaintView> mine(String email) {
         User user = findUser(email);
@@ -88,7 +110,8 @@ public class ComplaintService {
         if (!ADMIN_STATUSES.contains(status)) throw new IllegalArgumentException("Statut invalide.");
         String response = update.response() == null ? null : clean(update.response());
         if (response != null && response.length() > 4000) throw new IllegalArgumentException("Réponse trop longue (4000 caractères maximum).");
-        if ((Complaint.RESOLVED.equals(status) || Complaint.REJECTED.equals(status)) && (response == null || response.isBlank())
+        // Réponse obligatoire pour clore, sauf si l'auteur a supprimé son compte (personne à qui répondre)
+        if (c.getAuthor() != null && (Complaint.RESOLVED.equals(status) || Complaint.REJECTED.equals(status)) && (response == null || response.isBlank())
                 && (c.getAdminResponse() == null || c.getAdminResponse().isBlank())) {
             throw new IllegalArgumentException("Ajoutez une réponse pour expliquer la décision à l'utilisateur.");
         }
@@ -103,7 +126,8 @@ public class ComplaintService {
             case Complaint.REJECTED -> "rejetée";
             default -> "en cours de traitement";
         };
-        notificationService.sendNotification(c.getAuthor(), "📝 Réclamation " + label + " : " + c.getSubject(),
+        // Auteur dont le compte a été supprimé : plus personne à notifier
+        if (c.getAuthor() != null) notificationService.sendNotification(c.getAuthor(), "📝 Réclamation " + label + " : " + c.getSubject(),
                 c.getAdminResponse() != null ? "Réponse de l'administration : « " + c.getAdminResponse() + " »"
                         : "Un administrateur a pris en charge votre réclamation.", "COMPLAINT_UPDATE", c.getId());
         systemLogService.record(SystemLog.INFO, "COMPLAINT", "Réclamation traitée",
@@ -113,8 +137,12 @@ public class ComplaintService {
 
     private ComplaintView view(Complaint c) {
         User a = c.getAuthor();
+        // Compte supprimé : identité conservée au moment de la réclamation
         return new ComplaintView(c.getId(), c.getCategory(), c.getSubject(), c.getMessage(), c.getStatus(), c.getAdminResponse(),
-                a.getId(), a.getName(), a.getEmail(), a.getRole() != null ? a.getRole().getName() : null,
+                a != null ? a.getId() : null,
+                a != null ? a.getName() : c.getAuthorName() + " (compte supprimé)",
+                a != null ? a.getEmail() : c.getAuthorEmail(),
+                a != null ? (a.getRole() != null ? a.getRole().getName() : null) : c.getAuthorRole(),
                 c.getHandledBy() != null ? c.getHandledBy().getName() : null, c.getCreatedAt(), c.getUpdatedAt());
     }
 
@@ -130,6 +158,10 @@ public class ComplaintService {
     private static String roleLabel(User u) {
         String role = u.getRole() != null ? u.getRole().getName() : "";
         return "TEACHER".equals(role) ? "enseignant" : "étudiant";
+    }
+
+    private static String truncate(String s, int max) {
+        return s.length() <= max ? s : s.substring(0, max - 1) + "…";
     }
 
     private static String clean(String s) {

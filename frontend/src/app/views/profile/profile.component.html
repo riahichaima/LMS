@@ -275,6 +275,20 @@
     </c-row>
   </ng-container>
 
+  <!-- ═════════ Mon compte : suppression (étudiant / enseignant) ═════════ -->
+  <c-card *ngIf="p.self && (p.role === 'STUDENT' || p.role === 'TEACHER')" class="mb-4 border-danger-subtle">
+    <c-card-body class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <strong>Supprimer mon compte</strong>
+        <div class="small text-body-secondary">Suppression définitive de votre compte et de vos données personnelles.</div>
+      </div>
+      <button type="button" class="btn btn-outline-danger" (click)="deleteDialog.set(true)">
+        <svg cIcon name="cilTrash" class="me-1"></svg>Supprimer mon compte
+      </button>
+    </c-card-body>
+  </c-card>
+  <app-delete-account-dialog [(visible)]="deleteDialog" [role]="p.role" />
+
   <!-- ═════════ Administrateur / super administrateur ═════════ -->
   <c-card *ngIf="isAdminRole()" class="mb-4">
     <c-card-header><strong>Rôle sur la plateforme</strong></c-card-header>

@@ -19,6 +19,7 @@ import { ProfileService, ProfileView, ROLE_LABELS } from '../../services/profile
 import { AvatarComponent } from '../../shared/avatar.component';
 import { StarRatingComponent } from '../../shared/star-rating.component';
 import { TeacherRatingComponent } from '../../shared/teacher-rating.component';
+import { DeleteAccountDialogComponent } from '../../shared/delete-account-dialog.component';
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 
@@ -35,7 +36,7 @@ const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
   imports: [
     CommonModule, FormsModule, RouterLink, AlertComponent, BadgeComponent, CardComponent, CardBodyComponent,
     CardHeaderComponent, ColComponent, ProgressComponent, RowComponent, SpinnerComponent, IconDirective,
-    AvatarComponent, StarRatingComponent, TeacherRatingComponent
+    AvatarComponent, StarRatingComponent, TeacherRatingComponent, DeleteAccountDialogComponent
   ],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.scss'
@@ -52,6 +53,9 @@ export class ProfileComponent implements OnInit {
   uploading = signal(false);
   photoError = signal('');
   notice = signal('');
+
+  /** Fenêtre « Supprimer mon compte » (étudiant / enseignant, sur son propre profil) */
+  deleteDialog = signal(false);
 
   readonly roleLabels = ROLE_LABELS;
   readonly isAdminRole = computed(() => ['ADMIN', 'SUPER_ADMIN'].includes(this.profile()?.role ?? ''));

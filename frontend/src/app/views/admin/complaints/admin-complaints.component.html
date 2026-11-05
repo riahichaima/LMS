@@ -70,16 +70,23 @@
           <div class="fw-semibold">{{ c.authorName }} <span class="lms-pill lms-pill--neutral ms-1">{{ c.authorRole | roleLabel }}</span></div>
           <div class="small text-body-secondary text-truncate">{{ c.authorEmail }}</div>
         </div>
-        <a class="btn btn-sm btn-outline-primary ms-auto" routerLink="/messages" [queryParams]="{ with: c.authorId }">
+        <a *ngIf="c.authorId" class="btn btn-sm btn-outline-primary ms-auto" routerLink="/messages" [queryParams]="{ with: c.authorId }">
           <svg cIcon name="cilChatBubble" size="sm" class="me-1"></svg>Écrire
         </a>
       </div>
 
       <div class="message mb-3">{{ c.message }}</div>
 
-      <label class="form-label fw-semibold" for="a-response">Réponse à l'utilisateur</label>
-      <textarea id="a-response" class="form-control mb-1" rows="4" maxlength="4000" [(ngModel)]="response"
-                placeholder="Expliquez la solution ou la décision (obligatoire pour résoudre ou rejeter)."></textarea>
+      <ng-container *ngIf="c.authorId; else deletedAuthor">
+        <label class="form-label fw-semibold" for="a-response">Réponse à l'utilisateur</label>
+        <textarea id="a-response" class="form-control mb-1" rows="4" maxlength="4000" [(ngModel)]="response"
+                  placeholder="Expliquez la solution ou la décision (obligatoire pour résoudre ou rejeter)."></textarea>
+      </ng-container>
+      <ng-template #deletedAuthor>
+        <div class="small text-body-secondary mb-3">
+          Compte supprimé : la personne ne peut plus recevoir de réponse. Marquez la réclamation comme résolue une fois lue.
+        </div>
+      </ng-template>
       <div class="small text-body-secondary mb-3" *ngIf="c.handledByName">Dernier traitement par {{ c.handledByName }}<span *ngIf="c.updatedAt"> le {{ c.updatedAt | date:'dd/MM/yyyy HH:mm' }}</span>.</div>
 
       <div class="d-flex flex-wrap gap-2">

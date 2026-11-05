@@ -86,7 +86,8 @@ export class AdminComplaintsComponent implements OnInit {
       next: updated => {
         this.saving.set(false);
         this.complaints.update(list => list.map(x => (x.id === updated.id ? updated : x)));
-        this.success.set(`Réclamation « ${updated.subject} » : ${this.status[updated.status].label.toLowerCase()}. L'auteur a été notifié.`);
+        this.success.set(`Réclamation « ${updated.subject} » : ${this.status[updated.status].label.toLowerCase()}.`
+          + (updated.authorId ? " L'auteur a été notifié." : ''));
       },
       error: err => {
         this.saving.set(false);

@@ -14,7 +14,8 @@ export interface ComplaintView {
   message: string;
   status: ComplaintStatus;
   adminResponse: string | null;
-  authorId: number;
+  /** null : le compte de l'auteur a été supprimé */
+  authorId: number | null;
   authorName: string;
   authorEmail: string;
   authorRole: string;
@@ -47,6 +48,8 @@ export const COMPLAINT_STATUS: Record<ComplaintStatus, { label: string; tone: st
 };
 
 export function categoryLabel(value: string): string {
+  // Raison laissée par un étudiant / enseignant qui a supprimé son compte (pas proposée dans le formulaire)
+  if (value === 'SUPPRESSION') return 'Suppression de compte';
   return COMPLAINT_CATEGORIES.find(c => c.value === value)?.label ?? value;
 }
 
