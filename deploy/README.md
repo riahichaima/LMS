@@ -120,6 +120,10 @@ docker compose ps                                     # tous les services « hea
 Les images `lms-backend` et `lms-ai` doivent être publiques sur GHCR (**Packages → Package settings → Change
 visibility**), sinon `docker login ghcr.io` avec un jeton `read:packages`.
 
+**Visio entre réseaux différents (relais TURN, profil `turn`)** : ouvrir 3478 (UDP et TCP) et 49160-49200 (UDP)
+dans le NSG Azure et dans `ufw`, puis renseigner `TURN_CREDENTIAL` (`openssl rand -hex 24`) et `TURN_EXTERNAL_IP`
+(`IP publique/IP privée`, ex. `20.240.167.200/10.0.0.4`) dans `.env`. Le backend transmet le relais aux navigateurs.
+
 **3. Frontend Vercel** : importer le dépôt, **Root Directory** = `frontend`, **Production Branch** = `main`,
 variable `API_URL` = `https://<API_DOMAIN>`. Reporter ensuite l'adresse Vercel dans `PUBLIC_APP_URL` du `.env`
 et relancer `docker compose up -d`.

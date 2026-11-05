@@ -37,18 +37,20 @@ jobs:
                  -e 's/^DB_ROOT_PASSWORD=.*/DB_ROOT_PASSWORD=ci-root/' \
                  -e 's/^JWT_SECRET=.*/JWT_SECRET=ci-only-secret/' \
                  -e 's/^SUPER_ADMIN_PASSWORD=.*/SUPER_ADMIN_PASSWORD=ci-admin/' \
-                 -e 's/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=ci-grafana/' ci.env
+                 -e 's/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=ci-grafana/' \
+                 -e 's/^TURN_CREDENTIAL=.*/TURN_CREDENTIAL=ci-turn/' \
+                 -e 's#^TURN_EXTERNAL_IP=.*#TURN_EXTERNAL_IP=203.0.113.10/10.0.0.4#' ci.env
 
       - name: docker-compose valide (sans option, https, frontend, monitoring)
         run: |
-          for profiles in "" https https,frontend https,monitoring; do
+          for profiles in "" https https,turn https,frontend https,monitoring; do
             echo "→ profils : ${profiles:-aucun}"
             COMPOSE_PROFILES="$profiles" docker compose --env-file ci.env config -q
           done
 
       - name: Seul Caddy est exposé sur Internet
         run: |
-          COMPOSE_PROFILES=https,frontend,monitoring docker compose --env-file ci.env config --format json > config.json
+          COMPOSE_PROFILES=https,turn,frontend,monitoring docker compose --env-file ci.env config --format json > config.json
           python3 - <<'EOF'
           import json, sys
           services = json.load(open('config.json'))['services']
@@ -58,6 +60,13 @@ jobs:
           bad = [n for n, _ in public if n != 'caddy']
           if bad:
               sys.exit(f'Services exposés sur Internet alors qu\'ils doivent rester internes : {bad}')
+          # Réseau de l'hôte : réservé au relais TURN (plage de ports UDP), qui refuse les adresses internes
+          host = [n for n, s in services.items() if s.get('network_mode') == 'host']
+          if [n for n in host if n != 'turn']:
+              sys.exit(f'Seul le relais TURN peut utiliser le réseau de l\'hôte : {host}')
+          turn = services.get('turn', {})
+          if turn and not any('denied-peer-ip=10.0.0.0' in a for a in turn.get('command', [])):
+              sys.exit('Le relais TURN doit refuser les adresses internes (denied-peer-ip)')
           missing = [n for n, s in services.items() if not s.get('mem_limit')]
           if missing:
               sys.exit(f'Services sans limite de mémoire : {missing}')
