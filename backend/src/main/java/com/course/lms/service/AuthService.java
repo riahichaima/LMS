@@ -349,8 +349,19 @@ public class AuthService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
 
+        boolean activation = enabled && !user.isEnabled();
         user.setEnabled(enabled);
         User saved = userRepository.save(user);
+        if (activation) {
+            // Activation par un administrateur : le lien de vérification éventuel n'est plus utile,
+            // la personne est prévenue par email et les étudiants découvrent le nouveau formateur
+            tokenRepository.deleteByUserId(saved.getId());
+            emailService.sendAccountActivatedEmail(saved.getEmail(), saved.getName());
+            if (saved.getRole() != null && "TEACHER".equals(saved.getRole().getName())) {
+                notificationService.notifyRole("STUDENT", "🎓 Nouveau formateur : " + saved.getName(),
+                        saved.getName() + " rejoint la plateforme. Découvrez bientôt ses cours !", "NEW_TEACHER", saved.getId());
+            }
+        }
 
         UserResponse response = new UserResponse();
         response.setId(saved.getId());

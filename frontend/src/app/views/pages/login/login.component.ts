@@ -57,6 +57,12 @@ export class LoginComponent {
     this.infoMessage.set('');
     this.notVerified.set(false);
     this.googleNoAccount.set(error.code === 'GOOGLE_NO_ACCOUNT');
+    if (error.code === 'ACCOUNT_PENDING_ACTIVATION' || error.code === 'ADMIN_PENDING') {
+      // Compte en attente d'activation : information, pas une erreur
+      this.errorMessage.set('');
+      this.infoMessage.set(error.message);
+      return;
+    }
     this.errorMessage.set(error.message);
   }
 
