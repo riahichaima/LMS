@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 PAGE_WIDTH_PX = 1400      # largeur de rendu : texte lisible par le modèle en détail « high »
 PAGES_PER_REQUEST = 2     # peu de pages par requête : réponse complète, débit Azure respecté
 PARALLEL_REQUESTS = 3
+# Réponse limitée (≈ 3 fois une page dense) : le modèle ne peut pas boucler jusqu'au délai d'attente
+MAX_TOKENS_PER_REQUEST = 4000
+ATTEMPTS = 2
 
 
 def _page_jpeg_b64(pdf: pdfium.PdfDocument, index: int) -> str:
@@ -61,8 +64,15 @@ def ocr_pdf(path: str) -> str:
 
     def read(batch):
         first, last, images = batch
-        text = client.describe_images(PDF_OCR_PROMPT.format(first=first, last=last), images, detail="high")
-        return f"[Pages {first}-{last}]\n{text.strip()}"
+        for attempt in range(1, ATTEMPTS + 1):
+            try:
+                text = client.describe_images(PDF_OCR_PROMPT.format(first=first, last=last), images,
+                                              detail="high", max_tokens=MAX_TOKENS_PER_REQUEST)
+                return f"[Pages {first}-{last}]\n{text.strip()}"
+            except Exception as e:
+                if attempt == ATTEMPTS:
+                    raise
+                logger.warning("Pages %d-%d : nouvel essai après « %s »", first, last, e)
 
     with ThreadPoolExecutor(max_workers=PARALLEL_REQUESTS) as executor:
         texts = list(executor.map(read, batches))

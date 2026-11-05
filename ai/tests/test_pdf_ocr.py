@@ -11,8 +11,9 @@ class FakeVision:
     def __init__(self):
         self.calls = []
 
-    def describe_images(self, prompt, images, detail="low"):
+    def describe_images(self, prompt, images, detail="low", max_tokens=None):
         self.calls.append((prompt, len(images), detail))
+        assert max_tokens and max_tokens <= 4000
         return "Page : Le modèle OSI comporte sept couches."
 
 
@@ -73,3 +74,16 @@ def test_short_text_kept_when_images_cannot_be_read(scanned_pdf, monkeypatch, tm
     monkeypatch.setattr(resource_loader, "EXTRACT_CACHE_PATH", tmp_path)
     monkeypatch.setattr(resource_loader, "extract_from_pdf", lambda path: "Résumé : TCP.")
     assert resource_loader._pdf_text(scanned_pdf) == "Résumé : TCP."
+
+
+def test_failed_batch_is_retried_once(scanned_pdf, monkeypatch):
+    class Flaky(FakeVision):
+        failed = False
+
+        def describe_images(self, prompt, images, detail="low", max_tokens=None):
+            if not Flaky.failed:
+                Flaky.failed = True
+                raise TimeoutError("La requête Azure OpenAI a expiré.")
+            return super().describe_images(prompt, images, detail, max_tokens)
+    monkeypatch.setattr(pdf_ocr, "get_llm_client", lambda: Flaky())
+    assert "OSI" in pdf_ocr.ocr_pdf(str(scanned_pdf))

@@ -50,8 +50,10 @@ class AzureOpenAIClient:
                 raise RuntimeError(f"Azure OpenAI {response.status_code} : {response.text[:500]}")
             return response.json()
 
-    def _chat(self, messages: list[dict], temperature: float, json_mode: bool) -> str:
+    def _chat(self, messages: list[dict], temperature: float, json_mode: bool, max_tokens: int | None = None) -> str:
         payload = {"messages": messages}
+        if max_tokens:
+            payload["max_tokens"] = max_tokens
         # Les modèles de raisonnement (gpt-5, o1, o3, o4...) n'acceptent que la température par défaut
         if not self.model.lower().startswith(("gpt-5", "o1", "o3", "o4")):
             payload["temperature"] = temperature
@@ -71,13 +73,13 @@ class AzureOpenAIClient:
         messages.append({"role": "user", "content": prompt})
         return self._chat(messages, temperature, json_mode)
 
-    def describe_images(self, prompt: str, images_b64: list[str], detail: str = "low") -> str:
+    def describe_images(self, prompt: str, images_b64: list[str], detail: str = "low", max_tokens: int | None = None) -> str:
         """Envoyer des images JPEG (base64) au modèle avec une consigne (detail « high » pour lire du texte)."""
         content = [{"type": "text", "text": prompt}] + [
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": detail}}
             for img in images_b64
         ]
-        return self._chat([{"role": "user", "content": content}], temperature=0.2, json_mode=False)
+        return self._chat([{"role": "user", "content": content}], temperature=0.2, json_mode=False, max_tokens=max_tokens)
 
     def transcribe(self, audio_path: str) -> str:
         """Transcrire un fichier audio (max 25 Mo) avec le déploiement de transcription."""
