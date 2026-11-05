@@ -39,7 +39,7 @@ jobs:
                  -e 's/^SUPER_ADMIN_PASSWORD=.*/SUPER_ADMIN_PASSWORD=ci-admin/' \
                  -e 's/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=ci-grafana/' \
                  -e 's/^TURN_CREDENTIAL=.*/TURN_CREDENTIAL=ci-turn/' \
-                 -e 's#^TURN_EXTERNAL_IP=.*#TURN_EXTERNAL_IP=203.0.113.10/10.0.0.4#' ci.env
+                 -e 's/^TURN_PUBLIC_IP=.*/TURN_PUBLIC_IP=203.0.113.10/' \n                 -e 's/^TURN_PRIVATE_IP=.*/TURN_PRIVATE_IP=10.0.0.4/' ci.env
 
       - name: docker-compose valide (sans option, https, frontend, monitoring)
         run: |
