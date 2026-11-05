@@ -22,6 +22,25 @@ export interface WithdrawalView {
   transferredBy?: string | null;
   transferredAt?: string | null;
   transferReference?: string | null;
+  /** Moyen de réception choisi par l'enseignant */
+  payoutMethod?: PayoutMethod | null;
+  payoutAccount?: string | null;
+}
+
+export type PayoutMethod = 'BANK' | 'D17' | 'PAYPAL';
+
+/** Moyens de réception proposés à l'enseignant (transfert simulé en mode test). */
+export const PAYOUT_METHODS: { value: PayoutMethod; label: string; placeholder: string; hint: string }[] = [
+  { value: 'BANK', label: 'Virement bancaire', placeholder: 'RIB (20 chiffres) ou IBAN', hint: 'Ex. RIB : 08 006 0123456789012 34' },
+  { value: 'D17', label: 'D17 (La Poste)', placeholder: 'Numéro D17 (8 chiffres)', hint: 'Numéro de téléphone lié à votre compte D17' },
+  { value: 'PAYPAL', label: 'PayPal', placeholder: 'Email du compte PayPal', hint: 'Adresse email de votre compte PayPal' }
+];
+
+/** « Virement bancaire · •••• 1234 » (l'email PayPal reste lisible) */
+export function payoutLabel(method?: PayoutMethod | null, account?: string | null): string {
+  if (!method || !account) return 'Non renseigné';
+  const label = PAYOUT_METHODS.find(m => m.value === method)?.label ?? method;
+  return `${label} · ${method === 'PAYPAL' ? account : '•••• ' + account.slice(-4)}`;
 }
 
 export interface CourseSales {
@@ -103,8 +122,8 @@ export class FinanceService {
     return this.http.get<TeacherEarningsView>(`${this.apiUrl}/api/teacher/earnings`);
   }
 
-  requestWithdrawal(amount: number): Observable<WithdrawalView> {
-    return this.http.post<WithdrawalView>(`${this.apiUrl}/api/teacher/withdrawals`, { amount });
+  requestWithdrawal(amount: number, payoutMethod: PayoutMethod, payoutAccount: string): Observable<WithdrawalView> {
+    return this.http.post<WithdrawalView>(`${this.apiUrl}/api/teacher/withdrawals`, { amount, payoutMethod, payoutAccount });
   }
 
   // ── Administrateur ──

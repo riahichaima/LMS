@@ -56,14 +56,24 @@
             <c-card-header><strong>Demander un retrait</strong></c-card-header>
             <c-card-body>
               <p class="small text-body-secondary">
-                Minimum {{ d.minWithdrawal | currency:'USD' }}. Le montant est réservé, puis validé par un administrateur ;
-                le transfert est ensuite simulé (aucun virement réel).
+                Minimum {{ d.minWithdrawal | currency:'USD' }}. Le montant est réservé, validé par l'administration,
+                puis le super administrateur le transfère sur votre compte (transfert simulé en mode test).
               </p>
+              <label class="form-label small fw-semibold" for="payoutMethod">Recevoir l'argent par</label>
+              <div class="d-flex flex-wrap gap-2 mb-2" id="payoutMethod" role="radiogroup">
+                <label *ngFor="let m of payoutMethods" class="btn btn-sm" [class.btn-primary]="payoutMethod === m.value"
+                       [class.btn-outline-secondary]="payoutMethod !== m.value">
+                  <input type="radio" class="btn-check" name="payoutMethod" [value]="m.value" [(ngModel)]="payoutMethod" />{{ m.label }}
+                </label>
+              </div>
+              <input cFormControl class="mb-1" name="payoutAccount" maxlength="80" autocomplete="off"
+                     [(ngModel)]="payoutAccount" [placeholder]="currentMethod.placeholder" aria-label="Compte de réception" />
+              <div class="small text-body-secondary mb-3">{{ currentMethod.hint }}</div>
               <div class="input-group mb-2">
                 <span class="input-group-text">$</span>
                 <input type="number" cFormControl min="0" step="0.01" [(ngModel)]="withdrawalAmount" [placeholder]="d.availableBalance" />
                 <button cButton color="primary" (click)="requestWithdrawal()"
-                        [disabled]="submitting() || !withdrawalAmount || d.availableBalance < d.minWithdrawal">Demander</button>
+                        [disabled]="submitting() || !withdrawalAmount || !payoutAccount.trim() || d.availableBalance < d.minWithdrawal">Demander</button>
               </div>
               <small class="text-body-secondary">Disponible : {{ d.availableBalance | currency:'USD' }}</small>
             </c-card-body>
@@ -77,14 +87,25 @@
         <c-card-body>
           <table cTable [hover]="true" [responsive]="true" class="mb-0">
             <thead>
-              <tr><th>#</th><th>Date</th><th class="text-end">Montant</th><th>Statut</th><th>Note / Référence</th></tr>
+              <tr><th>#</th><th class="text-end">Montant</th><th>Compte de réception</th><th style="min-width: 300px">Suivi</th><th>Note / Référence</th></tr>
             </thead>
             <tbody>
               <tr *ngFor="let w of d.withdrawals">
                 <td>{{ w.id }}</td>
-                <td>{{ w.requestedAt | date:'dd/MM/yyyy HH:mm' }}</td>
                 <td class="text-end fw-semibold">{{ w.amount | currency:'USD' }}</td>
-                <td><c-badge [color]="statusColor(w.status)">{{ statusLabel(w.status) }}</c-badge></td>
+                <td class="small">{{ payoutLabel(w.payoutMethod, w.payoutAccount) }}</td>
+                <td>
+                  <c-badge [color]="statusColor(w.status)" class="mb-2">{{ statusLabel(w.status) }}</c-badge>
+                  <ol class="withdrawal-steps" *ngIf="w.status !== 'REJECTED'">
+                    <li *ngFor="let s of steps(w)" [class.done]="s.done" [class.current]="s.current">
+                      <span class="dot">{{ s.done ? '✓' : '' }}</span>
+                      <span>{{ s.label }}<br /><small class="text-body-secondary">{{ s.date ? (s.date | date:'dd/MM HH:mm') : (s.current ? 'en cours' : '') }}</small></span>
+                    </li>
+                  </ol>
+                  <div class="small text-body-secondary" *ngIf="w.status === 'APPROVED'">
+                    Le super administrateur effectue le transfert : vous recevrez une notification avec la référence.
+                  </div>
+                </td>
                 <td class="small text-body-secondary">{{ w.transferReference || w.adminNote || '—' }}</td>
               </tr>
               <tr *ngIf="d.withdrawals.length === 0">

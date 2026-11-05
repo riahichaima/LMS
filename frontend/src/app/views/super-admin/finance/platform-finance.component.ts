@@ -12,7 +12,7 @@ import {
   TableDirective
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { FinanceService, PlatformWalletView, TransactionView, WithdrawalView } from '../../../services/finance.service';
+import { FinanceService, PAYOUT_METHODS, PlatformWalletView, TransactionView, WithdrawalView } from '../../../services/finance.service';
 
 import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 import { StatCardComponent } from '../../../shared/ui/stat-card.component';
@@ -29,6 +29,11 @@ import { StatCardComponent } from '../../../shared/ui/stat-card.component';
   templateUrl: './platform-finance.component.html'
 })
 export class PlatformFinanceComponent implements OnInit {
+  /** Libellé du moyen de réception choisi par l'enseignant */
+  methodLabel(method?: string | null): string {
+    return PAYOUT_METHODS.find(m => m.value === method)?.label ?? 'Compte';
+  }
+
   wallet = signal<PlatformWalletView | null>(null);
   transfers = signal<WithdrawalView[]>([]);
   transactions = signal<TransactionView[]>([]);

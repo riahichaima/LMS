@@ -15,7 +15,9 @@ import {
   TableDirective
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { FinanceService, TeacherEarningsView, WithdrawalStatus } from '../../../services/finance.service';
+import {
+  FinanceService, PAYOUT_METHODS, PayoutMethod, TeacherEarningsView, WithdrawalStatus, WithdrawalView, payoutLabel
+} from '../../../services/finance.service';
 
 import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
 import { StatCardComponent } from '../../../shared/ui/stat-card.component';
@@ -29,7 +31,17 @@ import { StatCardComponent } from '../../../shared/ui/stat-card.component';
     PageHeaderComponent,
     StatCardComponent
   ],
-  templateUrl: './teacher-earnings.component.html'
+  templateUrl: './teacher-earnings.component.html',
+  styles: [`
+    .withdrawal-steps { display: flex; gap: .25rem; list-style: none; padding: 0; margin: 0 0 .35rem; }
+    .withdrawal-steps li { flex: 1; display: flex; gap: .4rem; align-items: flex-start; font-size: .8rem; line-height: 1.2; color: var(--cui-secondary-color); }
+    .withdrawal-steps .dot { flex: none; width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 2px solid var(--cui-border-color);
+      display: inline-flex; align-items: center; justify-content: center; font-size: .7rem; }
+    .withdrawal-steps li.done { color: var(--cui-body-color); }
+    .withdrawal-steps li.done .dot { background: var(--cui-success); border-color: var(--cui-success); color: #fff; }
+    .withdrawal-steps li.current .dot { border-color: var(--cui-info); box-shadow: 0 0 0 3px var(--cui-info-bg-subtle); }
+    .withdrawal-steps li.current { color: var(--cui-body-color); font-weight: 600; }
+  `]
 })
 export class TeacherEarningsComponent implements OnInit {
   data = signal<TeacherEarningsView | null>(null);
@@ -38,6 +50,11 @@ export class TeacherEarningsComponent implements OnInit {
   errorMessage = signal('');
   successMessage = signal('');
   withdrawalAmount: number | null = null;
+  // Compte de réception (repris de la dernière demande)
+  payoutMethod: PayoutMethod = 'BANK';
+  payoutAccount = '';
+  readonly payoutMethods = PAYOUT_METHODS;
+  readonly payoutLabel = payoutLabel;
 
   constructor(private financeService: FinanceService) {}
 
@@ -51,6 +68,11 @@ export class TeacherEarningsComponent implements OnInit {
       next: (d) => {
         this.loading.set(false);
         this.data.set(d);
+        const last = d.withdrawals.find(w => w.payoutMethod && w.payoutAccount);
+        if (last && !this.payoutAccount) {
+          this.payoutMethod = last.payoutMethod!;
+          this.payoutAccount = last.payoutAccount!;
+        }
       },
       error: () => {
         this.loading.set(false);
@@ -66,14 +88,18 @@ export class TeacherEarningsComponent implements OnInit {
       this.errorMessage.set(`Le montant doit être compris entre ${d.minWithdrawal} $ et votre solde disponible.`);
       return;
     }
+    if (!this.payoutAccount.trim()) {
+      this.errorMessage.set('Indiquez le compte sur lequel recevoir l\'argent.');
+      return;
+    }
     this.submitting.set(true);
     this.errorMessage.set('');
     this.successMessage.set('');
-    this.financeService.requestWithdrawal(this.withdrawalAmount).subscribe({
+    this.financeService.requestWithdrawal(this.withdrawalAmount, this.payoutMethod, this.payoutAccount.trim()).subscribe({
       next: (w) => {
         this.submitting.set(false);
         this.withdrawalAmount = null;
-        this.successMessage.set(`Demande de retrait #${w.id} envoyée : en attente de validation par l'administrateur.`);
+        this.successMessage.set(`Demande de retrait #${w.id} envoyée : l'administration va la valider, puis le super administrateur effectuera le transfert.`);
         this.load();
       },
       error: (err) => {
@@ -84,7 +110,21 @@ export class TeacherEarningsComponent implements OnInit {
   }
 
   statusLabel(s: WithdrawalStatus): string {
-    return { PENDING: 'En attente', APPROVED: 'Approuvée — transfert à venir', REJECTED: 'Refusée', PAID: 'Transférée' }[s];
+    return { PENDING: 'En attente de validation', APPROVED: 'Approuvée — transfert en cours', REJECTED: 'Refusée', PAID: 'Argent transféré' }[s];
+  }
+
+  get currentMethod() {
+    return PAYOUT_METHODS.find(m => m.value === this.payoutMethod)!;
+  }
+
+  /** Étapes : 1 demandée, 2 approuvée par l'administration, 3 transférée par le super administrateur */
+  steps(w: WithdrawalView): { label: string; date?: string | null; done: boolean; current: boolean }[] {
+    const approved = w.status === 'APPROVED' || w.status === 'PAID';
+    return [
+      { label: 'Demandée', date: w.requestedAt, done: true, current: false },
+      { label: w.status === 'REJECTED' ? 'Refusée' : 'Approuvée', date: w.reviewedAt, done: approved, current: w.status === 'PENDING' },
+      { label: 'Transférée', date: w.transferredAt, done: w.status === 'PAID', current: w.status === 'APPROVED' }
+    ];
   }
 
   statusColor(s: WithdrawalStatus): string {
