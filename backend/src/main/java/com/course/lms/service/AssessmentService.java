@@ -300,7 +300,7 @@ public class AssessmentService {
             logError(e);
             AssessmentGenerationResponse errorResponse = new AssessmentGenerationResponse();
             errorResponse.setSuccess(false);
-            errorResponse.setMessage("Error generating assessments: [" + e.getClass().getSimpleName() + "] " + (e.getMessage() != null ? e.getMessage() : "no message"));
+            errorResponse.setMessage(aiErrorMessage(e, "Error generating assessments"));
             return errorResponse;
         }
     }
@@ -406,7 +406,7 @@ public class AssessmentService {
             logError(e);
             AssessmentGenerationResponse errorResponse = new AssessmentGenerationResponse();
             errorResponse.setSuccess(false);
-            errorResponse.setMessage("Error generating quiz: [" + e.getClass().getSimpleName() + "] " + (e.getMessage() != null ? e.getMessage() : "no message"));
+            errorResponse.setMessage(aiErrorMessage(e, "Error generating quiz"));
             return errorResponse;
         }
     }
@@ -443,7 +443,7 @@ public class AssessmentService {
             logError(e);
             AssessmentGenerationResponse errorResponse = new AssessmentGenerationResponse();
             errorResponse.setSuccess(false);
-            errorResponse.setMessage("Error generating assignment: [" + e.getClass().getSimpleName() + "] " + (e.getMessage() != null ? e.getMessage() : "no message"));
+            errorResponse.setMessage(aiErrorMessage(e, "Error generating assignment"));
             return errorResponse;
         }
     }
@@ -688,6 +688,23 @@ public class AssessmentService {
             default:
                 return DifficultyLevel.BEGINNER;
         }
+    }
+
+    /**
+     * Message montré à l'enseignant : l'explication renvoyée par le service IA (« detail », ex. contenu du cours
+     * illisible) plutôt que « 422 Unprocessable Entity ».
+     */
+    static String aiErrorMessage(Exception e, String prefix) {
+        if (e instanceof org.springframework.web.reactive.function.client.WebClientResponseException wre) {
+            try {
+                var detail = new com.fasterxml.jackson.databind.ObjectMapper().readTree(wre.getResponseBodyAsString()).path("detail");
+                if (detail.isTextual() && !detail.asText().isBlank()) return detail.asText();
+            } catch (Exception ignored) {
+                // corps non JSON : message générique ci-dessous
+            }
+            return "Le service IA n'a pas pu générer le contenu (erreur " + wre.getStatusCode().value() + "). Réessayez dans un instant.";
+        }
+        return prefix + ": [" + e.getClass().getSimpleName() + "] " + (e.getMessage() != null ? e.getMessage() : "no message");
     }
 
     private void logError(Exception e) {

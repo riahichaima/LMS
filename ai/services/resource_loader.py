@@ -14,10 +14,32 @@ AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac")
 logger = logging.getLogger(__name__)
 
 
+def _uploads_tail(file_path: str) -> list[str] | None:
+    """Partie du chemin après le dernier dossier « uploads » (séparateurs Windows ou Linux)."""
+    parts = [p for p in file_path.replace("\\", "/").split("/") if p]
+    if "uploads" not in parts:
+        return None
+    tail = parts[len(parts) - 1 - parts[::-1].index("uploads") + 1:]
+    return tail if tail and ".." not in tail else None
+
+
 def resolve_backend_path(file_path: str) -> Path:
-    """Trouver un fichier uploadé par le backend (chemin absolu ou relatif au backend)."""
+    """Trouver un fichier uploadé par le backend.
+
+    Le backend enregistre le chemin vu depuis sa machine ou son conteneur (/app/uploads/videos/x.pdf,
+    C:\\...\\backend\\uploads\\videos\\x.pdf) ; le service IA voit le même dossier sous
+    BACKEND_ROOT_DIR/uploads (Docker : /backend/uploads, en lecture seule). Le chemin est donc retraduit,
+    sans jamais sortir du dossier uploads.
+    """
     path = Path(file_path)
-    candidates = [path] if path.is_absolute() else [Path(settings.BACKEND_ROOT_DIR) / path, path]
+    root = Path(settings.BACKEND_ROOT_DIR)
+    candidates = [path] if path.is_absolute() else [root / path, path]
+    tail = _uploads_tail(file_path)
+    if tail:
+        uploads = (root / "uploads").resolve()
+        mapped = uploads.joinpath(*tail).resolve()
+        if mapped.is_relative_to(uploads):
+            candidates.append(mapped)
     for candidate in candidates:
         if candidate.is_file():
             return candidate
@@ -58,6 +80,24 @@ def extract_resource(resource: ResourceDetail) -> str:
     if url:
         return extract_from_url(url)
     raise ValueError(f"Ressource '{resource.title}' ({rtype}) sans fichier ni lien.")
+
+
+def extract_resources_text(resources: list[ResourceDetail]) -> tuple[str, list[str]]:
+    """Texte des ressources (PDF, vidéos, liens…) et titres de celles qui n'ont pas pu être lues."""
+    parts, unreadable = [], []
+    per_resource = max(1000, settings.max_content_chars // max(len(resources), 1))
+    for resource in resources:
+        try:
+            text = extract_resource(resource).strip()
+        except Exception as e:
+            logger.warning("Ressource ignorée '%s' (%s) : %s", resource.title, resource.type, e)
+            unreadable.append(resource.title or resource.type)
+            continue
+        if text:
+            parts.append(f"--- {resource.title} ({resource.type}) ---\n{text[:per_resource]}")
+        else:
+            unreadable.append(resource.title or resource.type)
+    return "\n\n".join(parts), unreadable
 
 
 def build_course_content(lesson_descriptions: list[str | None], resources: list[ResourceDetail]) -> str:
