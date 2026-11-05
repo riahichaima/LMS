@@ -153,7 +153,10 @@ services:
       - --lt-cred-mech
       - --realm=${API_DOMAIN:-lms}
       - --user=${TURN_USERNAME:-lms}:${TURN_CREDENTIAL:-}
-      - --external-ip=${TURN_EXTERNAL_IP:-}
+      # Écoute et relais sur la seule IP privée de la VM (pas sur les ponts Docker), annoncée avec l'IP publique
+      - --listening-ip=${TURN_PRIVATE_IP:-127.0.0.1}
+      - --relay-ip=${TURN_PRIVATE_IP:-127.0.0.1}
+      - --external-ip=${TURN_PUBLIC_IP:-127.0.0.1}/${TURN_PRIVATE_IP:-127.0.0.1}
       - --no-tls
       - --no-dtls
       - --no-cli
