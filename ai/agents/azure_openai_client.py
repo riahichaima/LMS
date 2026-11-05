@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Erreurs passagères côté Azure (ex : "image_moderation_server_error") : on réessaie
 RETRY_STATUS = {429, 500, 502, 503, 504}
-MAX_ATTEMPTS = 3
+MAX_ATTEMPTS = 5
 
 
 class AzureOpenAIClient:
@@ -40,7 +40,9 @@ class AzureOpenAIClient:
             except httpx.TimeoutException as e:
                 raise TimeoutError("La requête Azure OpenAI a expiré.") from e
             if response.status_code in RETRY_STATUS and attempt < MAX_ATTEMPTS:
-                delay = 2 * attempt
+                # Débit Azure dépassé (429) : attendre le délai indiqué par Azure (60 s au plus)
+                retry_after = response.headers.get("retry-after", "")
+                delay = min(int(retry_after), 60) if retry_after.isdigit() else 2 * attempt
                 logger.warning("Azure OpenAI %s, nouvel essai dans %d s (%d/%d)", response.status_code, delay, attempt, MAX_ATTEMPTS)
                 time.sleep(delay)
                 continue
@@ -69,10 +71,10 @@ class AzureOpenAIClient:
         messages.append({"role": "user", "content": prompt})
         return self._chat(messages, temperature, json_mode)
 
-    def describe_images(self, prompt: str, images_b64: list[str]) -> str:
-        """Envoyer des images JPEG (base64) au modèle avec une consigne."""
+    def describe_images(self, prompt: str, images_b64: list[str], detail: str = "low") -> str:
+        """Envoyer des images JPEG (base64) au modèle avec une consigne (detail « high » pour lire du texte)."""
         content = [{"type": "text", "text": prompt}] + [
-            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": "low"}}
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": detail}}
             for img in images_b64
         ]
         return self._chat([{"role": "user", "content": content}], temperature=0.2, json_mode=False)
