@@ -12,7 +12,7 @@
 	}
 
 	# Les métriques internes ne sortent jamais du serveur
-	@interne path /actuator/*
+	@interne path /actuator /actuator/*
 	respond @interne 404
 
 	header {
