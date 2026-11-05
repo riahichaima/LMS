@@ -6,10 +6,12 @@ from pathlib import Path
 
 from api.schemas import ResourceDetail
 from config import EXTRACT_CACHE_PATH, settings
+from services import pdf_ocr
 from services.content_extractor import extract_from_pdf, extract_from_url, is_youtube_url
 from services.video_processor import analyze_audio, analyze_video, analyze_youtube
 
 AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac")
+MIN_CHARS_PER_PAGE = 40  # en dessous : PDF scanné (seuls quelques mots ou numéros de page sont du texte)
 
 logger = logging.getLogger(__name__)
 
@@ -50,12 +52,35 @@ def _cached(key: str, compute) -> str:
     """Analyser une vidéo coûte cher (crédits Azure) : le texte est gardé sur disque."""
     path = EXTRACT_CACHE_PATH / f"{hashlib.sha1(key.encode('utf-8')).hexdigest()}.txt"
     if path.is_file():
-        logger.info("Contenu vidéo repris du cache (%s)", key)
+        logger.info("Contenu repris du cache (%s)", key)
         return path.read_text(encoding="utf-8")
     text = compute()
     if text.strip():
         path.write_text(text, encoding="utf-8")
     return text
+
+
+def _pdf_text(pdf_path: Path) -> str:
+    """Texte d'un PDF ; PDF scanné (images sans texte) : pages lues par le modèle, résultat gardé en cache."""
+    try:
+        text = extract_from_pdf(str(pdf_path))
+    except ValueError:
+        text = ""
+    try:
+        pages = max(pdf_ocr.page_count(str(pdf_path)), 1)
+    except Exception:
+        pages = 1  # PDF que PDFium ne sait pas ouvrir : le texte extrait est gardé tel quel
+    if len(text.strip()) >= MIN_CHARS_PER_PAGE * pages:
+        return text
+    stat = pdf_path.stat()
+    logger.info("PDF sans texte exploitable (%d caractères, %d pages) : lecture des images", len(text.strip()), pages)
+    try:
+        return _cached(f"pdf-ocr:{pdf_path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}", lambda: pdf_ocr.ocr_pdf(str(pdf_path)))
+    except Exception as e:
+        if text.strip():
+            logger.warning("Lecture des images du PDF impossible (%s) : texte extrait conservé", e)
+            return text
+        raise
 
 
 def extract_resource(resource: ResourceDetail) -> str:
@@ -69,7 +94,7 @@ def extract_resource(resource: ResourceDetail) -> str:
     if url and is_youtube_url(url):
         return _cached(f"youtube:{url}", lambda: analyze_youtube(url))
     if resource.file_path and rtype == "PDF":
-        return extract_from_pdf(str(resolve_backend_path(resource.file_path)))
+        return _pdf_text(resolve_backend_path(resource.file_path))
     if resource.file_path and rtype in ("VIDEO", "AUDIO"):
         media = resolve_backend_path(resource.file_path)
         stat = media.stat()

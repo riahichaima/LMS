@@ -13,6 +13,9 @@ httpx==0.28.1
 
 # Extraction de contenu (PDF, pages web)
 pypdf==6.21.4
+# PDF scannés : rendu des pages en images (lues par le modèle)
+pypdfium2==5.14.0
+pillow==13.0.0
 beautifulsoup4==4.15.0
 lxml==6.1.1
 

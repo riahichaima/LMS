@@ -21,6 +21,8 @@ class Settings(BaseSettings):
 
     # Vidéo : nombre d'images extraites et analysées par le modèle (0 = désactivé)
     VIDEO_FRAME_COUNT: int = 8
+    # PDF scanné (sans texte) : nombre maximal de pages lues par le modèle (vision)
+    PDF_OCR_MAX_PAGES: int = 40
 
     # Dossier de travail (fichiers temporaires + contenus de l'assistant)
     UPLOAD_DIR: str = "uploads"
