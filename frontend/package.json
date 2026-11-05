@@ -52,11 +52,11 @@
     "@angular/cli": "^22.2.5",
     "@angular/compiler-cli": "^22.2.4",
     "@types/node": "^24.13.3",
-    "@vitest/browser-playwright": "^4.1.10",
+    "@vitest/browser-playwright": "^4.1.12",
     "jsdom": "^29.1.1",
     "playwright": "^1.61.1",
     "typescript": "~6.0.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": "^22.22.3 || ^24.15.0 || ^26.0.0",
