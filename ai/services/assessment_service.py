@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from agents.quiz_agent import QuizAgent
 from api.schemas import DEFAULT_LEVELS, GenerateAssessmentsRequest
-from services.resource_loader import build_course_content
+from services.resource_loader import extract_resources_text
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +13,14 @@ QUIZ_TIME_LIMIT_MINUTES = 15
 QUIZ_PASSING_SCORE = 60.0
 TP_TIME_LIMIT_HOURS = 24
 TP_MAX_POINTS = 100.0
+# Sans ressource lisible, il faut au moins ce texte (titres + descriptions des leçons) pour un quiz utile
+MIN_DESCRIPTION_CHARS = 300
 
 
 def generate_assessments(request: GenerateAssessmentsRequest) -> dict:
     """1) extraire le contenu des ressources, 2) générer quiz/TP par niveau en parallèle."""
     levels = request.difficulty_levels or DEFAULT_LEVELS
-    content = build_course_content(request.lesson_descriptions, request.resource_details)
-    if not content.strip():
-        raise ValueError("Aucun contenu exploitable : vérifiez les PDF, vidéos ou liens envoyés.")
+    content = build_assessment_content(request.lesson_descriptions, request.resource_details)
     logger.info("Contenu du cours extrait : %d caractères", len(content))
 
     agent = QuizAgent()
@@ -40,6 +40,25 @@ def generate_assessments(request: GenerateAssessmentsRequest) -> dict:
             "quizzes": [f.result() for f in quiz_futures],
             "assignments": [f.result() for f in tp_futures],
         }
+
+
+def build_assessment_content(lesson_descriptions, resources) -> str:
+    """Contenu réel du cours, ou ValueError : jamais de quiz inventé à partir du seul titre « Leçon 1 »."""
+    descriptions = "\n".join(d for d in lesson_descriptions if d)
+    resource_text, unreadable = extract_resources_text(resources)
+    if resources and not resource_text.strip():
+        raise ValueError(
+            "Le contenu du cours n'a pas pu être lu (" + ", ".join(unreadable[:5]) + "). "
+            "Vérifiez que les fichiers sont bien déposés dans le chapitre, puis relancez la génération."
+        )
+    if not resources and len(descriptions) < MIN_DESCRIPTION_CHARS:
+        raise ValueError(
+            "Ce chapitre ne contient pas encore de ressource (PDF, vidéo, audio ou lien) : "
+            "ajoutez le contenu du cours avant de générer un quiz ou un TP."
+        )
+    if unreadable:
+        logger.warning("Génération sans %d ressource(s) illisible(s) : %s", len(unreadable), unreadable)
+    return "\n\n".join(p for p in (descriptions, resource_text) if p.strip())
 
 
 def _build_quiz(agent: QuizAgent, content: str, level: str, count: int) -> dict:
