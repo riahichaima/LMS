@@ -24,6 +24,9 @@ public class SuperAdminController {
     @Autowired
     private AuthService authService;
 
+    @Autowired
+    private com.course.lms.service.AccountDeletionService accountDeletionService;
+
     // Comptes administrateur avec leur statut de validation (en attente en premier)
     @GetMapping("/admins")
     public ResponseEntity<List<Map<String, Object>>> listAdmins() {
@@ -47,7 +50,7 @@ public class SuperAdminController {
     @DeleteMapping("/admins/{id}")
     public ResponseEntity<Map<String, Object>> reject(@PathVariable Long id) {
         User user = findAdmin(id);
-        authService.deleteUser(user.getId());
+        accountDeletionService.deleteAccount(user, null);
         return ResponseEntity.ok(Map.of("id", id, "deleted", true));
     }
 

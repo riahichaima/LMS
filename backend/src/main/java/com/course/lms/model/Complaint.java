@@ -26,12 +26,22 @@ public class Complaint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "author_id", nullable = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
+    /** Vide quand le compte de l'auteur a été supprimé : son identité reste dans author_name / author_email. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "author_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private User author;
 
-    /** TECHNIQUE, COURS, PAIEMENT, COMPTE, ENSEIGNANT, AUTRE */
+    @Column(name = "author_name")
+    private String authorName;
+
+    @Column(name = "author_email")
+    private String authorEmail;
+
+    @Column(name = "author_role", length = 20)
+    private String authorRole;
+
+    /** TECHNIQUE, COURS, PAIEMENT, COMPTE, ENSEIGNANT, AUTRE ; SUPPRESSION = raison d'une suppression de compte */
     @Column(nullable = false, length = 20)
     private String category;
 
@@ -65,7 +75,17 @@ public class Complaint {
 
     public Long getId() { return id; }
     public User getAuthor() { return author; }
-    public void setAuthor(User author) { this.author = author; }
+    public void setAuthor(User author) {
+        this.author = author;
+        if (author != null) {
+            this.authorName = author.getName();
+            this.authorEmail = author.getEmail();
+            this.authorRole = author.getRole() != null ? author.getRole().getName() : null;
+        }
+    }
+    public String getAuthorName() { return authorName; }
+    public String getAuthorEmail() { return authorEmail; }
+    public String getAuthorRole() { return authorRole; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
     public String getSubject() { return subject; }

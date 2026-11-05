@@ -46,7 +46,12 @@ export class LoginComponent {
   // Connexion Google avec une adresse sans compte LMS : lien vers l'inscription
   googleNoAccount = signal(false);
 
-  constructor(private authService: AuthService, private router: Router, private route: ActivatedRoute) {}
+  constructor(private authService: AuthService, private router: Router, private route: ActivatedRoute) {
+    // Retour après « Supprimer mon compte »
+    if (this.route.snapshot.queryParamMap.get('deleted')) {
+      this.infoMessage.set('Votre compte a été supprimé. Merci pour votre réponse : vous pouvez créer un nouveau compte à tout moment.');
+    }
+  }
 
   onGoogle(): void {
     const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl');

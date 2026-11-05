@@ -26,6 +26,9 @@ public class AdminController {
     private AuthService authService;
 
     @Autowired
+    private com.course.lms.service.AccountDeletionService accountDeletionService;
+
+    @Autowired
     private CourseService courseService;
 
     @Autowired
@@ -84,9 +87,20 @@ public class AdminController {
 
     @DeleteMapping("/users/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        protectSuperAdmin(findUser(id));
-        authService.deleteUser(id);
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id, Authentication auth) {
+        User target = findUser(id);
+        protectSuperAdmin(target);
+        if (target.getEmail().equalsIgnoreCase(auth.getName())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vous ne pouvez pas supprimer votre propre compte ici.");
+        }
+        if (target.getRole() != null && "ADMIN".equals(target.getRole().getName()) && !currentUserIsSuperAdmin()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Seul le super administrateur peut supprimer un administrateur.");
+        }
+        try {
+            accountDeletionService.deleteAccount(target, auth.getName());
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+        }
         return ResponseEntity.noContent().build();
     }
 
