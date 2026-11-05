@@ -58,7 +58,7 @@ export class RegisterComponent {
   }
 
   onGoogleError(error: GoogleSigninError): void {
-    if (error.code === 'ADMIN_PENDING') {
+    if (error.code === 'ADMIN_PENDING' || error.code === 'ACCOUNT_PENDING_ACTIVATION') {
       this.errorMessage.set('');
       this.googleInfo.set(error.message);
     } else {

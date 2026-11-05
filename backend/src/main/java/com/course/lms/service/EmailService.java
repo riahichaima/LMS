@@ -42,6 +42,16 @@ public class EmailService {
     }
 
 
+    /** Compte activé par un administrateur (inscription avec Google ou activation manuelle). */
+    @Async("taskExecutor")
+    public void sendAccountActivatedEmail(String to, String name) {
+        String subject = "Votre compte LMS est activé";
+        String content = "Bonjour " + (name != null ? name : "") + ",\n\n"
+                + "Un administrateur vient d'activer votre compte. Vous pouvez maintenant vous connecter :\n"
+                + frontendUrl + "/#/login\n\nÀ bientôt sur la plateforme !";
+        sendEmail(to, subject, content);
+    }
+
     private void sendEmail(String to, String subject, String content) {
         if (mailSender != null) {
             // Option B ou C (Mailtrap ou Gmail) est configurée et active
@@ -52,7 +62,7 @@ public class EmailService {
             message.setFrom("noreply@lms.com");
             try {
                 mailSender.send(message);
-                System.out.println("Email de vérification envoyé avec succès à " + to);
+                System.out.println("Email « " + subject + " » envoyé avec succès à " + to);
             } catch (Exception e) {
                 System.err.println("Erreur lors de l'envoi de l'email à " + to + " : " + e.getMessage());
             }

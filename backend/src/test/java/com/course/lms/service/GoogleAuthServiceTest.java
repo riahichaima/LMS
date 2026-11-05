@@ -13,7 +13,6 @@ import com.course.lms.security.jwt.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -129,20 +128,21 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    void registersStudentWithGoogleProfile() {
-        AuthResponse auth = service.authenticate("t", "STUDENT");
+    void googleSignupCreatesDisabledAccountWaitingForAdmin() {
+        assertThatThrownBy(() -> service.authenticate("t", "STUDENT"))
+                .isInstanceOfSatisfying(AdminApprovalException.class,
+                        e -> assertThat(e.getCode()).isEqualTo("ACCOUNT_PENDING_ACTIVATION"));
 
-        assertThat(auth.getToken()).isEqualTo("jwt-lms");
-        assertThat(auth.getUser().getRole()).isEqualTo("STUDENT");
-        verify(users).save(argThat(u -> u.isEnabled() && "nadia.ben@gmail.com".equals(u.getEmail())
+        verify(users).save(argThat(u -> !u.isEnabled() && "nadia.ben@gmail.com".equals(u.getEmail())
                 && "Nadia".equals(u.getFirstName()) && "Ben Salah".equals(u.getLastName()) && "hash".equals(u.getPassword())));
+        verify(notifications).notifyStaff(anyString(), anyString(), eq("ADMIN_USER"), eq(99L));
         verify(notifications, never()).notifyRole(anyString(), anyString(), anyString(), anyString(), anyLong());
     }
 
     @Test
-    void registeringTeacherNotifiesStudents() {
-        service.authenticate("t", "teacher");
-        verify(notifications).notifyRole(eq("STUDENT"), anyString(), anyString(), eq("NEW_TEACHER"), eq(99L));
+    void teacherIsAnnouncedToStudentsOnlyAfterActivation() {
+        assertThatThrownBy(() -> service.authenticate("t", "teacher")).isInstanceOf(AdminApprovalException.class);
+        verify(notifications, never()).notifyRole(eq("STUDENT"), anyString(), anyString(), eq("NEW_TEACHER"), anyLong());
     }
 
     @Test
@@ -187,10 +187,12 @@ class GoogleAuthServiceTest {
     }
 
     @Test
-    void accountDisabledByAdminStaysBlocked() {
+    void googleAccountNotYetActivatedCannotLogIn() {
         when(users.findByEmail("nadia.ben@gmail.com")).thenReturn(Optional.of(existing("STUDENT", false)));
         when(tokens.existsByUserId(7L)).thenReturn(false);
-        assertThatThrownBy(() -> service.authenticate("t", null)).isInstanceOf(DisabledException.class);
+        assertThatThrownBy(() -> service.authenticate("t", null))
+                .isInstanceOfSatisfying(AdminApprovalException.class,
+                        e -> assertThat(e.getCode()).isEqualTo("ACCOUNT_PENDING_ACTIVATION"));
     }
 
     @Test

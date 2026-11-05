@@ -14,7 +14,6 @@ import com.course.lms.repository.VerificationTokenRepository;
 import com.course.lms.security.jwt.JwtUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
@@ -170,7 +169,9 @@ public class GoogleAuthService {
         // Pas de mot de passe connu : la personne pourra en définir un avec « Mot de passe oublié »
         user.setPassword(passwordEncoder.encode(UUID.randomUUID() + UUID.randomUUID().toString()));
         user.setRole(role);
-        user.setEnabled(true); // adresse déjà vérifiée par Google
+        // Adresse vérifiée par Google, mais le compte doit être activé par un administrateur
+        // (étudiant / enseignant) ou validé par le super administrateur (admin)
+        user.setEnabled("ADMIN".equals(roleName));
         if ("ADMIN".equals(roleName)) user.setApprovalStatus(ApprovalStatus.PENDING);
         user = userRepository.save(user);
 
@@ -182,14 +183,13 @@ public class GoogleAuthService {
             throw new AdminApprovalException("ADMIN_PENDING",
                     "Votre demande de compte administrateur a été envoyée : le super administrateur doit la valider.");
         }
-        notificationService.notifyStaff("👤 Nouvel utilisateur : " + name,
-                name + " (" + email + ") a créé un compte " + ("TEACHER".equals(roleName) ? "enseignant" : "étudiant") + " avec Google.",
+        notificationService.notifyStaff("👤 Compte à activer : " + name,
+                name + " (" + email + ") a créé un compte " + ("TEACHER".equals(roleName) ? "enseignant" : "étudiant")
+                        + " avec Google. Activez-le dans Utilisateurs.",
                 "ADMIN_USER", user.getId());
-        if ("TEACHER".equals(roleName)) {
-            notificationService.notifyRole("STUDENT", "🎓 Nouveau formateur : " + name,
-                    name + " rejoint la plateforme. Découvrez bientôt ses cours !", "NEW_TEACHER", user.getId());
-        }
-        return user;
+        // Les étudiants sont prévenus d'un nouveau formateur seulement à l'activation du compte
+        throw new AdminApprovalException("ACCOUNT_PENDING_ACTIVATION",
+                "Votre compte a été créé avec Google. Un administrateur doit l'activer avant votre première connexion : vous recevrez un email dès qu'il sera actif.");
     }
 
     /**
@@ -198,7 +198,11 @@ public class GoogleAuthService {
      */
     private void activateIfWaitingForEmail(User user) {
         if (user.isEnabled()) return;
-        if (!tokenRepository.existsByUserId(user.getId())) throw new DisabledException("Compte désactivé");
+        // Pas d'email en attente de vérification : compte créé avec Google et pas encore activé, ou désactivé par l'administration
+        if (!tokenRepository.existsByUserId(user.getId())) {
+            throw new AdminApprovalException("ACCOUNT_PENDING_ACTIVATION",
+                    "Votre compte n'est pas encore activé par l'administration (ou a été désactivé). Réessayez après l'activation.");
+        }
         user.setEnabled(true);
         userRepository.save(user);
         tokenRepository.deleteByUserId(user.getId());
