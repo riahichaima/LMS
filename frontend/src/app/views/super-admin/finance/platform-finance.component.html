@@ -29,7 +29,7 @@
         <c-badge color="info">{{ toSimulate().length }} à simuler</c-badge>
       </c-card-header>
       <c-card-body>
-        <p class="small text-body-secondary">Retraits approuvés par un administrateur. Le transfert est simulé : une référence fictive est générée.</p>
+        <p class="small text-body-secondary">Retraits approuvés par l'administration : effectuez le transfert vers le compte indiqué par l'enseignant. En mode test, le transfert est simulé (référence fictive, aucun virement réel) et l'enseignant est notifié.</p>
         <table cTable [hover]="true" [responsive]="true" class="mb-0">
           <thead>
             <tr><th>#</th><th>Enseignant</th><th class="text-end">Montant</th><th>Approuvé par</th><th>Statut</th><th class="text-end">Action</th></tr>
@@ -37,7 +37,11 @@
           <tbody>
             <tr *ngFor="let t of transfers()">
               <td>{{ t.id }}</td>
-              <td><div class="fw-semibold">{{ t.teacherName }}</div><div class="small text-body-secondary">{{ t.teacherEmail }}</div></td>
+              <td>
+                <div class="fw-semibold">{{ t.teacherName }}</div><div class="small text-body-secondary">{{ t.teacherEmail }}</div>
+                <div class="small" *ngIf="t.payoutAccount; else noAccount">{{ methodLabel(t.payoutMethod) }} : <span class="font-monospace">{{ t.payoutAccount }}</span></div>
+                <ng-template #noAccount><div class="small text-body-secondary">Compte de réception non renseigné (ancienne demande)</div></ng-template>
+              </td>
               <td class="text-end fw-semibold">{{ t.amount | currency:'USD' }}</td>
               <td class="small">{{ t.reviewedBy }}<br /><span class="text-body-secondary">{{ t.reviewedAt | date:'dd/MM/yyyy HH:mm' }}</span></td>
               <td>

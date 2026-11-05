@@ -41,7 +41,10 @@
           <tbody>
             <tr *ngFor="let w of withdrawals()">
               <td>{{ w.id }}</td>
-              <td><div class="fw-semibold">{{ w.teacherName }}</div><div class="small text-body-secondary">{{ w.teacherEmail }}</div></td>
+              <td>
+                <div class="fw-semibold">{{ w.teacherName }}</div><div class="small text-body-secondary">{{ w.teacherEmail }}</div>
+                <div class="small">Reçoit par : {{ payoutLabel(w.payoutMethod, w.payoutAccount) }}</div>
+              </td>
               <td>{{ w.requestedAt | date:'dd/MM/yyyy HH:mm' }}</td>
               <td class="text-end fw-semibold">{{ w.amount | currency:'USD' }}</td>
               <td>

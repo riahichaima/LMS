@@ -39,6 +39,6 @@ public class TeacherEarningsController {
     public ResponseEntity<WithdrawalView> requestWithdrawal(@RequestBody WithdrawalRequestBody body, Authentication auth) {
         User teacher = userRepository.findByEmail(auth.getName()).orElseThrow();
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(WithdrawalView.of(walletService.requestWithdrawal(teacher, body.amount())));
+                .body(WithdrawalView.of(walletService.requestWithdrawal(teacher, body.amount(), body.payoutMethod(), body.payoutAccount())));
     }
 }

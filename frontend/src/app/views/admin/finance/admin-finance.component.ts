@@ -11,7 +11,7 @@ import {
   TableDirective
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { FinanceService, FinanceSummary, TeacherWalletView, WithdrawalStatus, WithdrawalView } from '../../../services/finance.service';
+import { FinanceService, FinanceSummary, TeacherWalletView, WithdrawalStatus, WithdrawalView, payoutLabel } from '../../../services/finance.service';
 import { PaymentStatus, PaymentView } from '../../../services/payment.service';
 
 import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
@@ -29,6 +29,7 @@ import { StatCardComponent } from '../../../shared/ui/stat-card.component';
   templateUrl: './admin-finance.component.html'
 })
 export class AdminFinanceComponent implements OnInit {
+  readonly payoutLabel = payoutLabel;
   tab = signal<'payments' | 'commissions' | 'teachers' | 'withdrawals'>('withdrawals');
   summary = signal<FinanceSummary | null>(null);
   payments = signal<PaymentView[]>([]);

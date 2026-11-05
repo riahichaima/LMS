@@ -56,6 +56,14 @@ public class WithdrawalRequest {
     @Column(name = "transfer_reference", length = 60)
     private String transferReference;
 
+    /** Moyen de réception choisi par l'enseignant : BANK (RIB / IBAN), D17 (La Poste), PAYPAL */
+    @Column(name = "payout_method", length = 10)
+    private String payoutMethod;
+
+    /** Compte de réception : RIB / IBAN, numéro D17 ou email PayPal */
+    @Column(name = "payout_account", length = 80)
+    private String payoutAccount;
+
     @PrePersist
     protected void onCreate() {
         requestedAt = LocalDateTime.now();
@@ -91,4 +99,8 @@ public class WithdrawalRequest {
 
     public String getTransferReference() { return transferReference; }
     public void setTransferReference(String transferReference) { this.transferReference = transferReference; }
+    public String getPayoutMethod() { return payoutMethod; }
+    public void setPayoutMethod(String payoutMethod) { this.payoutMethod = payoutMethod; }
+    public String getPayoutAccount() { return payoutAccount; }
+    public void setPayoutAccount(String payoutAccount) { this.payoutAccount = payoutAccount; }
 }

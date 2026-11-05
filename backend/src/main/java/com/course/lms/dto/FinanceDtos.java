@@ -44,18 +44,20 @@ public final class FinanceDtos {
     public record WithdrawalView(Long id, Long teacherId, String teacherName, String teacherEmail,
                                  BigDecimal amount, String status, LocalDateTime requestedAt,
                                  String reviewedBy, LocalDateTime reviewedAt, String adminNote,
-                                 String transferredBy, LocalDateTime transferredAt, String transferReference) {
+                                 String transferredBy, LocalDateTime transferredAt, String transferReference,
+                                 String payoutMethod, String payoutAccount) {
 
         public static WithdrawalView of(WithdrawalRequest w) {
             return new WithdrawalView(w.getId(), w.getTeacher().getId(), w.getTeacher().getName(), w.getTeacher().getEmail(),
                     w.getAmount(), w.getStatus(), w.getRequestedAt(),
                     w.getReviewedBy() != null ? w.getReviewedBy().getName() : null, w.getReviewedAt(), w.getAdminNote(),
                     w.getTransferredBy() != null ? w.getTransferredBy().getName() : null, w.getTransferredAt(),
-                    w.getTransferReference());
+                    w.getTransferReference(), w.getPayoutMethod(), w.getPayoutAccount());
         }
     }
 
-    public record WithdrawalRequestBody(BigDecimal amount) {}
+    /** payoutMethod : BANK, D17 ou PAYPAL ; payoutAccount : RIB / IBAN, numéro D17 ou email PayPal */
+    public record WithdrawalRequestBody(BigDecimal amount, String payoutMethod, String payoutAccount) {}
 
     public record ReviewBody(String note) {}
 

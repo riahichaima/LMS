@@ -98,9 +98,15 @@ public class WalletService {
                 "Commission sur « " + payment.getCourse().getTitle() + " » (40 %)");
     }
 
+    /** Moyens de réception proposés à l'enseignant (transfert simulé en mode test). */
+    public static final java.util.Map<String, String> PAYOUT_METHODS = java.util.Map.of(
+            "BANK", "virement bancaire", "D17", "D17 (La Poste)", "PAYPAL", "PayPal");
+
     // Demande de retrait : le montant passe du solde disponible au solde en attente
     @Transactional
-    public WithdrawalRequest requestWithdrawal(User teacher, BigDecimal amount) {
+    public WithdrawalRequest requestWithdrawal(User teacher, BigDecimal amount, String payoutMethod, String payoutAccount) {
+        String method = payoutMethod == null ? "" : payoutMethod.trim().toUpperCase(java.util.Locale.ROOT);
+        String account = normalizePayoutAccount(method, payoutAccount);
         if (amount == null || amount.signum() <= 0) {
             throw new IllegalArgumentException("Montant de retrait invalide.");
         }
@@ -118,13 +124,17 @@ public class WalletService {
         WithdrawalRequest request = new WithdrawalRequest();
         request.setTeacher(teacher);
         request.setAmount(value);
+        request.setPayoutMethod(method);
+        request.setPayoutAccount(account);
         withdrawalRepository.save(request);
 
         wallet.setAvailableBalance(wallet.getAvailableBalance().subtract(value));
         wallet.setPendingBalance(wallet.getPendingBalance().add(value));
         record(wallet, WalletTransaction.WITHDRAWAL_HOLD, value, null, request, "Demande de retrait #" + request.getId());
-        notificationService.notifyRole("ADMIN", "Nouvelle demande de retrait",
-                teacher.getName() + " demande un retrait de " + value + " $.", "WITHDRAWAL", request.getId());
+        // Administrateurs et super administrateur (la plateforme peut fonctionner sans administrateur)
+        notificationService.notifyStaff("Nouvelle demande de retrait",
+                teacher.getName() + " demande un retrait de " + value + " $ par " + PAYOUT_METHODS.get(method) + ".",
+                "WITHDRAWAL", request.getId());
         return request;
     }
 
@@ -137,7 +147,11 @@ public class WalletService {
         request.setReviewedAt(LocalDateTime.now());
         request.setAdminNote(note);
         notificationService.sendNotification(request.getTeacher(), "Retrait approuvé",
-                "Votre demande de retrait de " + request.getAmount() + " $ a été approuvée.", "WITHDRAWAL", request.getId());
+                "Votre demande de retrait de " + request.getAmount() + " $ a été approuvée. Le super administrateur va effectuer le transfert"
+                        + payoutDestination(request) + " : vous serez prévenu dès qu'il sera fait.", "WITHDRAWAL", request.getId());
+        notificationService.notifyRole("SUPER_ADMIN", "Transfert à effectuer",
+                request.getTeacher().getName() + " : retrait de " + request.getAmount() + " $ approuvé par " + admin.getName()
+                        + ". Effectuez le transfert dans Contrôle financier.", "WITHDRAWAL", request.getId());
         return request;
     }
 
@@ -180,9 +194,48 @@ public class WalletService {
         record(wallet, WalletTransaction.WITHDRAWAL_PAYOUT, request.getAmount(), null, request,
                 "Transfert simulé " + request.getTransferReference());
         notificationService.sendNotification(request.getTeacher(), "Transfert effectué",
-                "Transfert simulé de " + request.getAmount() + " $ (référence " + request.getTransferReference() + ").",
+                "Transfert de " + request.getAmount() + " $ effectué" + payoutDestination(request)
+                        + " (référence " + request.getTransferReference() + ", simulé en mode test).",
                 "WITHDRAWAL", request.getId());
         return request;
+    }
+
+    // Contrôle du compte de réception selon le moyen choisi
+    static String normalizePayoutAccount(String method, String raw) {
+        if (!PAYOUT_METHODS.containsKey(method)) {
+            throw new IllegalArgumentException("Choisissez comment recevoir l'argent : virement bancaire, D17 ou PayPal.");
+        }
+        String value = raw == null ? "" : raw.trim();
+        switch (method) {
+            case "BANK" -> {
+                String compact = value.replaceAll("\\s+", "").toUpperCase(java.util.Locale.ROOT);
+                // RIB tunisien (20 chiffres) ou IBAN (2 lettres, 2 chiffres, puis 11 à 30 caractères)
+                if (!compact.matches("\\d{20}") && !compact.matches("[A-Z]{2}\\d{2}[A-Z0-9]{11,30}")) {
+                    throw new IllegalArgumentException("RIB (20 chiffres) ou IBAN invalide.");
+                }
+                return compact;
+            }
+            case "D17" -> {
+                String digits = value.replaceAll("[\\s.-]", "").replaceFirst("^\\+216", "");
+                if (!digits.matches("\\d{8}")) throw new IllegalArgumentException("Numéro D17 invalide (8 chiffres).");
+                return digits;
+            }
+            default -> {
+                if (value.length() > 80 || !value.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+                    throw new IllegalArgumentException("Adresse email PayPal invalide.");
+                }
+                return value.toLowerCase(java.util.Locale.ROOT);
+            }
+        }
+    }
+
+    // « par virement bancaire sur •••• 1234 » (demandes anciennes sans compte : rien)
+    private static String payoutDestination(WithdrawalRequest request) {
+        String account = request.getPayoutAccount();
+        if (account == null || account.isBlank()) return "";
+        String visible = "PAYPAL".equals(request.getPayoutMethod()) ? account
+                : "•••• " + account.substring(Math.max(0, account.length() - 4));
+        return " par " + PAYOUT_METHODS.getOrDefault(request.getPayoutMethod(), "virement") + " sur " + visible;
     }
 
     private WithdrawalRequest lockWithdrawal(Long id, String expectedStatus) {
