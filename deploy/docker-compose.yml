@@ -133,6 +133,39 @@ services:
       - caddy-config:/config
     networks: [web]
 
+  # ── Relais TURN (profil « turn ») : visio entre réseaux qui bloquent la connexion directe (4G, écoles)
+  # Réseau de l'hôte : coturn écoute sur 3478 (UDP/TCP) et relaie sur la plage UDP 49160-49200.
+  # Les adresses internes (VM, conteneurs, métadonnées Azure) sont refusées comme destinations du relais.
+  turn:
+    image: coturn/coturn:4.7
+    profiles: [turn]
+    restart: unless-stopped
+    <<: *logs
+    mem_limit: 128m
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --fingerprint
+      - --lt-cred-mech
+      - --realm=${API_DOMAIN:-lms}
+      - --user=${TURN_USERNAME:-lms}:${TURN_CREDENTIAL:-}
+      - --external-ip=${TURN_EXTERNAL_IP:-}
+      - --no-tls
+      - --no-dtls
+      - --no-cli
+      - --no-multicast-peers
+      - --denied-peer-ip=0.0.0.0-0.255.255.255
+      - --denied-peer-ip=10.0.0.0-10.255.255.255
+      - --denied-peer-ip=100.64.0.0-100.127.255.255
+      - --denied-peer-ip=127.0.0.0-127.255.255.255
+      - --denied-peer-ip=169.254.0.0-169.254.255.255
+      - --denied-peer-ip=172.16.0.0-172.31.255.255
+      - --denied-peer-ip=192.168.0.0-192.168.255.255
+
   # ── Option (profil « frontend ») : site Angular servi par ce serveur au lieu de Vercel
   frontend:
     image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-frontend:${FRONTEND_TAG:-latest}
