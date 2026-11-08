@@ -11,7 +11,7 @@ COPY . .
 RUN npx ng build --configuration production
 
 # ── 2. Service statique ────────────────────────────────────────
-FROM nginxinc/nginx-unprivileged:1.29-alpine
+FROM nginxinc/nginx-unprivileged:1.31-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --chmod=755 docker/40-lms-env.sh /docker-entrypoint.d/40-lms-env.sh
