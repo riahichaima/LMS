@@ -2,7 +2,7 @@
 # Backend LMS (Spring Boot 4, Java 17) — image multi-étapes : compilation Maven puis JRE seul.
 
 # ── 1. Compilation ──────────────────────────────────────────────
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /src
 # Dépendances d'abord : couche mise en cache tant que pom.xml ne change pas
 COPY pom.xml .
