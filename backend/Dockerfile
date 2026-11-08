@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests \
  && java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
 
 # ── 2. Exécution ────────────────────────────────────────────────
-FROM eclipse-temurin:17-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 # Correctifs de sécurité des paquets système, puis curl (health check)
 RUN apt-get update \
  && apt-get upgrade -y --no-install-recommends \
