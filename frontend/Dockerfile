@@ -2,7 +2,7 @@
 # Frontend LMS (Angular 22) — compilation Node puis service statique par nginx (sans root).
 
 # ── 1. Compilation ──────────────────────────────────────────────
-FROM node:24-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
