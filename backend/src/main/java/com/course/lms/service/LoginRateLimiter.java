@@ -1,28 +1,36 @@
 package com.course.lms.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Limite des essais de connexion et des envois d'e-mails (mot de passe oublié, nouvel e-mail de
  * vérification), sur une fenêtre glissante, pour bloquer les attaques par force brute et
  * l'envoi d'e-mails en masse. Deux compteurs : par adresse e-mail (protège le compte) et par IP
- * (bloque une machine qui essaie beaucoup de comptes). Réglable par variables d'environnement ;
- * 0 = pas de limite.
+ * (bloque une machine qui essaie beaucoup de comptes ; en IPv6, tout le réseau /64). Réglable par
+ * variables d'environnement ; 0 = pas de limite.
+ * <p>Mémoire bornée : au plus {@link #MAX_TRACKED_KEYS} compteurs (Caffeine garde en priorité les
+ * plus utilisés, donc les comptes réellement attaqués), même si on essaie des millions d'adresses.
  */
 @Component
 public class LoginRateLimiter {
+
+    static final int MAX_TRACKED_KEYS = 100_000;
 
     private final int maxFailuresPerEmail;
     private final int maxFailuresPerIp;
@@ -30,7 +38,8 @@ public class LoginRateLimiter {
     private final int maxMailsPerIp;
     private final Duration window;
     private final Clock clock;
-    private final Map<String, Deque<Instant>> events = new ConcurrentHashMap<>();
+    private final Cache<String, Deque<Instant>> store;
+    private final ConcurrentMap<String, Deque<Instant>> events;
 
     @Autowired
     public LoginRateLimiter(@Value("${app.auth.rate-limit.failures-per-email:5}") int maxFailuresPerEmail,
@@ -44,12 +53,35 @@ public class LoginRateLimiter {
 
     LoginRateLimiter(int maxFailuresPerEmail, int maxFailuresPerIp, int maxMailsPerEmail, int maxMailsPerIp,
                      Duration window, Clock clock) {
+        this(maxFailuresPerEmail, maxFailuresPerIp, maxMailsPerEmail, maxMailsPerIp, window, clock, MAX_TRACKED_KEYS);
+    }
+
+    LoginRateLimiter(int maxFailuresPerEmail, int maxFailuresPerIp, int maxMailsPerEmail, int maxMailsPerIp,
+                     Duration window, Clock clock, int maxTrackedKeys) {
         this.maxFailuresPerEmail = maxFailuresPerEmail;
         this.maxFailuresPerIp = maxFailuresPerIp;
         this.maxMailsPerEmail = maxMailsPerEmail;
         this.maxMailsPerIp = maxMailsPerIp;
         this.window = window;
         this.clock = clock;
+        this.store = Caffeine.newBuilder()
+                .maximumSize(maxTrackedKeys)
+                .expireAfterAccess(window.plusMinutes(1))
+                .executor(Runnable::run)
+                .build();
+        this.events = store.asMap();
+    }
+
+    /** Clé de l'IP : l'adresse IPv4, ou le réseau /64 en IPv6 (un seul abonné peut en changer à volonté). */
+    static String network(String ip) {
+        if (ip == null || ip.indexOf(':') < 0) return ip == null ? "" : ip;
+        try {
+            byte[] bytes = InetAddress.getByName(ip).getAddress(); // adresse littérale : aucune requête DNS
+            if (bytes.length == 16) return HexFormat.of().formatHex(bytes, 0, 8) + "/64";
+            return InetAddress.getByAddress(bytes).getHostAddress(); // IPv4 écrite en IPv6 (::ffff:a.b.c.d)
+        } catch (UnknownHostException e) {
+            return ip;
+        }
     }
 
     /** Avant de vérifier le mot de passe : refuse (429) si l'e-mail ou l'IP a trop d'échecs récents. */
@@ -57,7 +89,7 @@ public class LoginRateLimiter {
         Instant now = clock.instant();
         refuseIfFull("login-email:" + normalize(email), maxFailuresPerEmail, now,
                 "Trop de tentatives de connexion pour ce compte.");
-        refuseIfFull("login-ip:" + ip, maxFailuresPerIp, now,
+        refuseIfFull("login-ip:" + network(ip), maxFailuresPerIp, now,
                 "Trop de tentatives de connexion depuis votre réseau.");
     }
 
@@ -68,7 +100,7 @@ public class LoginRateLimiter {
     public boolean loginFailed(String email, String ip) {
         Instant now = clock.instant();
         boolean emailBlocked = add("login-email:" + normalize(email), maxFailuresPerEmail, now);
-        boolean ipBlocked = add("login-ip:" + ip, maxFailuresPerIp, now);
+        boolean ipBlocked = add("login-ip:" + network(ip), maxFailuresPerIp, now);
         return emailBlocked || ipBlocked;
     }
 
@@ -82,10 +114,10 @@ public class LoginRateLimiter {
         Instant now = clock.instant();
         refuseIfFull("mail-email:" + normalize(email), maxMailsPerEmail, now,
                 "Trop de demandes d'e-mail pour cette adresse.");
-        refuseIfFull("mail-ip:" + ip, maxMailsPerIp, now,
+        refuseIfFull("mail-ip:" + network(ip), maxMailsPerIp, now,
                 "Trop de demandes d'e-mail depuis votre réseau.");
         add("mail-email:" + normalize(email), maxMailsPerEmail, now);
-        add("mail-ip:" + ip, maxMailsPerIp, now);
+        add("mail-ip:" + network(ip), maxMailsPerIp, now);
     }
 
     /** Retire de la mémoire les compteurs dont tous les événements sont sortis de la fenêtre. */
@@ -101,7 +133,8 @@ public class LoginRateLimiter {
     }
 
     int trackedKeys() {
-        return events.size();
+        store.cleanUp();
+        return (int) store.estimatedSize();
     }
 
     // Toutes les lectures et écritures d'un compteur passent par compute : atomiques pour une même clé.

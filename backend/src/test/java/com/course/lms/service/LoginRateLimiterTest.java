@@ -124,4 +124,27 @@ class LoginRateLimiterTest {
         limiter.purgeExpired();
         assertThat(limiter.trackedKeys()).isZero();
     }
+
+    @Test
+    void ipv6AddressesOfTheSameNetworkShareOneCounter() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        // 20 adresses différentes du même réseau /64 : un seul abonné qui change d'adresse
+        for (int i = 1; i <= 20; i++) limiter.loginFailed("compte" + i + "@lms.tn", "2001:db8:1:2::" + Integer.toHexString(i));
+        assertThatThrownBy(() -> limiter.checkLogin("autre@lms.tn", "2001:db8:1:2:ffff:ffff:ffff:ffff"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("depuis votre réseau");
+        assertThatCode(() -> limiter.checkLogin("autre@lms.tn", "2001:db8:1:3::1")).doesNotThrowAnyException();
+        assertThat(LoginRateLimiter.network("::ffff:41.226.1.1")).isEqualTo("41.226.1.1");
+        assertThat(LoginRateLimiter.network("41.226.1.1")).isEqualTo("41.226.1.1");
+    }
+
+    @Test
+    void memoryStaysBoundedWhenFloodedWithRandomAddresses() {
+        LoginRateLimiter limiter = new LoginRateLimiter(5, 20, 5, 20, Duration.ofMinutes(15), new MovableClock(), 1_000);
+        for (int i = 0; i < 2; i++) limiter.loginFailed("cible@lms.tn", "41.226.1.1"); // compte visé
+        for (int i = 0; i < 20_000; i++) {
+            limiter.checkMail("aleatoire" + i + "@x.tn", "10." + (i / 65536) + "." + (i / 256 % 256) + "." + (i % 256));
+        }
+        assertThat(limiter.trackedKeys()).isLessThanOrEqualTo(1_000);
+    }
 }
