@@ -21,9 +21,9 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * Limite des essais de connexion et des envois d'e-mails (mot de passe oublié, nouvel e-mail de
  * vérification), sur une fenêtre glissante, pour bloquer les attaques par force brute et
- * l'envoi d'e-mails en masse. Deux compteurs : par adresse e-mail (protège le compte) et par IP
- * (bloque une machine qui essaie beaucoup de comptes ; en IPv6, tout le réseau /64). Réglable par
- * variables d'environnement ; 0 = pas de limite.
+ * l'envoi d'e-mails en masse. Compteurs : par compte et par réseau (un attaquant ne peut pas bloquer le
+ * propriétaire), par compte au total (attaque répartie) et par IP (une machine qui essaie beaucoup de
+ * comptes ; en IPv6, tout le réseau /64). Réglable par variables d'environnement ; 0 = pas de limite.
  * <p>Mémoire bornée : au plus {@link #MAX_TRACKED_KEYS} compteurs (Caffeine garde en priorité les
  * plus utilisés, donc les comptes réellement attaqués), même si on essaie des millions d'adresses.
  */
@@ -84,29 +84,48 @@ public class LoginRateLimiter {
         }
     }
 
-    /** Avant de vérifier le mot de passe : refuse (429) si l'e-mail ou l'IP a trop d'échecs récents. */
+    /**
+     * Plafond d'échecs par compte, tous réseaux confondus (attaque répartie sur beaucoup d'IP) :
+     * 10 fois la limite par compte et par réseau.
+     */
+    private int maxFailuresPerAccount() {
+        return maxFailuresPerEmail <= 0 ? 0 : maxFailuresPerEmail * 10;
+    }
+
+    private static String accountNetwork(String email, String ip) {
+        return "login-account-ip:" + normalize(email) + "|" + network(ip);
+    }
+
+    /**
+     * Avant de vérifier le mot de passe : refuse (429) s'il y a trop d'échecs récents pour ce compte depuis ce
+     * réseau (5), pour ce compte au total (50) ou depuis ce réseau (20). Le compteur « compte + réseau » évite
+     * qu'un attaquant bloque le vrai propriétaire : il ne se bloque que lui-même.
+     */
     public void checkLogin(String email, String ip) {
         Instant now = clock.instant();
-        refuseIfFull("login-email:" + normalize(email), maxFailuresPerEmail, now,
+        refuseIfFull(accountNetwork(email, ip), maxFailuresPerEmail, now,
+                "Trop de tentatives de connexion pour ce compte.");
+        refuseIfFull("login-account:" + normalize(email), maxFailuresPerAccount(), now,
                 "Trop de tentatives de connexion pour ce compte.");
         refuseIfFull("login-ip:" + network(ip), maxFailuresPerIp, now,
                 "Trop de tentatives de connexion depuis votre réseau.");
     }
 
     /**
-     * Mot de passe faux : compte un échec pour l'e-mail et pour l'IP.
-     * @return true si cet échec vient de bloquer l'e-mail ou l'IP (pour l'écrire une seule fois dans le journal)
+     * Essai refusé : compte un échec pour le compte depuis ce réseau, pour le compte et pour le réseau.
+     * @return true si cet échec vient de déclencher un blocage (pour l'écrire une seule fois dans le journal)
      */
     public boolean loginFailed(String email, String ip) {
         Instant now = clock.instant();
-        boolean emailBlocked = add("login-email:" + normalize(email), maxFailuresPerEmail, now);
+        boolean accountNetworkBlocked = add(accountNetwork(email, ip), maxFailuresPerEmail, now);
+        boolean accountBlocked = add("login-account:" + normalize(email), maxFailuresPerAccount(), now);
         boolean ipBlocked = add("login-ip:" + network(ip), maxFailuresPerIp, now);
-        return emailBlocked || ipBlocked;
+        return accountNetworkBlocked || accountBlocked || ipBlocked;
     }
 
-    /** Connexion réussie : les échecs de ce compte sont oubliés (ceux de l'IP restent comptés). */
-    public void loginSucceeded(String email) {
-        events.remove("login-email:" + normalize(email));
+    /** Connexion réussie : les échecs de ce compte depuis ce réseau sont oubliés. */
+    public void loginSucceeded(String email, String ip) {
+        events.remove(accountNetwork(email, ip));
     }
 
     /** Mot de passe oublié ou nouvel e-mail de vérification : compte l'envoi, ou refuse (429) au-delà de la limite. */

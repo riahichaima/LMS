@@ -16,12 +16,11 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
-  # Cache du catalogue et des cours (Caffeine, en mémoire) ; CACHE_TYPE=none le désactive
+  # Cache du catalogue et des cours (Caffeine, en mémoire) ; CACHE_TYPE=none le désactive.
+  # Taille bornée en « poids » (cours, chapitres, leçons, ressources gardés) : voir CacheConfig.
   cache:
     type: ${CACHE_TYPE:caffeine}
     cache-names: catalogue
-    caffeine:
-      spec: ${CATALOGUE_CACHE_SPEC:maximumSize=500,expireAfterWrite=10m,recordStats}
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -53,8 +52,10 @@ server:
     enabled: true
     mime-types: application/json,application/javascript,text/html,text/css,text/plain,text/csv
     min-response-size: 2KB
-  # Derrière un proxy HTTPS (Render, Azure, Caddy…) : URL et IP réelles du client
-  forward-headers-strategy: framework
+  # Derrière un proxy HTTPS (Caddy) : URL et IP réelles du client. « native » (Tomcat) ne croit
+  # X-Forwarded-For que s'il vient d'un proxy du réseau interne, et ignore l'en-tête « Forwarded »
+  # qu'un client pourrait inventer pour se faire passer pour une autre IP (limite des essais).
+  forward-headers-strategy: native
   shutdown: graceful
 
 # Supervision technique : santé et métriques (Prometheus) sur un port interne, jamais publié.

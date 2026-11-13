@@ -109,5 +109,27 @@ public class CourseCatalogCache {
         return course == null ? null : copier.convertValue(course, CourseResponse.class);
     }
 
-    private record CachedPage(List<CourseResponse> content, long total) { }
+    /** Poids d'une valeur gardée : environ un objet par cours, chapitre, leçon et ressource (voir CacheConfig). */
+    public static int weight(Object value) {
+        if (value instanceof CachedPage page) {
+            return 1 + page.content().stream().mapToInt(CourseCatalogCache::courseWeight).sum();
+        }
+        if (value instanceof CourseResponse course) return courseWeight(course);
+        return 1;
+    }
+
+    private static int courseWeight(CourseResponse course) {
+        int weight = 1;
+        if (course.getChapters() == null) return weight;
+        for (var chapter : course.getChapters()) {
+            weight++;
+            if (chapter.getLessons() == null) continue;
+            for (var lesson : chapter.getLessons()) {
+                weight += 1 + (lesson.getResources() == null ? 0 : lesson.getResources().size());
+            }
+        }
+        return weight;
+    }
+
+    record CachedPage(List<CourseResponse> content, long total) { }
 }

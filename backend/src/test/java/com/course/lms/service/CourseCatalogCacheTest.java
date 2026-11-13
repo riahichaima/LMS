@@ -6,7 +6,10 @@ import com.course.lms.dto.LessonResourceResponse;
 import com.course.lms.dto.LessonResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.course.lms.config.CacheConfig;
 import org.junit.jupiter.api.Test;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.cache.concurrent.ConcurrentMapCacheManager;
 import org.springframework.cache.support.NoOpCacheManager;
 import org.springframework.data.domain.Page;
@@ -153,6 +156,25 @@ class CourseCatalogCacheTest {
             cache.page(null, far, pageLoader(far));              // page lointaine
         }
         assertThat(dbReads).hasValue(8); // tout est relu en base : rien n'a été gardé
+    }
+
+    @Test
+    void weightCountsCoursesChaptersLessonsAndResources() {
+        assertThat(CourseCatalogCache.weight(sampleCourse(1L))).isEqualTo(4); // 1 cours, 1 chapitre, 1 leçon, 1 ressource
+    }
+
+    @Test
+    void memoryIsBoundedByWeightWhateverTheRequests() {
+        CaffeineCacheManager manager = new CaffeineCacheManager(CourseCatalogCache.NAME);
+        manager.setCaffeine(CacheConfig.builder(1_000, java.time.Duration.ofMinutes(10)));
+        CourseCatalogCache cache = new CourseCatalogCache(manager);
+        for (long id = 1; id <= 2_000; id++) {
+            final long n = id;
+            cache.course(n, () -> sampleCourse(n)); // 2 000 cours de poids 4 = 8 000
+        }
+        var store = ((CaffeineCache) manager.getCache(CourseCatalogCache.NAME)).getNativeCache();
+        store.cleanUp();
+        assertThat(store.policy().eviction().orElseThrow().weightedSize().orElseThrow()).isLessThanOrEqualTo(1_000);
     }
 
     @Test

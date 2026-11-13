@@ -63,7 +63,7 @@ public class AuthController {
             }
             throw e;
         }
-        loginRateLimiter.loginSucceeded(account);
+        loginRateLimiter.loginSucceeded(account, ip);
         return ResponseEntity.ok(authResponse);
     }
 
@@ -86,34 +86,40 @@ public class AuthController {
     }
 
     @PostMapping("/auth/register")
-    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
+        return registerLimited(request, http);
     }
 
     /**
      * POST /admin/register - Force la création d'un compte ADMIN
      */
     @PostMapping("/admin/register")
-    public ResponseEntity<UserResponse> registerAdmin(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> registerAdmin(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         request.setRole("ADMIN");
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+        return registerLimited(request, http);
     }
 
     /**
      * POST /teacher/register - Force la création d'un compte TEACHER
      */
     @PostMapping("/teacher/register")
-    public ResponseEntity<UserResponse> registerTeacher(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> registerTeacher(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         request.setRole("TEACHER");
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+        return registerLimited(request, http);
     }
 
     /**
      * POST /student/register - Force la création d'un compte STUDENT
      */
     @PostMapping("/student/register")
-    public ResponseEntity<UserResponse> registerStudent(@Valid @RequestBody RegisterRequest request) {
+    public ResponseEntity<UserResponse> registerStudent(@Valid @RequestBody RegisterRequest request, HttpServletRequest http) {
         request.setRole("STUDENT");
+        return registerLimited(request, http);
+    }
+
+    /** Une inscription envoie un e-mail de vérification : même limite que « mot de passe oublié ». */
+    private ResponseEntity<UserResponse> registerLimited(RegisterRequest request, HttpServletRequest http) {
+        loginRateLimiter.checkMail(authService.accountKey(request.getEmail()), http.getRemoteAddr());
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 

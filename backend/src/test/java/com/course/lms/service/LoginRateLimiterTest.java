@@ -45,18 +45,29 @@ class LoginRateLimiterTest {
     }
 
     @Test
-    void blockedAccountIsRefusedFromAnotherNetworkToo() {
+    void anAttackerCannotLockTheOwnerOut() {
         LoginRateLimiter limiter = limiter(new MovableClock());
-        for (int i = 0; i < 5; i++) limiter.loginFailed("cible@lms.tn", "10.0.0." + i);
+        for (int i = 0; i < 5; i++) limiter.loginFailed("cible@lms.tn", "197.0.0.9"); // l'attaquant
         assertThatThrownBy(() -> limiter.checkLogin("cible@lms.tn", "197.0.0.9"))
-                .isInstanceOf(LoginRateLimitException.class);
+                .isInstanceOf(LoginRateLimitException.class); // il se bloque lui-même…
+        assertThatCode(() -> limiter.checkLogin("cible@lms.tn", "41.226.1.1"))
+                .doesNotThrowAnyException(); // … mais le propriétaire, depuis son réseau, peut se connecter
+    }
+
+    @Test
+    void anAttackSpreadOverManyNetworksIsStoppedPerAccount() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 50; i++) limiter.loginFailed("cible@lms.tn", "10.0." + i + ".1"); // 50 IP différentes
+        assertThatThrownBy(() -> limiter.checkLogin("cible@lms.tn", "197.0.0.9"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("pour ce compte");
     }
 
     @Test
     void emailIsComparedWithoutCaseOrSpaces() {
         LoginRateLimiter limiter = limiter(new MovableClock());
         for (int i = 0; i < 5; i++) limiter.loginFailed("Etudiant@LMS.tn ", "1.1.1.1");
-        assertThatThrownBy(() -> limiter.checkLogin("etudiant@lms.tn", "2.2.2.2"))
+        assertThatThrownBy(() -> limiter.checkLogin("etudiant@lms.tn", "1.1.1.1"))
                 .isInstanceOf(LoginRateLimitException.class);
     }
 
@@ -78,7 +89,7 @@ class LoginRateLimiterTest {
     void successfulLoginForgetsTheAccountFailures() {
         LoginRateLimiter limiter = limiter(new MovableClock());
         for (int i = 0; i < 4; i++) limiter.loginFailed("a@lms.tn", "1.1.1.1");
-        limiter.loginSucceeded("a@lms.tn");
+        limiter.loginSucceeded("a@lms.tn", "1.1.1.1");
         for (int i = 0; i < 4; i++) limiter.loginFailed("a@lms.tn", "1.1.1.1");
         assertThatCode(() -> limiter.checkLogin("a@lms.tn", "1.1.1.1")).doesNotThrowAnyException();
     }
@@ -119,7 +130,7 @@ class LoginRateLimiterTest {
         MovableClock clock = new MovableClock();
         LoginRateLimiter limiter = limiter(clock);
         limiter.loginFailed("a@lms.tn", "1.1.1.1");
-        assertThat(limiter.trackedKeys()).isEqualTo(2);
+        assertThat(limiter.trackedKeys()).isEqualTo(3); // compte + réseau, compte, réseau
         clock.now = clock.now.plus(Duration.ofMinutes(16));
         limiter.purgeExpired();
         assertThat(limiter.trackedKeys()).isZero();
