@@ -87,19 +87,31 @@ class CatalogueCacheIntegrationTest {
         mvc.perform(as(teacher, "TEACHER", url)).andExpect(jsonPath("$.teacherName").value("Nouveau nom"));
     }
 
+    private long catalogueTotal(User u) throws Exception {
+        String json = mvc.perform(as(u, "TEACHER", "/api/courses?size=200")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.<Number>read(json, "$.totalElements").longValue();
+    }
+
     @Test
     void catalogueShowsANewCourseImmediately() throws Exception {
         User teacher = newUser("TEACHER");
-        String title = "Catalogue " + UUID.randomUUID().toString().substring(0, 8);
-        String url = "/api/courses?title=" + title;
-        mvc.perform(as(teacher, "TEACHER", url)).andExpect(jsonPath("$.totalElements").value(0));
+        long before = catalogueTotal(teacher); // page du site, gardée en cache
 
         Course c = new Course();
-        c.setTitle(title);
+        c.setTitle("Catalogue " + UUID.randomUUID().toString().substring(0, 8));
         c.setStatus("PUBLISHED");
         c.setTeacher(teacher);
         courses.save(c);
-        mvc.perform(as(teacher, "TEACHER", url)).andExpect(jsonPath("$.totalElements").value(1));
+        assertThat(catalogueTotal(teacher)).isEqualTo(before + 1);
+    }
+
+    @Test
+    void aSearchMadeOfSpacesNeverEmptiesTheCatalogue() throws Exception {
+        User teacher = newUser("TEACHER");
+        paidCourseWithOnePdf(teacher);
+        mvc.perform(as(teacher, "TEACHER", "/api/courses?size=200&title=%20%20%20")).andExpect(status().isOk());
+        assertThat(catalogueTotal(teacher)).isPositive(); // la recherche « vide » n'a rien remplacé dans le cache
     }
 
     private User newUser(String role) {

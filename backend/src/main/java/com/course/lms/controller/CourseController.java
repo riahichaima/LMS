@@ -194,12 +194,12 @@ public class CourseController {
     public ResponseEntity<Page<CourseResponse>> getAllCourses(
             @RequestParam(required = false) String title,
             Pageable pageable) {
-        // Lu dans le cache (copie) ; le masquage par étudiant (protect) reste calculé à chaque appel
+        // Recherche : toujours lue en base, jamais gardée
         if (title != null && !title.isEmpty()) {
-            return ResponseEntity.ok(catalogCache.page(title, pageable, () -> courseService.searchCourses(title, pageable))
-                    .map(courseAccessService::protect));
+            return ResponseEntity.ok(courseService.searchCourses(title, pageable).map(courseAccessService::protect));
         }
-        return ResponseEntity.ok(catalogCache.page(null, pageable, () -> courseService.getAllCourses(pageable))
+        // Catalogue : lu dans le cache (copie) ; le masquage par étudiant (protect) reste calculé à chaque appel
+        return ResponseEntity.ok(catalogCache.page(pageable, () -> courseService.getAllCourses(pageable))
                 .map(courseAccessService::protect));
     }
 

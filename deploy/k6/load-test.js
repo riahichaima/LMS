@@ -52,7 +52,8 @@ export default function (data) {
     const headers = { Authorization: `Bearer ${data.token}` };
     const auth = { headers };
     group('catalogue', () => {
-      const page = http.get(`${API}/api/courses?size=20`, { headers, tags: { name: 'catalogue' } });
+      // Même requête que le site (frontend/src/app/services/course.service.ts)
+      const page = http.get(`${API}/api/courses?size=200`, { headers, tags: { name: 'catalogue' } });
       check(page, { 'catalogue 200': (r) => r.status === 200 });
       const first = page.status === 200 ? page.json('content.0.id') : null;
       if (first) {

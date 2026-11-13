@@ -133,9 +133,9 @@ class CourseCatalogCacheTest {
     void cataloguePagesAreCachedPerPage() {
         CourseCatalogCache cache = cache();
         PageRequest first = PageRequest.of(0, 20);
-        Page<CourseResponse> a = cache.page(null, first, pageLoader(first));
-        Page<CourseResponse> b = cache.page(null, first, pageLoader(first));
-        cache.page(null, PageRequest.of(1, 20), pageLoader(PageRequest.of(1, 20)));
+        Page<CourseResponse> a = cache.page(first, pageLoader(first));
+        Page<CourseResponse> b = cache.page(first, pageLoader(first));
+        cache.page(PageRequest.of(1, 20), pageLoader(PageRequest.of(1, 20)));
 
         assertThat(dbReads).hasValue(2); // page 1 (une seule fois) et page 2
         assertThat(b.getContent()).hasSize(2);
@@ -144,18 +144,26 @@ class CourseCatalogCacheTest {
     }
 
     @Test
-    void searchesAndHugeOrFarPagesAreNeverKeptInMemory() {
+    void theSitesCataloguePageOf200CoursesIsCached() {
         CourseCatalogCache cache = cache();
+        PageRequest site = PageRequest.of(0, 200); // requête du site : /api/courses?size=200
+        cache.page(site, pageLoader(site));
+        cache.page(site, pageLoader(site));
+        assertThat(dbReads).hasValue(1);
+    }
+
+    @Test
+    void sortedHugeOrFarPagesAreNeverKeptInMemory() {
+        CourseCatalogCache cache = cache();
+        PageRequest sorted = PageRequest.of(0, 20, org.springframework.data.domain.Sort.by("title", "title", "price"));
         PageRequest huge = PageRequest.of(0, 2000);
         PageRequest far = PageRequest.of(CourseCatalogCache.MAX_CACHED_PAGE_NUMBER, 20);
-        PageRequest first = PageRequest.of(0, 20);
         for (int i = 0; i < 2; i++) {
-            cache.page("java " + i, first, pageLoader(first));   // recherches libres
-            cache.page("java " + i, first, pageLoader(first));
-            cache.page(null, huge, pageLoader(huge));            // page géante
-            cache.page(null, far, pageLoader(far));              // page lointaine
+            cache.page(sorted, pageLoader(sorted)); // tri choisi par le client (clés longues et variées)
+            cache.page(huge, pageLoader(huge));     // page géante
+            cache.page(far, pageLoader(far));       // page lointaine
         }
-        assertThat(dbReads).hasValue(8); // tout est relu en base : rien n'a été gardé
+        assertThat(dbReads).hasValue(6); // tout est relu en base : rien n'a été gardé
     }
 
     @Test

@@ -50,14 +50,14 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         String ip = http.getRemoteAddr();
         String account = authService.accountKey(request.getEmail());
-        loginRateLimiter.checkLogin(account, ip);
+        // L'essai est réservé avant la vérification : tout refus le consomme (mot de passe faux, compte désactivé
+        // ou pas encore vérifié…), seule une connexion réussie le rend
+        boolean filled = loginRateLimiter.checkLogin(account, ip);
         AuthResponse authResponse;
         try {
             authResponse = authService.login(request);
         } catch (RuntimeException e) {
-            // Tout refus compte (mot de passe faux, compte désactivé ou pas encore vérifié…) : la réponse
-            // ne doit jamais permettre d'essayer des mots de passe sans limite
-            if (loginRateLimiter.loginFailed(account, ip)) {
+            if (filled) {
                 systemLogService.record(SystemLog.SECURITY, "AUTH", "Connexion bloquée temporairement",
                         "Trop d'essais refusés pour " + account + " ou depuis l'IP " + ip, account);
             }
