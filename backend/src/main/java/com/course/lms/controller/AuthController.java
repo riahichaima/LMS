@@ -45,23 +45,25 @@ public class AuthController {
         this.systemLogService = systemLogService;
     }
 
-    /** Connexion ; après trop de mots de passe faux (par compte ou par IP), refus 429 pendant quelques minutes. */
+    /** Connexion ; après trop d'essais refusés (par compte ou par IP), refus 429 pendant quelques minutes. */
     @PostMapping("/auth/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         String ip = http.getRemoteAddr();
-        loginRateLimiter.checkLogin(request.getEmail(), ip);
+        String account = authService.accountKey(request.getEmail());
+        loginRateLimiter.checkLogin(account, ip);
         AuthResponse authResponse;
         try {
             authResponse = authService.login(request);
-        } catch (BadCredentialsException e) {
-            if (loginRateLimiter.loginFailed(request.getEmail(), ip)) {
+        } catch (RuntimeException e) {
+            // Tout refus compte (mot de passe faux, compte désactivé ou pas encore vérifié…) : la réponse
+            // ne doit jamais permettre d'essayer des mots de passe sans limite
+            if (loginRateLimiter.loginFailed(account, ip)) {
                 systemLogService.record(SystemLog.SECURITY, "AUTH", "Connexion bloquée temporairement",
-                        "Trop de mots de passe faux pour " + request.getEmail() + " ou depuis l'IP " + ip,
-                        request.getEmail());
+                        "Trop d'essais refusés pour " + account + " ou depuis l'IP " + ip, account);
             }
             throw e;
         }
-        loginRateLimiter.loginSucceeded(request.getEmail());
+        loginRateLimiter.loginSucceeded(account);
         return ResponseEntity.ok(authResponse);
     }
 
@@ -124,7 +126,7 @@ public class AuthController {
     @PostMapping("/auth/resend-verification")
     public ResponseEntity<Map<String, String>> resendVerification(@Valid @RequestBody ForgotPasswordRequest request,
                                                                   HttpServletRequest http) {
-        loginRateLimiter.checkMail(request.getEmail(), http.getRemoteAddr());
+        loginRateLimiter.checkMail(authService.accountKey(request.getEmail()), http.getRemoteAddr());
         try {
             authService.resendVerificationEmail(request.getEmail());
         } catch (RuntimeException e) {
@@ -136,7 +138,7 @@ public class AuthController {
     @PostMapping("/auth/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
                                                               HttpServletRequest http) {
-        loginRateLimiter.checkMail(request.getEmail(), http.getRemoteAddr());
+        loginRateLimiter.checkMail(authService.accountKey(request.getEmail()), http.getRemoteAddr());
         try {
             authService.forgotPassword(request.getEmail());
         } catch (RuntimeException e) {

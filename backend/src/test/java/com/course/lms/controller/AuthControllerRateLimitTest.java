@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -36,6 +37,8 @@ class AuthControllerRateLimitTest {
     @BeforeEach
     void setUp() {
         authService = mock(AuthService.class);
+        // Par défaut l'e-mail saisi est l'identité du compte (la vraie résolution est testée sur MySQL)
+        when(authService.accountKey(anyString())).thenAnswer(invocation -> invocation.getArgument(0));
         systemLogService = mock(SystemLogService.class);
         LoginRateLimiter limiter = new LoginRateLimiter(5, 20, 5, 20, 15);
         mvc = MockMvcBuilders.standaloneSetup(
@@ -89,5 +92,30 @@ class AuthControllerRateLimitTest {
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().exists("Retry-After"));
         verify(authService, times(5)).forgotPassword("etudiant@lms.tn");
+    }
+
+    @Test
+    void refusalsOfAnUnverifiedOrDisabledAccountAreCountedToo() throws Exception {
+        // Compte pas encore vérifié : mot de passe faux → « compte désactivé » ; ce refus doit compter
+        when(authService.login(any(LoginRequest.class))).thenThrow(new DisabledException("désactivé"));
+        for (int i = 0; i < 5; i++) {
+            mvc.perform(login("essai" + i)).andExpect(status().isForbidden());
+        }
+        mvc.perform(login("encore")).andExpect(status().isTooManyRequests());
+        verify(authService, times(5)).login(any(LoginRequest.class));
+    }
+
+    @Test
+    void accentAndCaseVariantsOfOneAccountShareOneCounter() throws Exception {
+        // La base ignore majuscules et accents : ces adresses désignent le même compte
+        when(authService.accountKey(anyString())).thenReturn("etudiant@lms.tn");
+        when(authService.login(any(LoginRequest.class))).thenThrow(new BadCredentialsException("bad"));
+        String[] variants = {"Etudiant@lms.tn", "ETUDIANT@LMS.TN", "étudiant@lms.tn", "Étudiant@lms.tn", "etudiánt@lms.tn"};
+        for (String email : variants) {
+            mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"" + email + "\",\"password\":\"faux\"}")).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"etudîant@lms.tn\",\"password\":\"faux\"}")).andExpect(status().isTooManyRequests());
     }
 }
