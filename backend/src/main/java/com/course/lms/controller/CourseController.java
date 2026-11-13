@@ -39,6 +39,9 @@ public class CourseController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private com.course.lms.service.CourseCatalogCache catalogCache;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // ==========================================
@@ -191,15 +194,18 @@ public class CourseController {
     public ResponseEntity<Page<CourseResponse>> getAllCourses(
             @RequestParam(required = false) String title,
             Pageable pageable) {
+        // Lu dans le cache (copie) ; le masquage par étudiant (protect) reste calculé à chaque appel
         if (title != null && !title.isEmpty()) {
-            return ResponseEntity.ok(courseService.searchCourses(title, pageable).map(courseAccessService::protect));
+            return ResponseEntity.ok(catalogCache.page(title, pageable, () -> courseService.searchCourses(title, pageable))
+                    .map(courseAccessService::protect));
         }
-        return ResponseEntity.ok(courseService.getAllCourses(pageable).map(courseAccessService::protect));
+        return ResponseEntity.ok(catalogCache.page(null, pageable, () -> courseService.getAllCourses(pageable))
+                .map(courseAccessService::protect));
     }
 
     @GetMapping("/courses/{id}")
     public ResponseEntity<CourseResponse> getCourseById(@PathVariable Long id) {
-        return ResponseEntity.ok(courseAccessService.protect(courseService.getCourseById(id)));
+        return ResponseEntity.ok(courseAccessService.protect(catalogCache.course(id, () -> courseService.getCourseById(id))));
     }
 
     @GetMapping("/student/courses")

@@ -21,6 +21,9 @@ export const options = {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<800'],
     checks: ['rate>0.99'],
+    // Temps de chaque page affichés à part dans le résumé (mesure du cache avant / après)
+    'http_req_duration{name:catalogue}': ['p(95)<800'],
+    'http_req_duration{name:detail-cours}': ['p(95)<800'],
   },
 };
 
@@ -46,9 +49,16 @@ export default function (data) {
   }
 
   if (data.token) {
-    const auth = { headers: { Authorization: `Bearer ${data.token}` } };
+    const headers = { Authorization: `Bearer ${data.token}` };
+    const auth = { headers };
     group('catalogue', () => {
-      check(http.get(`${API}/api/courses?size=20`, auth), { 'catalogue 200': (r) => r.status === 200 });
+      const page = http.get(`${API}/api/courses?size=20`, { headers, tags: { name: 'catalogue' } });
+      check(page, { 'catalogue 200': (r) => r.status === 200 });
+      const first = page.status === 200 ? page.json('content.0.id') : null;
+      if (first) {
+        check(http.get(`${API}/api/courses/${first}`, { headers, tags: { name: 'detail-cours' } }),
+          { 'détail du cours 200': (r) => r.status === 200 });
+      }
       check(http.get(`${API}/api/feedback/ratings`, auth), { 'notes des cours 200': (r) => r.status === 200 });
     });
   }

@@ -16,6 +16,12 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:10}
+  # Cache du catalogue et des cours (Caffeine, en mémoire) ; CACHE_TYPE=none le désactive
+  cache:
+    type: ${CACHE_TYPE:caffeine}
+    cache-names: catalogue
+    caffeine:
+      spec: ${CATALOGUE_CACHE_SPEC:maximumSize=500,expireAfterWrite=10m,recordStats}
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
