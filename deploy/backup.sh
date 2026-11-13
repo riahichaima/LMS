@@ -33,3 +33,20 @@ find "$DEST" -name 'lms_db_*.sql.gz' -mtime +"$KEEP_DAYS" -delete
 find "$DEST" -name 'uploads_*.tar.gz' -mtime +"$KEEP_DAYS" -delete
 
 echo "$(date '+%F %T') Sauvegarde OK : $DEST/lms_db_$STAMP.sql.gz et uploads_$STAMP.tar.gz"
+
+# Copie chiffrée hors du serveur (facultatif) : si la VM est perdue, les sauvegardes ne le sont pas.
+# RCLONE_REMOTE (dans .env) doit être un remote rclone de type « crypt » (noms et contenus chiffrés),
+# par exemple lms-crypt: posé sur un Google Drive. Configuration : voir README (rclone config).
+REMOTE=$(env_value RCLONE_REMOTE "")
+if [ -n "$REMOTE" ]; then
+  RCLONE_CONF=$(env_value RCLONE_CONFIG_DIR /opt/lms/rclone)
+  REMOTE_KEEP=$(env_value BACKUP_REMOTE_KEEP_DAYS 30)
+  run_rclone() {
+    docker run --rm -v "$RCLONE_CONF":/config/rclone -v "$DEST":/data rclone/rclone:1.75.2 "$@"
+  }
+  run_rclone copy /data "$REMOTE" --include "lms_db_$STAMP.sql.gz" --include "uploads_$STAMP.tar.gz"
+  # Vérifie les copies chiffrées octet par octet (échoue aussi si le remote n'est pas chiffré)
+  run_rclone cryptcheck /data "$REMOTE" --one-way --include "lms_db_$STAMP.sql.gz" --include "uploads_$STAMP.tar.gz"
+  run_rclone delete "$REMOTE" --min-age "${REMOTE_KEEP}d"
+  echo "$(date '+%F %T') Copie chiffrée hors serveur OK : $REMOTE (gardée $REMOTE_KEEP jours)"
+fi
