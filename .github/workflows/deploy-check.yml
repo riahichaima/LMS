@@ -81,4 +81,4 @@ jobs:
           caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
       - name: Scripts shell (ShellCheck)
-        run: shellcheck backup.sh restore.sh update.sh
+        run: shellcheck backup.sh restore.sh update.sh fetch-offsite.sh

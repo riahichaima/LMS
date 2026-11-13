@@ -192,6 +192,16 @@ public class AuthService {
         passwordResetTokenRepository.delete(resetToken);
     }
 
+    /**
+     * Identité du compte pour la limite des essais : l'e-mail tel qu'il est enregistré. La base compare les
+     * e-mails sans tenir compte des majuscules ni des accents : toutes les façons d'écrire un même compte
+     * partagent ainsi un seul compteur. E-mail inconnu : l'adresse saisie.
+     */
+    public String accountKey(String email) {
+        if (email == null || email.isBlank()) return "";
+        return userRepository.findByEmail(email.trim()).map(User::getEmail).orElse(email);
+    }
+
     public AuthResponse login(LoginRequest request) {
         // Compte non vérifié : un token de vérification est encore en attente
         userRepository.findByEmail(request.getEmail()).ifPresent(u -> {
