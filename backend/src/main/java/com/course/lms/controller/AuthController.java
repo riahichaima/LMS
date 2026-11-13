@@ -10,9 +10,15 @@ import com.course.lms.dto.UserResponse;
 import com.course.lms.exception.AdminApprovalException;
 import com.course.lms.exception.EmailNotVerifiedException;
 import com.course.lms.exception.GoogleAuthException;
+import com.course.lms.model.SystemLog;
 import com.course.lms.service.AuthService;
 import com.course.lms.service.GoogleAuthService;
+import com.course.lms.service.LoginRateLimiter;
+import com.course.lms.service.LoginRateLimiter.LoginRateLimitException;
+import com.course.lms.service.SystemLogService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -28,15 +34,34 @@ public class AuthController {
 
     private final AuthService authService;
     private final GoogleAuthService googleAuthService;
+    private final LoginRateLimiter loginRateLimiter;
+    private final SystemLogService systemLogService;
 
-    public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService,
+                          LoginRateLimiter loginRateLimiter, SystemLogService systemLogService) {
         this.authService = authService;
         this.googleAuthService = googleAuthService;
+        this.loginRateLimiter = loginRateLimiter;
+        this.systemLogService = systemLogService;
     }
 
+    /** Connexion ; après trop de mots de passe faux (par compte ou par IP), refus 429 pendant quelques minutes. */
     @PostMapping("/auth/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse authResponse = authService.login(request);
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        String ip = http.getRemoteAddr();
+        loginRateLimiter.checkLogin(request.getEmail(), ip);
+        AuthResponse authResponse;
+        try {
+            authResponse = authService.login(request);
+        } catch (BadCredentialsException e) {
+            if (loginRateLimiter.loginFailed(request.getEmail(), ip)) {
+                systemLogService.record(SystemLog.SECURITY, "AUTH", "Connexion bloquée temporairement",
+                        "Trop de mots de passe faux pour " + request.getEmail() + " ou depuis l'IP " + ip,
+                        request.getEmail());
+            }
+            throw e;
+        }
+        loginRateLimiter.loginSucceeded(request.getEmail());
         return ResponseEntity.ok(authResponse);
     }
 
@@ -97,7 +122,9 @@ public class AuthController {
     }
 
     @PostMapping("/auth/resend-verification")
-    public ResponseEntity<Map<String, String>> resendVerification(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> resendVerification(@Valid @RequestBody ForgotPasswordRequest request,
+                                                                  HttpServletRequest http) {
+        loginRateLimiter.checkMail(request.getEmail(), http.getRemoteAddr());
         try {
             authService.resendVerificationEmail(request.getEmail());
         } catch (RuntimeException e) {
@@ -107,7 +134,9 @@ public class AuthController {
     }
 
     @PostMapping("/auth/forgot-password")
-    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                              HttpServletRequest http) {
+        loginRateLimiter.checkMail(request.getEmail(), http.getRemoteAddr());
         try {
             authService.forgotPassword(request.getEmail());
         } catch (RuntimeException e) {
@@ -131,6 +160,13 @@ public class AuthController {
                 .map(err -> err.getDefaultMessage())
                 .orElse("Données invalides");
         return ResponseEntity.badRequest().body(Map.of("message", message));
+    }
+
+    @ExceptionHandler(LoginRateLimitException.class)
+    public ResponseEntity<Map<String, String>> handleTooManyAttempts(LoginRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                .body(Map.of("message", ex.getMessage(), "code", "TOO_MANY_ATTEMPTS"));
     }
 
     @ExceptionHandler(BadCredentialsException.class)

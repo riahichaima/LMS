@@ -92,6 +92,14 @@ app:
       chat-per-hour: ${AI_CHAT_PER_HOUR:30}
       generation-per-hour: ${AI_GENERATION_PER_HOUR:10}
       correction-per-hour: ${AI_CORRECTION_PER_HOUR:30}
+  # Force brute et e-mails en masse : au-delà, réponse 429 pendant la fenêtre ; 0 = pas de limite
+  auth:
+    rate-limit:
+      failures-per-email: ${LOGIN_FAILURES_PER_EMAIL:5}
+      failures-per-ip: ${LOGIN_FAILURES_PER_IP:20}
+      mails-per-email: ${AUTH_MAILS_PER_EMAIL:5}
+      mails-per-ip: ${AUTH_MAILS_PER_IP:20}
+      window-minutes: ${LOGIN_LIMIT_WINDOW_MINUTES:15}
   # Connexion avec Google : Client ID OAuth « Application Web » (Google Cloud Console). Vide = bouton masqué.
   google:
     client-id: ${GOOGLE_CLIENT_ID:}

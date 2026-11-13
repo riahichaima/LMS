@@ -1,0 +1,127 @@
+package com.course.lms.service;
+
+import com.course.lms.service.LoginRateLimiter.LoginRateLimitException;
+import org.junit.jupiter.api.Test;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/** Limite des essais de connexion et des e-mails : 5 par compte, 20 par IP, sur 15 minutes glissantes. */
+class LoginRateLimiterTest {
+
+    /** Horloge réglable pour simuler le passage du temps. */
+    static class MovableClock extends Clock {
+        Instant now = Instant.parse("2026-11-13T10:00:00Z");
+        @Override public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+        @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+        @Override public Instant instant() { return now; }
+    }
+
+    private static LoginRateLimiter limiter(MovableClock clock) {
+        return new LoginRateLimiter(5, 20, 5, 20, Duration.ofMinutes(15), clock);
+    }
+
+    @Test
+    void sixthAttemptAfterFiveWrongPasswordsIsRefusedWithAWaitTime() {
+        MovableClock clock = new MovableClock();
+        LoginRateLimiter limiter = limiter(clock);
+        for (int i = 1; i <= 5; i++) {
+            limiter.checkLogin("etudiant@lms.tn", "41.226.1.1");
+            boolean blocked = limiter.loginFailed("etudiant@lms.tn", "41.226.1.1");
+            assertThat(blocked).isEqualTo(i == 5); // bloqué exactement au 5e échec
+        }
+
+        assertThatThrownBy(() -> limiter.checkLogin("etudiant@lms.tn", "41.226.1.1"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("Trop de tentatives de connexion pour ce compte")
+                .hasMessageContaining("15 min")
+                .satisfies(e -> assertThat(((LoginRateLimitException) e).getRetryAfterSeconds()).isEqualTo(15 * 60));
+    }
+
+    @Test
+    void blockedAccountIsRefusedFromAnotherNetworkToo() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 5; i++) limiter.loginFailed("cible@lms.tn", "10.0.0." + i);
+        assertThatThrownBy(() -> limiter.checkLogin("cible@lms.tn", "197.0.0.9"))
+                .isInstanceOf(LoginRateLimitException.class);
+    }
+
+    @Test
+    void emailIsComparedWithoutCaseOrSpaces() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 5; i++) limiter.loginFailed("Etudiant@LMS.tn ", "1.1.1.1");
+        assertThatThrownBy(() -> limiter.checkLogin("etudiant@lms.tn", "2.2.2.2"))
+                .isInstanceOf(LoginRateLimitException.class);
+    }
+
+    @Test
+    void accountIsFreedOnceTheFifteenMinutesHavePassed() {
+        MovableClock clock = new MovableClock();
+        LoginRateLimiter limiter = limiter(clock);
+        for (int i = 0; i < 5; i++) limiter.loginFailed("a@lms.tn", "1.1.1.1");
+        clock.now = clock.now.plus(Duration.ofMinutes(14));
+        assertThatThrownBy(() -> limiter.checkLogin("a@lms.tn", "1.1.1.1"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("1 min");
+
+        clock.now = clock.now.plus(Duration.ofMinutes(1));
+        assertThatCode(() -> limiter.checkLogin("a@lms.tn", "1.1.1.1")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void successfulLoginForgetsTheAccountFailures() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 4; i++) limiter.loginFailed("a@lms.tn", "1.1.1.1");
+        limiter.loginSucceeded("a@lms.tn");
+        for (int i = 0; i < 4; i++) limiter.loginFailed("a@lms.tn", "1.1.1.1");
+        assertThatCode(() -> limiter.checkLogin("a@lms.tn", "1.1.1.1")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void oneMachineTryingManyAccountsIsBlockedByIp() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 20; i++) limiter.loginFailed("compte" + i + "@lms.tn", "41.226.9.9");
+        assertThatThrownBy(() -> limiter.checkLogin("nouveau@lms.tn", "41.226.9.9"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("depuis votre réseau");
+        assertThatCode(() -> limiter.checkLogin("nouveau@lms.tn", "41.226.9.10")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void forgotPasswordMailsAreLimitedPerAddress() {
+        LoginRateLimiter limiter = limiter(new MovableClock());
+        for (int i = 0; i < 5; i++) limiter.checkMail("a@lms.tn", "1.1.1.1");
+        assertThatThrownBy(() -> limiter.checkMail("a@lms.tn", "1.1.1.1"))
+                .isInstanceOf(LoginRateLimitException.class)
+                .hasMessageContaining("Trop de demandes d'e-mail");
+        assertThatCode(() -> limiter.checkMail("b@lms.tn", "1.1.1.2")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void zeroMeansNoLimit() {
+        LoginRateLimiter limiter = new LoginRateLimiter(0, 0, 0, 0, Duration.ofMinutes(15), new MovableClock());
+        for (int i = 0; i < 100; i++) {
+            limiter.loginFailed("a@lms.tn", "1.1.1.1");
+            limiter.checkMail("a@lms.tn", "1.1.1.1");
+        }
+        assertThatCode(() -> limiter.checkLogin("a@lms.tn", "1.1.1.1")).doesNotThrowAnyException();
+        assertThat(limiter.trackedKeys()).isZero();
+    }
+
+    @Test
+    void expiredCountersAreRemovedFromMemory() {
+        MovableClock clock = new MovableClock();
+        LoginRateLimiter limiter = limiter(clock);
+        limiter.loginFailed("a@lms.tn", "1.1.1.1");
+        assertThat(limiter.trackedKeys()).isEqualTo(2);
+        clock.now = clock.now.plus(Duration.ofMinutes(16));
+        limiter.purgeExpired();
+        assertThat(limiter.trackedKeys()).isZero();
+    }
+}
