@@ -48,11 +48,20 @@ public class CourseCatalogCache {
         active = this;
     }
 
-    /** Page du catalogue (avec ou sans recherche par titre). */
+    /** Pages gardées : celles du catalogue normal (taille et numéro bornés, sans recherche libre). */
+    static final int MAX_CACHED_PAGE_SIZE = 50;
+    static final int MAX_CACHED_PAGE_NUMBER = 20;
+
+    /**
+     * Page du catalogue. Les recherches par titre et les pages très grandes ou lointaines sont lues
+     * directement en base, sans être gardées : des requêtes toutes différentes ne peuvent donc pas
+     * remplir la mémoire du serveur.
+     */
     public Page<CourseResponse> page(String title, Pageable pageable, Supplier<Page<CourseResponse>> loader) {
-        String key = "page|" + (title == null ? "" : title) + "|" + (pageable.isPaged()
-                ? pageable.getPageNumber() + "|" + pageable.getPageSize() + "|" + pageable.getSort()
-                : "unpaged");
+        boolean cacheable = (title == null || title.isBlank()) && pageable.isPaged()
+                && pageable.getPageSize() <= MAX_CACHED_PAGE_SIZE && pageable.getPageNumber() < MAX_CACHED_PAGE_NUMBER;
+        if (!cacheable) return loader.get();
+        String key = "page|" + pageable.getPageNumber() + "|" + pageable.getPageSize() + "|" + pageable.getSort();
         CachedPage cached = load(key, () -> {
             Page<CourseResponse> page = loader.get();
             return new CachedPage(List.copyOf(page.getContent()), page.getTotalElements());

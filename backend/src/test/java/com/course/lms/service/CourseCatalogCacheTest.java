@@ -119,23 +119,40 @@ class CourseCatalogCacheTest {
         assertThat(dbReads).hasValue(2);
     }
 
+    private java.util.function.Supplier<Page<CourseResponse>> pageLoader(PageRequest request) {
+        return () -> {
+            dbReads.incrementAndGet();
+            return new PageImpl<>(List.of(sampleCourse(1L), sampleCourse(2L)), request, 2);
+        };
+    }
+
     @Test
-    void cataloguePagesAreCachedPerSearchAndPage() {
+    void cataloguePagesAreCachedPerPage() {
         CourseCatalogCache cache = cache();
         PageRequest first = PageRequest.of(0, 20);
-        java.util.function.Supplier<Page<CourseResponse>> loader = () -> {
-            dbReads.incrementAndGet();
-            return new PageImpl<>(List.of(sampleCourse(1L), sampleCourse(2L)), first, 2);
-        };
-        Page<CourseResponse> a = cache.page(null, first, loader);
-        Page<CourseResponse> b = cache.page(null, first, loader);
-        cache.page("java", first, loader);
-        cache.page(null, PageRequest.of(1, 20), loader);
+        Page<CourseResponse> a = cache.page(null, first, pageLoader(first));
+        Page<CourseResponse> b = cache.page(null, first, pageLoader(first));
+        cache.page(null, PageRequest.of(1, 20), pageLoader(PageRequest.of(1, 20)));
 
-        assertThat(dbReads).hasValue(3); // catalogue page 1 (une fois), recherche « java », page 2
+        assertThat(dbReads).hasValue(2); // page 1 (une seule fois) et page 2
         assertThat(b.getContent()).hasSize(2);
         assertThat(b.getTotalElements()).isEqualTo(2);
         assertThat(a.getContent().get(0)).isNotSameAs(b.getContent().get(0));
+    }
+
+    @Test
+    void searchesAndHugeOrFarPagesAreNeverKeptInMemory() {
+        CourseCatalogCache cache = cache();
+        PageRequest huge = PageRequest.of(0, 2000);
+        PageRequest far = PageRequest.of(CourseCatalogCache.MAX_CACHED_PAGE_NUMBER, 20);
+        PageRequest first = PageRequest.of(0, 20);
+        for (int i = 0; i < 2; i++) {
+            cache.page("java " + i, first, pageLoader(first));   // recherches libres
+            cache.page("java " + i, first, pageLoader(first));
+            cache.page(null, huge, pageLoader(huge));            // page géante
+            cache.page(null, far, pageLoader(far));              // page lointaine
+        }
+        assertThat(dbReads).hasValue(8); // tout est relu en base : rien n'a été gardé
     }
 
     @Test
