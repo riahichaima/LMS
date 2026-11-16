@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "users")
+@EntityListeners(com.course.lms.service.CatalogueChangeListener.class) // vide le cache du catalogue
 @NoArgsConstructor
 @AllArgsConstructor
 public class User {

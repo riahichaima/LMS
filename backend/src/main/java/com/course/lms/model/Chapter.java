@@ -8,6 +8,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "chapters")
+@EntityListeners(com.course.lms.service.CatalogueChangeListener.class) // vide le cache du catalogue
 public class Chapter {
 
     @Id

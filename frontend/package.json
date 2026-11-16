@@ -31,6 +31,7 @@
     "@angular/localize": "^22.2.4",
     "@angular/platform-browser": "^22.2.4",
     "@angular/router": "^22.2.4",
+    "@angular/service-worker": "^22.2.4",
     "@coreui/angular": "~5.7.9",
     "@coreui/angular-chartjs": "~5.7.9",
     "@coreui/chartjs": "^4.2.0",

@@ -137,7 +137,26 @@ ports internes fermés depuis l'extérieur (`3306`, `8000`, `8090`, `8091`).
 | Retour arrière | `BACKEND_TAG=<ancien tag>` dans `.env`, puis `./update.sh` |
 | Sauvegarder maintenant | `./backup.sh` (base + fichiers, 7 jours conservés) |
 | Restaurer | `./restore.sh /opt/lms/backups/lms_db_<date>.sql.gz [uploads_<date>.tar.gz]` |
+| Récupérer la copie hors serveur | `./fetch-offsite.sh` (liste), puis `./fetch-offsite.sh <date>` et `./restore.sh …` |
 | Journaux | `docker compose logs -f backend` |
+
+**Copie chiffrée hors du serveur (recommandé)** : sans elle, les sauvegardes restent sur la même VM. Une fois,
+sur la VM (rclone tourne dans Docker, rien à installer) :
+
+```bash
+mkdir -p /opt/lms/rclone && chmod 700 /opt/lms/rclone
+docker run --rm -it -v /opt/lms/rclone:/config/rclone rclone/rclone:1.75.2 config
+#  1. « n » → nom gdrive → type drive → suivre l'autorisation (compte Google de SIP, 15 Go gratuits)
+#  2. « n » → nom lms-crypt → type crypt → remote gdrive:lms-backups → mots de passe générés (les noter hors du serveur)
+echo "RCLONE_REMOTE=lms-crypt:" >> .env && ./backup.sh                  # vérifie la copie (« 0 differences found »)
+```
+
+Les noms et contenus sont chiffrés avant de quitter la VM ; `cryptcheck` vérifie chaque copie et la sauvegarde
+échoue si le remote n'est pas chiffré. Garder une copie de `/opt/lms/rclone/rclone.conf` hors de la VM : sans
+elle, la copie ne peut pas être déchiffrée.
+
+**Alerte de panne (gratuit, sans code)** : sur uptimerobot.com, deux moniteurs HTTP(S) toutes les 5 minutes,
+`https://<API_DOMAIN>/livez` et l'adresse du site Vercel, avec alerte par e-mail.
 
 **Déploiement automatique (facultatif)** : dans GitHub, environnements `staging` / `production` avec les secrets
 `DEPLOY_SSH_HOST`, `DEPLOY_SSH_USER`, `DEPLOY_SSH_KEY` et la variable `DEPLOY_PATH` = `/opt/lms/LMS/deploy` :

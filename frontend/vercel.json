@@ -21,6 +21,10 @@
     {
       "source": "/assets/env.js",
       "headers": [{ "key": "Cache-Control", "value": "no-store" }]
+    },
+    {
+      "source": "/(ngsw-worker\\.js|ngsw\\.json|safety-worker\\.js|manifest\\.webmanifest)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
     }
   ],
   "rewrites": [{ "source": "/((?!assets/|.*\\..*).*)", "destination": "/index.html" }]

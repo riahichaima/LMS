@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "lesson_resources")
+@EntityListeners(com.course.lms.service.CatalogueChangeListener.class) // vide le cache du catalogue
 public class LessonResource {
 
     @Id
