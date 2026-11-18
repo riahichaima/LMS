@@ -62,12 +62,12 @@
     <form *ngIf="!result()" (ngSubmit)="submit()">
       <c-card *ngFor="let question of q.questions; let i = index" class="mb-3">
         <c-card-body>
-          <div class="fw-semibold mb-2">{{ i + 1 }}. {{ question.questionText }}</div>
+          <div class="fw-semibold mb-2" dir="auto">{{ i + 1 }}. {{ question.questionText }}</div>
           <div class="form-check" *ngFor="let a of question.answers">
             <input class="form-check-input" type="radio" [name]="'q' + i" [id]="'q' + i + '-' + a.id"
                    [value]="a.answerText" [(ngModel)]="answers[(i + 1).toString()]" (ngModelChange)="onAnswerChange()"
                    [disabled]="submitting()" />
-            <label class="form-check-label" [for]="'q' + i + '-' + a.id">{{ a.answerText }}</label>
+            <label class="form-check-label" dir="auto" [for]="'q' + i + '-' + a.id">{{ a.answerText }}</label>
           </div>
         </c-card-body>
       </c-card>

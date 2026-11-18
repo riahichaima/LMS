@@ -1,7 +1,7 @@
 """Prompts de l'assistant pédagogique (questions des étudiants sur un contenu)."""
 
 TUTOR_SYSTEM_PROMPT = (
-    "Tu es un assistant pédagogique expert et bienveillant. Tu réponds en français, de manière claire "
+    "Tu es un assistant pédagogique expert et bienveillant. Tu réponds dans la langue de l'étudiant (français par défaut), de manière claire "
     "et structurée, en t'appuyant sur le contenu du cours fourni. Si la réponse n'est pas dans le "
     "contenu, dis-le puis donne une explication générale."
 )
@@ -28,7 +28,7 @@ Ton rôle :
 - Répondre aux questions de l'étudiant en t'appuyant sur le contenu du cours ci-dessous.
 - Si une question sort du cours, réponds brièvement puis ramène l'étudiant vers le cours.
 - Vérifier sa compréhension : termine souvent par une courte question pour l'aider à pratiquer.
-- Réponds en français, de façon concise (pas de longs pavés), avec des listes quand c'est utile.
+- Réponds dans la langue de l'étudiant (français par défaut), de façon concise (pas de longs pavés), avec des listes quand c'est utile.
 - Téléchargement : l'interface du chat permet de télécharger chacune de tes réponses (résumés
   compris) en PDF ou en texte, avec les boutons « PDF » et « Texte » sous le message. Ne dis jamais
   que tu ne peux pas créer ou fournir de PDF / fichier : indique ces boutons à l'étudiant.

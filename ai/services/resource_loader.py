@@ -11,7 +11,15 @@ from services.content_extractor import extract_from_pdf, extract_from_url, is_yo
 from services.video_processor import analyze_audio, analyze_video, analyze_youtube
 
 AUDIO_EXTENSIONS = (".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac")
-MIN_CHARS_PER_PAGE = 40  # en dessous : PDF scanné (seuls quelques mots ou numéros de page sont du texte)
+# On compte les lettres (toutes langues : arabe, latin...) et non les caractères : un PDF scanné, ou un PDF
+# arabe dont la police n'a pas de correspondance Unicode, ne donne que des numéros de page et des symboles.
+MIN_LETTERS_PER_PAGE = 30  # en dessous : les pages sont lues comme des images par le modèle
+MIN_LETTERS_PER_RESOURCE = 20  # en dessous : ressource considérée comme illisible (jamais de quiz inventé)
+
+
+def count_letters(text: str) -> int:
+    """Nombre de lettres, quelle que soit l'écriture (les chiffres et symboles ne comptent pas)."""
+    return sum(1 for c in text if c.isalpha())
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +83,10 @@ def _pdf_text(pdf_path: Path, cache_only: bool = False) -> str:
         pages = max(pdf_ocr.page_count(str(pdf_path)), 1)
     except Exception:
         pages = 1  # PDF que PDFium ne sait pas ouvrir : le texte extrait est gardé tel quel
-    if len(text.strip()) >= MIN_CHARS_PER_PAGE * pages:
+    if count_letters(text) >= MIN_LETTERS_PER_PAGE * pages:
         return text
     stat = pdf_path.stat()
-    logger.info("PDF sans texte exploitable (%d caractères, %d pages) : lecture des images", len(text.strip()), pages)
+    logger.info("PDF sans texte exploitable (%d lettres, %d pages) : lecture des images", count_letters(text), pages)
     try:
         return _cached(f"pdf-ocr:{pdf_path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}",
                        None if cache_only else (lambda: pdf_ocr.ocr_pdf(str(pdf_path))))
@@ -129,9 +137,10 @@ def extract_resources_text(resources: list[ResourceDetail]) -> tuple[str, list[s
             logger.warning("Ressource ignorée '%s' (%s) : %s", resource.title, resource.type, e)
             unreadable.append(resource.title or resource.type)
             continue
-        if text:
+        if count_letters(text) >= MIN_LETTERS_PER_RESOURCE:
             parts.append(f"--- {resource.title} ({resource.type}) ---\n{text[:per_resource]}")
         else:
+            # Que des numéros de page ou des symboles : on ne génère rien à partir de ça
             unreadable.append(resource.title or resource.type)
     return "\n\n".join(parts), unreadable
 
