@@ -32,6 +32,41 @@ class AdminPedagogyIntegrationTest {
     @Autowired ChapterRepository chapters;
     @Autowired QuizRepository quizzes;
     @Autowired LessonRepository lessons;
+    @Autowired SubmissionRepository submissions;
+
+    // ---------------------------------------------------------------- analyse de progression d'un cours
+
+    @Test
+    void theCourseProgressAnalysisUsesOnlyTheCopiesOfThatCourseAndIsForTheAdmin() throws Exception {
+        User admin = newUser("ADMIN");
+        User teacher = newUser("TEACHER");
+        Quiz q1 = quizOf(chapterOf(courseOf(teacher)));
+        Quiz other = quizOf(chapterOf(courseOf(teacher)));
+        for (User s : new User[]{newUser("STUDENT"), newUser("STUDENT")}) copy(s, q1, 6.0, 10.0);
+        copy(newUser("STUDENT"), other, 1.0, 10.0);
+        Long courseId = q1.getChapter().getCourse().getId();
+
+        assertThat(submissions.findByCourseId(courseId)).hasSize(2);
+        mvc.perform(get("/api/progress/analyze/course/" + courseId).with(user(teacher.getEmail()).roles("TEACHER")))
+                .andExpect(status().isForbidden());
+        var async = mvc.perform(get("/api/progress/analyze/course/" + courseId).with(user(admin.getEmail()).roles("ADMIN")))
+                .andReturn();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch(async))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.submissionCount").value(2))
+                .andExpect(jsonPath("$.studentCount").value(2))
+                .andExpect(jsonPath("$.averageScore").value(60.0));
+    }
+
+    private void copy(User student, Quiz quiz, double points, double max) {
+        Submission s = new Submission();
+        s.setStudent(student);
+        s.setQuiz(quiz);
+        s.setSubmittedAt(java.time.LocalDateTime.now());
+        s.setPoints(points);
+        s.setMaxPoints(max);
+        submissions.save(s);
+    }
 
     // ---------------------------------------------------------------- création de cours
 

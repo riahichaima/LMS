@@ -33,4 +33,12 @@ public class ProgressController {
         return progressAnalysisService.analyzeStudentPerformanceAsync(studentId, courseId)
                 .thenApply(ResponseEntity::ok);
     }
+
+    /** Administration : progression de tous les étudiants d'un cours, analysée par l'agent de recommandation. */
+    @GetMapping("/analyze/course/{courseId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public CompletableFuture<ResponseEntity<StudentRecommendationsResponse>> analyzeCourse(@PathVariable Long courseId) {
+        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
+        return progressAnalysisService.analyzeCourseAsync(courseId).thenApply(ResponseEntity::ok);
+    }
 }

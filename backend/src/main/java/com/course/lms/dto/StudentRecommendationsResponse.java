@@ -12,8 +12,19 @@ public class StudentRecommendationsResponse {
     private List<String> strongAreas;
     private String personalizedAdvice;
     private String recommendedLevel;
+    // Chiffres réels sur lesquels repose l'analyse
+    private Integer submissionCount;
+    private Integer studentCount;
+    private Double averageScore;
 
     public StudentRecommendationsResponse() {}
+
+    public Integer getSubmissionCount() { return submissionCount; }
+    public void setSubmissionCount(Integer submissionCount) { this.submissionCount = submissionCount; }
+    public Integer getStudentCount() { return studentCount; }
+    public void setStudentCount(Integer studentCount) { this.studentCount = studentCount; }
+    public Double getAverageScore() { return averageScore; }
+    public void setAverageScore(Double averageScore) { this.averageScore = averageScore; }
 
     public Long getStudentId() { return studentId; }
     public void setStudentId(Long studentId) { this.studentId = studentId; }

@@ -1,4 +1,4 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,7 +12,8 @@ import {
   AlertComponent
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { AiService, LmsAiQuestionResponse, RagAnswer, RagStatus } from '../../services/ai.service';
+import { AiService, CourseProgressAnalysis, LmsAiQuestionResponse, RagAnswer, RagStatus } from '../../services/ai.service';
+import { Course, CourseService } from '../../services/course.service';
 import { AuthService } from '../../services/auth.service';
 
 import { PageHeaderComponent } from '../../shared/ui/page-header.component';
@@ -70,10 +71,12 @@ export class AiAssistantComponent implements OnInit {
   videoUploadError = signal('');
 
   // Progress Analysis
-  progressCourseId?: number;
-  progressResult = signal<any>(null);
+  progressCourseId: number | null = null;
+  progressResult = signal<CourseProgressAnalysis | null>(null);
   progressLoading = signal(false);
   progressError = signal('');
+  courses = signal<Course[]>([]);
+  private courseService = inject(CourseService);
 
   constructor(private aiService: AiService, private authService: AuthService) {}
 
@@ -81,6 +84,10 @@ export class AiAssistantComponent implements OnInit {
     this.aiService.ragStatus().subscribe({
       next: st => this.ragStatus.set(st),
       error: err => this.ragError.set(err.error?.message || 'Service IA injoignable : réessayez dans un instant.')
+    });
+    // Administration : tous les cours de la plateforme, pour l'analyse de progression
+    this.courseService.getTeacherCourses().subscribe({
+      next: list => { this.courses.set(list); this.progressCourseId = list[0]?.id ?? null; }
     });
   }
 
@@ -227,25 +234,23 @@ export class AiAssistantComponent implements OnInit {
   }
 
   // --- PROGRESS ANALYSIS ---
+  /** Administration : progression de tous les étudiants du cours choisi (copies de quiz et de TP). */
   analyzeProgress(): void {
-    const user = this.authService.currentUserSignal();
-    if (!user || !this.progressCourseId) {
-      this.progressError.set('Veuillez saisir un ID de cours valide.');
+    if (!this.progressCourseId) {
+      this.progressError.set('Choisissez un cours.');
       return;
     }
-
     this.progressLoading.set(true);
     this.progressError.set('');
     this.progressResult.set(null);
-
-    this.aiService.analyzeStudentProgress(user.id, this.progressCourseId).subscribe({
+    this.aiService.analyzeCourseProgress(this.progressCourseId).subscribe({
       next: (res) => {
         this.progressLoading.set(false);
         this.progressResult.set(res);
       },
-      error: () => {
+      error: (err) => {
         this.progressLoading.set(false);
-        this.progressError.set('Impossible d\'analyser la progression pour ce cours.');
+        this.progressError.set(err.error?.message || 'Impossible d\'analyser la progression pour ce cours.');
       }
     });
   }
