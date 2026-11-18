@@ -33,7 +33,7 @@ describe('Assistant IA : recherche dans tous les cours (RAG)', () => {
 
   it('ouvre l\'onglet RAG en premier et affiche l\'état de l\'index', () => {
     const page: HTMLElement = render().nativeElement;
-    expect(page.textContent).toContain('Recherche dans tous les cours (RAG)');
+    expect(page.textContent).toContain('Recherche dans tous les cours');
     expect(page.textContent).toContain('42 passages issus de 3 cours');
     expect(page.textContent).toContain('text-embedding-3-small');
     // Plus de mot « indexation » pour l'agent document, qui n'utilise pas de RAG
@@ -64,5 +64,26 @@ describe('Assistant IA : recherche dans tous les cours (RAG)', () => {
     fixture.componentInstance.askRag();
     http.expectNone(`${api}/api/ai/rag/ask`);
     expect(fixture.componentInstance.ragError()).toContain('au moins 3 caractères');
+  });
+
+  it('analyse la progression de tous les étudiants du cours choisi', async () => {
+    const fixture = render();
+    http.expectOne(`${api}/api/teacher/courses`).flush([{ id: 7, title: 'Java avancé', teacherName: 'Ali' }]);
+    const page = fixture.nativeElement as HTMLElement;
+    // Clic réel sur l'onglet, comme l'administrateur
+    Array.from(page.querySelectorAll('a.nav-link')).find(a => a.textContent!.includes('Progression'))!.dispatchEvent(new Event('click'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(fixture.componentInstance.progressCourseId).toBe(7);
+    expect(page.textContent).toContain('Java avancé · Ali');
+    fixture.componentInstance.analyzeProgress();
+    http.expectOne(`${api}/api/progress/analyze/course/7`).flush({
+      courseId: 7, submissionCount: 12, studentCount: 4, averageScore: 68.5, recommendedLevel: 'INTERMEDIATE',
+      weakAreas: [], strongAreas: ['Bonne compréhension des fondamentaux'], recommendedLessons: [], personalizedAdvice: 'Continuez ainsi.'
+    });
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(page.textContent).toContain('68.5 %');
+    expect(page.textContent).toContain('Continuez ainsi.');
   });
 });

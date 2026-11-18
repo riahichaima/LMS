@@ -118,6 +118,18 @@ export interface AiModelStatus {
   video_vision?: boolean;
 }
 
+export interface CourseProgressAnalysis {
+  courseId: number;
+  submissionCount: number | null;
+  studentCount: number | null;
+  averageScore: number | null;
+  recommendedLevel: string | null;
+  weakAreas: string[] | null;
+  strongAreas: string[] | null;
+  recommendedLessons: string[] | null;
+  personalizedAdvice: string | null;
+}
+
 /** Recherche dans tous les cours (RAG) de l'administration */
 export type RagMode = 'embeddings' | 'bm25';
 
@@ -211,6 +223,11 @@ export class AiService {
 
   analyzeStudentProgress(studentId: number, courseId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/api/progress/analyze/${studentId}/course/${courseId}`);
+  }
+
+  /** Administration : progression de tous les étudiants d'un cours */
+  analyzeCourseProgress(courseId: number): Observable<CourseProgressAnalysis> {
+    return this.http.get<CourseProgressAnalysis>(`${this.apiUrl}/api/progress/analyze/course/${courseId}`);
   }
 
   // --- RAG de l'administration : index de tous les cours, questions avec sources ---

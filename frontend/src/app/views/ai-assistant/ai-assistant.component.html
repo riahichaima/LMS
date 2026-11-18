@@ -1,5 +1,4 @@
-<app-page-header title="Assistant IA multi-agents" icon="cilLightbulb"
-                 subtitle="Recherche dans tous les cours (RAG), analyse de documents, vidéos et audios, et suivi de progression · Azure AI Foundry (GPT-4.1 mini)" />
+<app-page-header title="Assistant IA multi-agents" icon="cilLightbulb" />
 
 <c-row>
   <c-col xs="12">
@@ -9,7 +8,7 @@
         <ul class="nav nav-tabs mb-4">
           <li class="nav-item">
             <a class="nav-link cursor-pointer" [class.active]="activeTab === 'rag'" (click)="selectTab('rag')">
-              <svg cIcon name="cilSearch" class="me-1"></svg> Recherche dans tous les cours (RAG)
+              <svg cIcon name="cilSearch" class="me-1"></svg> Recherche dans tous les cours
             </a>
           </li>
           <li class="nav-item">
@@ -213,12 +212,15 @@
 
         <!-- TAB 3: PROGRESS ANALYSIS -->
         <div *ngIf="activeTab === 'progress'">
-          <div class="mb-3 col-md-6">
-            <label class="form-label fw-bold">ID du Cours à analyser :</label>
+          <p class="text-body-secondary mb-3">L'agent analyse les copies de quiz et de TP de <strong>tous les étudiants</strong> du cours choisi et propose un niveau et des conseils.</p>
+          <div class="mb-3 col-md-8">
+            <label class="form-label fw-bold" for="progress-course">Cours à analyser :</label>
             <div class="input-group">
-              <input type="number" cFormControl [(ngModel)]="progressCourseId" placeholder="Ex: 1" />
-              <button cButton color="info" class="text-white" (click)="analyzeProgress()" [disabled]="progressLoading()">
-                Analyse IA
+              <select id="progress-course" class="form-select" [(ngModel)]="progressCourseId">
+                <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}{{ c.teacherName ? ' · ' + c.teacherName : '' }}</option>
+              </select>
+              <button cButton color="info" class="text-white" (click)="analyzeProgress()" [disabled]="progressLoading() || !progressCourseId">
+                <c-spinner aria-hidden="true" size="sm" *ngIf="progressLoading()" class="me-1"></c-spinner>Analyse IA
               </button>
             </div>
           </div>
@@ -227,9 +229,21 @@
             {{ progressError() }}
           </c-alert>
 
-          <div *ngIf="progressResult()" class="border rounded p-3 bg-body-tertiary">
-            <h5 class="text-info fw-bold">Rapport d'analyse & Recommandations :</h5>
-            <pre class="bg-body p-3 border rounded text-body">{{ progressResult() | json }}</pre>
+          <div *ngIf="progressResult() as r" class="border rounded p-3 bg-body-tertiary">
+            <h5 class="fw-bold mb-3">Rapport d'analyse et recommandations</h5>
+            <ng-container *ngIf="r.submissionCount; else noCopies">
+              <div class="d-flex flex-wrap gap-3 mb-3">
+                <div class="bg-body border rounded px-3 py-2"><div class="small text-body-secondary">Copies analysées</div><strong class="fs-5">{{ r.submissionCount }}</strong></div>
+                <div class="bg-body border rounded px-3 py-2"><div class="small text-body-secondary">Étudiants</div><strong class="fs-5">{{ r.studentCount }}</strong></div>
+                <div class="bg-body border rounded px-3 py-2"><div class="small text-body-secondary">Score moyen</div><strong class="fs-5">{{ r.averageScore }} %</strong></div>
+                <div class="bg-body border rounded px-3 py-2" *ngIf="r.recommendedLevel"><div class="small text-body-secondary">Niveau recommandé</div><strong class="fs-5">{{ r.recommendedLevel }}</strong></div>
+              </div>
+            </ng-container>
+            <ng-template #noCopies><p class="text-body-secondary">Aucune copie de quiz ou de TP rendue pour ce cours pour l'instant.</p></ng-template>
+            <p *ngIf="r.personalizedAdvice" class="mb-2" style="white-space: pre-line">{{ r.personalizedAdvice }}</p>
+            <div *ngIf="r.weakAreas?.length" class="small"><strong>À renforcer :</strong> {{ r.weakAreas!.join(' · ') }}</div>
+            <div *ngIf="r.strongAreas?.length" class="small"><strong>Points forts :</strong> {{ r.strongAreas!.join(' · ') }}</div>
+            <div *ngIf="r.recommendedLessons?.length" class="small"><strong>Recommandations :</strong> {{ r.recommendedLessons!.join(' · ') }}</div>
           </div>
         </div>
       </c-card-body>

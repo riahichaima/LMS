@@ -35,11 +35,23 @@ public class ProgressAnalysisService {
      */
     @org.springframework.scheduling.annotation.Async("aiTaskExecutor")
     public CompletableFuture<StudentRecommendationsResponse> analyzeStudentPerformanceAsync(Long studentId, Long courseId) {
-        try {
-            // 1. Retrieve student's submission history
-            List<Submission> submissions = submissionRepository.findByStudentId(studentId);
+        // Copies de l'étudiant pour CE cours seulement
+        java.util.Set<Long> ofCourse = submissionRepository.findByCourseId(courseId).stream()
+                .map(Submission::getId).collect(java.util.stream.Collectors.toSet());
+        List<Submission> submissions = submissionRepository.findByStudentId(studentId).stream()
+                .filter(s -> ofCourse.contains(s.getId())).toList();
+        return CompletableFuture.completedFuture(analyze(submissions, studentId, courseId));
+    }
 
-            // 2. Prepare performance data for AI analysis
+    /** Administration : progression de tous les étudiants d'un cours (copies de quiz et de TP). */
+    @org.springframework.scheduling.annotation.Async("aiTaskExecutor")
+    public CompletableFuture<StudentRecommendationsResponse> analyzeCourseAsync(Long courseId) {
+        return CompletableFuture.completedFuture(analyze(submissionRepository.findByCourseId(courseId), null, courseId));
+    }
+
+    private StudentRecommendationsResponse analyze(List<Submission> submissions, Long studentId, Long courseId) {
+        try {
+            // Prepare performance data for AI analysis
             Map<String, Object> performanceData = new HashMap<>();
             performanceData.put("student_id", studentId);
             performanceData.put("course_id", courseId);
@@ -90,6 +102,10 @@ public class ProgressAnalysisService {
             response.setStudentId(studentId);
             response.setCourseId(courseId);
             response.setRecommendationDate(LocalDateTime.now());
+            response.setSubmissionCount(submissions.size());
+            response.setStudentCount((int) submissions.stream().filter(s -> s.getStudent() != null)
+                    .map(s -> s.getStudent().getId()).distinct().count());
+            response.setAverageScore(Math.round(averageScore * 10) / 10.0);
 
             if (aiResult.containsKey("recommended_lessons")) {
                 response.setRecommendedLessons((List<String>) aiResult.get("recommended_lessons"));
@@ -111,14 +127,23 @@ public class ProgressAnalysisService {
                 response.setRecommendedLevel((String) aiResult.get("recommended_level"));
             }
 
-            return CompletableFuture.completedFuture(response);
+            return response;
 
         } catch (Exception e) {
             StudentRecommendationsResponse errorResponse = new StudentRecommendationsResponse();
             errorResponse.setStudentId(studentId);
             errorResponse.setCourseId(courseId);
-            errorResponse.setPersonalizedAdvice("Error analyzing performance: " + e.getMessage());
-            return CompletableFuture.completedFuture(errorResponse);
+            // Les chiffres réels restent affichés même si l'agent IA ne répond pas
+            errorResponse.setSubmissionCount(submissions.size());
+            errorResponse.setStudentCount((int) submissions.stream().filter(s -> s.getStudent() != null)
+                    .map(s -> s.getStudent().getId()).distinct().count());
+            double pts = 0, max = 0;
+            for (Submission s : submissions) {
+                if (s.getPoints() != null && s.getMaxPoints() != null) { pts += s.getPoints(); max += s.getMaxPoints(); }
+            }
+            errorResponse.setAverageScore(max > 0 ? Math.round(pts / max * 1000) / 10.0 : 0.0);
+            errorResponse.setPersonalizedAdvice("Analyse IA indisponible pour le moment : réessayez dans un instant.");
+            return errorResponse;
         }
     }
 }
