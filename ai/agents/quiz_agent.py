@@ -5,11 +5,14 @@ import re
 
 from agents.base_agent import BaseAgent
 from config import settings
-from prompts.quiz_prompts import LEVEL_GUIDANCE, QCM_GENERATION_PROMPT, TP_GENERATION_PROMPT
+from prompts.quiz_prompts import EXERCISE_RULES, LANGUAGE_RULES, LEVEL_GUIDANCE, QCM_GENERATION_PROMPT, TP_GENERATION_PROMPT
+from services.course_profile import course_language, is_in_language, is_programming_course
 
 logger = logging.getLogger(__name__)
 
 LETTERS = "ABCD"
+# Intitulés ajoutés autour des exercices, dans la langue du cours
+LABELS = {"fr": ("Exemples :", "Code de départ :"), "ar": ("أمثلة :", "الشفرة الأولية :")}
 # "A. texte", "B) texte", "c - texte"...
 _LETTER_PREFIX = re.compile(r"^\s*([A-Da-d])\s*[\.\)\-:]\s*")
 
@@ -26,6 +29,8 @@ class QuizAgent(BaseAgent):
         """Retourne une liste de questions validées :
         {question, choices: [4 textes], correct_index, explanation}
         """
+        language = course_language(content)
+        rules = LANGUAGE_RULES[language]
         questions: list[dict] = []
         for attempt in range(self.MAX_ATTEMPTS):
             missing = count - len(questions)
@@ -33,11 +38,12 @@ class QuizAgent(BaseAgent):
                 break
             prompt = QCM_GENERATION_PROMPT.format(
                 content=content[: settings.max_content_chars], level=level,
-                level_guidance=LEVEL_GUIDANCE.get(level, ""), count=missing,
+                level_guidance=LEVEL_GUIDANCE.get(level, ""), count=missing, course_rules=rules,
             )
             parsed = self._parse_json_response(self._call_llm(prompt, temperature=0.5, json_mode=True))
             raw = parsed.get("questions", []) if isinstance(parsed, dict) else parsed or []
-            valid = [q for q in (self._clean_question(r) for r in raw) if q]
+            valid = [q for q in (self._clean_question(r) for r in raw)
+                     if q and is_in_language(" ".join([q["question"], *q["choices"], q["explanation"]]), language)]
             logger.info("QCM %s : tentative %d -> %d/%d questions valides", level, attempt + 1, len(valid), missing)
             questions.extend(valid)
         return questions[:count]
@@ -48,16 +54,29 @@ class QuizAgent(BaseAgent):
         `question` (énoncé + exemples + code de départ) et `expected_solution` (code + explication)
         sont en Markdown avec des blocs ```langage, prêts à être affichés à l'étudiant.
         """
-        prompt = TP_GENERATION_PROMPT.format(
-            content=content[: settings.max_content_chars], level=level,
-            level_guidance=LEVEL_GUIDANCE.get(level, ""), count=count,
-        )
-        parsed = self._parse_json_response(self._call_llm(prompt, temperature=0.5, json_mode=True))
-        raw = parsed.get("exercises", []) if isinstance(parsed, dict) else parsed or []
-        return [ex for ex in (self._clean_exercise(r) for r in raw) if ex][:count]
+        language = course_language(content)
+        programming = is_programming_course(content)
+        rules = LANGUAGE_RULES[language] + "\n" + EXERCISE_RULES[programming]
+        exercises: list[dict] = []
+        for attempt in range(self.MAX_ATTEMPTS):
+            missing = count - len(exercises)
+            if missing <= 0:
+                break
+            prompt = TP_GENERATION_PROMPT.format(
+                content=content[: settings.max_content_chars], level=level,
+                level_guidance=LEVEL_GUIDANCE.get(level, ""), count=missing, course_rules=rules,
+            )
+            parsed = self._parse_json_response(self._call_llm(prompt, temperature=0.5, json_mode=True))
+            raw = parsed.get("exercises", []) if isinstance(parsed, dict) else parsed or []
+            valid = [ex for ex in (self._clean_exercise(r, language) for r in raw)
+                     if ex and is_in_language(ex["question"] + " " + ex["expected_solution"], language)
+                     and (programming or ex["type"] != "code")]
+            logger.info("TP %s : tentative %d -> %d/%d exercices valides", level, attempt + 1, len(valid), missing)
+            exercises.extend(valid)
+        return exercises[:count]
 
     @staticmethod
-    def _clean_exercise(raw) -> dict | None:
+    def _clean_exercise(raw, course_lang: str = "fr") -> dict | None:
         if not isinstance(raw, dict):
             return None
         statement = str(raw.get("statement") or raw.get("question") or "").strip()
@@ -72,10 +91,11 @@ class QuizAgent(BaseAgent):
 
         question = [f"**{title}**", ""] if title else []
         question.append(statement)
+        examples_label, starter_label = LABELS.get(course_lang, LABELS["fr"])
         if examples:
-            question += ["", "Exemples :", f"```{language}", *examples, "```"]
+            question += ["", examples_label, f"```{language}", *examples, "```"]
         if starter:
-            question += ["", "Code de départ :", f"```{language}", starter, "```"]
+            question += ["", starter_label, f"```{language}", starter, "```"]
 
         solution = []
         if solution_code:
