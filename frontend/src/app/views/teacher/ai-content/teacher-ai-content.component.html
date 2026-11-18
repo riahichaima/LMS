@@ -109,7 +109,7 @@
                              [durationMinutes]="item.quiz.durationMinutes"
                              (changed)="item.quiz.dueAt = $event.dueAt; item.quiz.durationMinutes = $event.durationMinutes" />
         <div *ngFor="let q of item.quiz.questions; let i = index" class="mb-3">
-          <div class="fw-semibold mb-1">{{ i + 1 }}. {{ q.questionText }}</div>
+          <div class="fw-semibold mb-1" dir="auto">{{ i + 1 }}. {{ q.questionText }}</div>
           <ul class="list-unstyled ms-3 mb-0">
             <li *ngFor="let a of q.answers; let j = index" class="py-1">
               <span class="text-body-secondary me-1">{{ letter(j) }}.</span> {{ a.answerText }}
@@ -146,7 +146,7 @@
                              (changed)="item.tp.dueAt = $event.dueAt; item.tp.durationMinutes = $event.durationMinutes" />
         <div *ngFor="let ex of item.exercises" class="mb-3">
           <h6 class="fw-bold">Exercice {{ ex.number }}</h6>
-          <div class="bg-body-tertiary border rounded p-3" style="white-space: pre-wrap;">{{ ex.statement }}</div>
+          <div class="bg-body-tertiary border rounded p-3" dir="auto" style="white-space: pre-wrap;">{{ ex.statement }}</div>
         </div>
       </div>
     </div>

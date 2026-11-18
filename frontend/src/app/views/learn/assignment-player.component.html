@@ -36,7 +36,7 @@
     <!-- Énoncé -->
     <c-card class="mb-4">
       <c-card-header><strong>Énoncé</strong></c-card-header>
-      <c-card-body class="md-content" [innerHTML]="a.description | markdown"></c-card-body>
+      <c-card-body class="md-content" dir="auto" [innerHTML]="a.description | markdown"></c-card-body>
     </c-card>
 
     <!-- Réponse -->

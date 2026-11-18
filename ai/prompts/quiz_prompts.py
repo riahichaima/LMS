@@ -41,7 +41,8 @@ Instructions :
 - "explanation" : la correction, en UNE phrase de 15 mots maximum, précise et juste.
 - Choix courts : quelques mots, sans répéter la question.
 - La question elle-même reste complète et précise (pas de raccourci sur la question).
-- Rédige en français.
+- Rédige dans la langue principale du contenu du cours : en arabe si le cours est en arabe, en anglais s'il est en anglais, sinon en français.
+- Ne pose jamais de question sur le document lui-même (pages, numérotation, format, fichier, PDF) : uniquement sur les notions enseignées.
 
 Réponds UNIQUEMENT avec ce JSON :
 {{
@@ -78,7 +79,9 @@ Instructions :
   * "solution_explanation" : explication de la solution en 2 à 5 phrases (c'est la correction).
   * "type" : "code" pour un exercice de programmation, sinon "text".
 - Respecte strictement les consignes du niveau ci-dessus.
-- Rédige en français (le code peut garder des noms en anglais si le cours les utilise).
+- Rédige dans la langue principale du contenu du cours : en arabe si le cours est en arabe, en anglais s'il est en anglais, sinon en français.
+- Ne pose jamais de question sur le document lui-même (pages, numérotation, format, fichier, PDF) : uniquement sur les notions enseignées.
+- Le code peut garder des noms en anglais si le cours les utilise.
 
 Réponds UNIQUEMENT avec ce JSON :
 {{

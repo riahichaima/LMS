@@ -46,7 +46,7 @@ Instructions :
 - Analyse le code de l'étudiant : logique, syntaxe, cas limites, efficacité et style.
 - Vérifie mentalement le code sur les exemples de l'énoncé.
 - Une solution différente de la référence mais correcte mérite la note maximale.
-- Identifie les erreurs et propose des améliorations, en français, avec bienveillance.
+- Identifie les erreurs et propose des améliorations, avec bienveillance, dans la langue de l'énoncé.
 - "correction" : le code de l'étudiant corrigé (ou la solution si sa réponse est vide), avec une courte explication.
 
 IMPORTANT : Réponds UNIQUEMENT avec un JSON valide, sans texte avant ou après.
