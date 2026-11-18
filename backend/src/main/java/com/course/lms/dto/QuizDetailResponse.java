@@ -50,6 +50,10 @@ public class QuizDetailResponse {
     public void setDurationMinutes(Integer durationMinutes) { this.durationMinutes = durationMinutes; }
     public Boolean getGeneratedByAi() { return generatedByAi; }
     public void setGeneratedByAi(Boolean generatedByAi) { this.generatedByAi = generatedByAi; }
+    /** Généré par l'administration pour le cours de l'enseignant (badge « Affecté par l'admin ») */
+    private boolean assignedByAdmin;
+    public boolean isAssignedByAdmin() { return assignedByAdmin; }
+    public void setAssignedByAdmin(boolean assignedByAdmin) { this.assignedByAdmin = assignedByAdmin; }
 
     public String getChapterTitle() { return chapterTitle; }
     public void setChapterTitle(String chapterTitle) { this.chapterTitle = chapterTitle; }

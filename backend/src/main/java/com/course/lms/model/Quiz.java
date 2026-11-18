@@ -45,6 +45,11 @@ public class Quiz {
     @Column(name = "generated_by_ai", nullable = false)
     private Boolean generatedByAi = false;
 
+    /** Créé ou affecté par l'administration : l'enseignant le voit marqué « Affecté par l'admin ». */
+    @Column(name = "assigned_by_admin")
+    private Boolean assignedByAdmin = false;
+
+
     // Date limite de rendu fixée par l'enseignant (null = sans date limite)
     @Column(name = "due_at")
     private java.time.Instant dueAt;
@@ -115,4 +120,7 @@ public class Quiz {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
+
+    public boolean isAssignedByAdmin() { return Boolean.TRUE.equals(assignedByAdmin); }
+    public void setAssignedByAdmin(Boolean assignedByAdmin) { this.assignedByAdmin = assignedByAdmin; }
 }
