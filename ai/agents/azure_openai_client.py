@@ -92,6 +92,17 @@ class AzureOpenAIClient:
         )
         return data.get("text", "").strip()
 
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """Vecteurs (embeddings) des textes, par lots de 64, avec le déploiement d'embeddings."""
+        if not settings.AZURE_EMBEDDING_DEPLOYMENT:
+            raise RuntimeError("Aucun déploiement d'embeddings configuré (AZURE_EMBEDDING_DEPLOYMENT).")
+        url = self._url(settings.AZURE_EMBEDDING_DEPLOYMENT, "embeddings", settings.AZURE_OPENAI_API_VERSION)
+        vectors: list[list[float]] = []
+        for i in range(0, len(texts), 64):
+            data = self._post(url, json={"input": texts[i:i + 64]})
+            vectors.extend(item["embedding"] for item in sorted(data["data"], key=lambda d: d["index"]))
+        return vectors
+
     def is_available(self) -> bool:
         try:
             self.generate("ping", temperature=0)

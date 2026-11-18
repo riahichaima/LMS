@@ -118,6 +118,37 @@ export interface AiModelStatus {
   video_vision?: boolean;
 }
 
+/** Recherche dans tous les cours (RAG) de l'administration */
+export type RagMode = 'embeddings' | 'bm25';
+
+export interface RagStatus {
+  ready: boolean;
+  mode: RagMode | null;
+  chunks: number;
+  courses: number;
+  built_at: string | null;
+  unreadable: string[];
+  embedding_model: string | null;
+  warning?: string | null;
+}
+
+export interface RagSource {
+  n: number;
+  course_id: number;
+  course: string;
+  chapter: string;
+  lesson: string;
+  resource: string;
+  score: number;
+  excerpt: string;
+}
+
+export interface RagAnswer {
+  answer: string;
+  sources: RagSource[];
+  mode: RagMode;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -180,5 +211,18 @@ export class AiService {
 
   analyzeStudentProgress(studentId: number, courseId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/api/progress/analyze/${studentId}/course/${courseId}`);
+  }
+
+  // --- RAG de l'administration : index de tous les cours, questions avec sources ---
+  ragStatus(): Observable<RagStatus> {
+    return this.http.get<RagStatus>(`${this.apiUrl}/api/ai/rag/status`);
+  }
+
+  ragReindex(): Observable<RagStatus> {
+    return this.http.post<RagStatus>(`${this.apiUrl}/api/ai/rag/reindex`, {});
+  }
+
+  ragAsk(question: string): Observable<RagAnswer> {
+    return this.http.post<RagAnswer>(`${this.apiUrl}/api/ai/rag/ask`, { question });
   }
 }

@@ -1,5 +1,5 @@
 <app-page-header title="Assistant IA multi-agents" icon="cilLightbulb"
-                 subtitle="Analyse de documents, vidéos et audios, et suivi de progression · Azure AI Foundry (GPT-4.1 mini)" />
+                 subtitle="Recherche dans tous les cours (RAG), analyse de documents, vidéos et audios, et suivi de progression · Azure AI Foundry (GPT-4.1 mini)" />
 
 <c-row>
   <c-col xs="12">
@@ -7,6 +7,11 @@
       <c-card-body>
         <!-- Nav Tabs -->
         <ul class="nav nav-tabs mb-4">
+          <li class="nav-item">
+            <a class="nav-link cursor-pointer" [class.active]="activeTab === 'rag'" (click)="selectTab('rag')">
+              <svg cIcon name="cilSearch" class="me-1"></svg> Recherche dans tous les cours (RAG)
+            </a>
+          </li>
           <li class="nav-item">
             <a
               class="nav-link cursor-pointer"
@@ -36,11 +41,67 @@
           </li>
         </ul>
 
+        <!-- RAG : recherche dans le contenu de tous les cours, réponse avec ses sources -->
+        <div *ngIf="activeTab === 'rag'" class="rag">
+          <p class="text-body-secondary mb-3">
+            L'IA cherche les passages utiles dans <strong>tous les cours</strong> (PDF, descriptions, vidéos déjà analysées, liens),
+            puis répond <strong>uniquement</strong> à partir de ces passages, en citant ses sources.
+          </p>
+
+          <div class="rag__status border rounded p-3 mb-3 d-flex flex-wrap align-items-center gap-3">
+            <div class="flex-grow-1 small" *ngIf="ragStatus() as st; else noStatus">
+              <ng-container *ngIf="st.ready; else emptyIndex">
+                <strong>Index prêt :</strong> {{ st.chunks }} passages issus de {{ st.courses }} cours
+                · recherche {{ st.mode === 'embeddings' ? 'sémantique (embeddings ' + st.embedding_model + ')' : 'par mots-clés (BM25)' }}
+                · mis à jour le {{ st.built_at | date:'dd/MM/yyyy HH:mm' }}
+                <div *ngIf="st.unreadable.length" class="text-body-secondary mt-1">
+                  {{ st.unreadable.length }} ressource(s) non indexée(s) (vidéo jamais analysée ou fichier illisible).
+                </div>
+              </ng-container>
+              <ng-template #emptyIndex><strong>Index vide :</strong> mettez-le à jour pour commencer.</ng-template>
+            </div>
+            <ng-template #noStatus><div class="flex-grow-1 small text-body-secondary">Chargement de l'état de l'index…</div></ng-template>
+            <button cButton color="primary" variant="outline" (click)="rebuildRagIndex()" [disabled]="ragIndexing()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="ragIndexing()" class="me-1"></c-spinner>
+              {{ ragIndexing() ? 'Indexation…' : "Mettre à jour l'index" }}
+            </button>
+          </div>
+
+          <c-alert color="warning" *ngIf="ragStatus()?.warning" class="mb-3">{{ ragStatus()?.warning }}</c-alert>
+          <c-alert color="danger" *ngIf="ragError()" dismissible (visibleChange)="ragError.set('')" class="mb-3">{{ ragError() }}</c-alert>
+
+          <div class="input-group mb-3">
+            <input type="text" cFormControl id="rag-question" [(ngModel)]="ragQuestion" (keyup.enter)="askRag()"
+                   placeholder="Ex : Quels cours parlent du jeton JWT ?" maxlength="1000" />
+            <button cButton color="primary" (click)="askRag()" [disabled]="ragLoading()">
+              <c-spinner aria-hidden="true" size="sm" *ngIf="ragLoading()"></c-spinner>
+              <span *ngIf="!ragLoading()">Rechercher</span>
+            </button>
+          </div>
+
+          <div *ngIf="ragAnswer() as a" class="border rounded p-3 bg-body-tertiary">
+            <div class="small text-body-secondary mb-2">
+              Recherche {{ a.mode === 'embeddings' ? 'sémantique (similarité cosinus)' : 'par mots-clés (BM25)' }}
+            </div>
+            <p class="mb-3" style="white-space: pre-line">{{ a.answer }}</p>
+            <div *ngIf="a.sources.length">
+              <h6 class="fw-bold mb-2">Sources</h6>
+              <ol class="list-unstyled mb-0 d-grid gap-2">
+                <li *ngFor="let s of a.sources" class="bg-body border rounded p-2 small">
+                  <strong>[{{ s.n }}] {{ s.course }}</strong> › {{ s.chapter }} › {{ s.lesson }} › {{ s.resource }}
+                  <span class="text-body-secondary">· score {{ s.score }}</span>
+                  <div class="text-body-secondary mt-1">« {{ s.excerpt }}{{ s.excerpt.length >= 300 ? '…' : '' }} »</div>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
         <!-- TAB 1: TEXT AGENT -->
         <div *ngIf="activeTab === 'text'">
           <div class="row mb-3">
             <div class="col-md-8">
-              <label class="form-label fw-bold">Indexation d'un document (PDF / TXT) :</label>
+              <label class="form-label fw-bold">Analyse d'un document (PDF / TXT) :</label>
               <input type="file" class="form-control" accept=".pdf,.txt" (change)="onTextFileSelected($event)" />
             </div>
           </div>

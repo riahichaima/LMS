@@ -19,4 +19,5 @@ def describe_provider() -> dict:
         "chat_model": settings.AZURE_CHAT_DEPLOYMENT,
         "transcription_model": settings.AZURE_TRANSCRIBE_DEPLOYMENT,
         "video_vision": settings.VIDEO_FRAME_COUNT > 0,
+        "embedding_model": settings.AZURE_EMBEDDING_DEPLOYMENT or None,
     }

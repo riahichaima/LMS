@@ -14,7 +14,7 @@ import java.util.Map;
         StudentLearningController.class, MessageController.class, NotificationController.class,
         TeacherTrackingController.class, SupervisionController.class, FeedbackController.class, ProfileController.class, MeetingController.class,
         ComplaintController.class, ManualAssessmentController.class, AssessmentFileController.class,
-        AssessmentScheduleController.class, AccountController.class})
+        AssessmentScheduleController.class, AccountController.class, AdminController.class, RagController.class})
 public class FinanceExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
