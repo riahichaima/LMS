@@ -6,10 +6,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-/** Suppression par l'enseignant des quiz et TP générés par l'IA pour ses cours. */
+/** Suppression des quiz et TP générés par l'IA : par l'enseignant pour ses cours, par l'administration pour tous. */
 @RestController
 @RequestMapping("/api/assessments/manual")
-@PreAuthorize("hasRole('TEACHER')")
+@PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
 public class ManualAssessmentController {
 
     private final ManualAssessmentService service;

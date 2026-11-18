@@ -74,7 +74,8 @@ export const routes: Routes = [
         // Page unique de l'enseignant : liste + statistiques + corrections, génération IA, création manuelle
         path: 'teacher/quiz-tp',
         loadComponent: () => import('./views/teacher/quiz-tp/teacher-quiz-tp.component').then(m => m.TeacherQuizTpComponent),
-        canActivate: [roleGuard(['TEACHER'])],
+        // L'administration y génère aussi des quiz et TP pour les cours de tous les enseignants
+        canActivate: [roleGuard(['TEACHER', 'ADMIN'])],
         data: { title: 'Quiz & TP' }
       },
       // Anciennes adresses du générateur et de la liste : regroupées dans « Quiz & TP »

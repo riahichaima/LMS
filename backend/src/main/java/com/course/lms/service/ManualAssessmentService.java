@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Gestion par l'enseignant des quiz et TP générés par l'IA pour ses cours : suppression
+ * Gestion par l'enseignant (ou l'administration) des quiz et TP générés par l'IA : suppression
  * (refusée dès qu'un étudiant les a rendus). Les quiz/TP préparés à la main sont importés en fichier (AssessmentFileService).
  */
 @Service
@@ -53,6 +53,9 @@ public class ManualAssessmentService {
 
     private void requireOwner(String email, Chapter chapter) {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable."));
+        // L'administration gère les quiz et TP de tous les cours
+        String role = user.getRole() != null ? user.getRole().getName() : "";
+        if ("ADMIN".equals(role) || "SUPER_ADMIN".equals(role)) return;
         User teacher = chapter.getCourse() != null ? chapter.getCourse().getTeacher() : null;
         if (teacher == null || !teacher.getId().equals(user.getId())) {
             throw new SecurityException("Vous ne pouvez gérer que les quiz et TP de vos propres cours.");

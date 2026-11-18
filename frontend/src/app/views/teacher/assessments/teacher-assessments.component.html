@@ -14,7 +14,8 @@
         <header class="step__head"><span class="step__num">1</span><h3>Cours et contenu à utiliser</h3></header>
         <label class="form-label small fw-semibold" for="gen-course">Cours</label>
         <select id="gen-course" class="form-select mb-3" [(ngModel)]="selectedCourseId" (ngModelChange)="onCourseChange()">
-          <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}</option>
+          <!-- Administration : tous les cours, avec le nom de leur enseignant -->
+          <option *ngFor="let c of courses()" [ngValue]="c.id">{{ c.title }}{{ isAdmin && c.teacherName ? ' · ' + c.teacherName : '' }}</option>
         </select>
 
         <div *ngIf="chapters().length; else noChapters">

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from agents.llm_client import describe_provider, get_llm_client
-from api import assessment_routes, chat_routes, content_routes, correction_routes, progress_routes
+from api import assessment_routes, chat_routes, content_routes, correction_routes, progress_routes, rag_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -31,6 +31,7 @@ app.include_router(correction_routes.router, prefix="/api/correct", tags=["Corre
 app.include_router(progress_routes.router, prefix="/api/progress", tags=["Progression"])
 app.include_router(content_routes.router, prefix="/api/content", tags=["Assistant — contenus"])
 app.include_router(chat_routes.router, prefix="/api/chat", tags=["Assistant — questions"])
+app.include_router(rag_routes.router, prefix="/api/rag", tags=["RAG — administration"])
 
 
 @app.get("/api/live", tags=["System"])

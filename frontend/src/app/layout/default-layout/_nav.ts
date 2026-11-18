@@ -25,6 +25,18 @@ const administrationItems: INavData[] = [
     url: '/messages',
     iconComponent: { name: 'cil-chat-bubble' }
   },
+  // L'administration crée des cours pour un formateur et génère des quiz et TP avec l'IA pour tous les cours
+  { title: true, name: 'Pédagogie' },
+  {
+    name: 'Cours & studio',
+    url: '/teacher/courses',
+    iconComponent: { name: 'cil-book' }
+  },
+  {
+    name: 'Quiz & TP avec l\'IA',
+    url: '/teacher/quiz-tp',
+    iconComponent: { name: 'cil-task' }
+  },
   { title: true, name: 'Finance & supervision' },
   {
     name: 'Gestion financière',

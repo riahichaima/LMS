@@ -33,15 +33,17 @@ public class AssessmentController {
 
     /**
      * Generate assessments (Quiz and/or Assignment) for selected chapters
-     * Teacher only endpoint
+     * Enseignant : uniquement pour ses propres cours. Administrateur et super admin : pour le cours de n'importe quel enseignant.
      */
     @PostMapping("/generate")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<AssessmentGenerationResponse> generateAssessments(
             @RequestBody AssessmentGenerationRequest request,
             org.springframework.security.core.Authentication auth) {
         aiRateLimiter.check(auth.getName(), com.course.lms.service.AiRateLimiter.Usage.GENERATION);
-        return ResponseEntity.ok(assessmentService.generateAssessments(request, auth.getName()));
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        // null = pas de contrôle de propriété (administration) ; sinon les chapitres doivent appartenir à cet enseignant
+        return ResponseEntity.ok(assessmentService.generateAssessments(request, isAdmin ? null : auth.getName()));
     }
 
     @PostMapping("/generate-quiz")
@@ -189,7 +191,7 @@ public class AssessmentController {
      * Teacher view quiz WITH correct answers and explanations
      */
     @GetMapping("/quizzes/{quizId}/detail")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<com.course.lms.dto.QuizDetailResponse> viewQuizDetailForTeacher(@PathVariable Long quizId) {
         return ResponseEntity.ok(assessmentService.getQuizDetailForTeacher(quizId));
     }

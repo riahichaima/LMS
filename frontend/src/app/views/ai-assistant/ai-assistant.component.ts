@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,7 +12,7 @@ import {
   AlertComponent
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { AiService, LmsAiQuestionResponse } from '../../services/ai.service';
+import { AiService, LmsAiQuestionResponse, RagAnswer, RagStatus } from '../../services/ai.service';
 import { AuthService } from '../../services/auth.service';
 
 import { PageHeaderComponent } from '../../shared/ui/page-header.component';
@@ -42,8 +42,17 @@ interface ChatMessage {
   ],
   templateUrl: './ai-assistant.component.html'
 })
-export class AiAssistantComponent {
-  activeTab = 'text';
+export class AiAssistantComponent implements OnInit {
+  // L'onglet RAG est le premier : c'est l'outil propre à l'administration (recherche dans tous les cours)
+  activeTab = 'rag';
+
+  // RAG
+  ragStatus = signal<RagStatus | null>(null);
+  ragIndexing = signal(false);
+  ragQuestion = '';
+  ragLoading = signal(false);
+  ragAnswer = signal<RagAnswer | null>(null);
+  ragError = signal('');
 
   // Text Agent
   textInput = '';
@@ -68,8 +77,36 @@ export class AiAssistantComponent {
 
   constructor(private aiService: AiService, private authService: AuthService) {}
 
+  ngOnInit(): void {
+    this.aiService.ragStatus().subscribe({
+      next: st => this.ragStatus.set(st),
+      error: err => this.ragError.set(err.error?.message || 'Service IA injoignable : réessayez dans un instant.')
+    });
+  }
+
   selectTab(tab: string): void {
     this.activeTab = tab;
+  }
+
+  // --- RAG ---
+  rebuildRagIndex(): void {
+    this.ragError.set('');
+    this.ragIndexing.set(true);
+    this.aiService.ragReindex().subscribe({
+      next: st => { this.ragStatus.set(st); this.ragIndexing.set(false); },
+      error: err => { this.ragIndexing.set(false); this.ragError.set(err.error?.message || "Mise à jour de l'index impossible."); }
+    });
+  }
+
+  askRag(): void {
+    const question = this.ragQuestion.trim();
+    if (question.length < 3) { this.ragError.set("Posez une question d'au moins 3 caractères."); return; }
+    this.ragError.set('');
+    this.ragLoading.set(true);
+    this.aiService.ragAsk(question).subscribe({
+      next: answer => { this.ragAnswer.set(answer); this.ragLoading.set(false); },
+      error: err => { this.ragLoading.set(false); this.ragError.set(err.error?.message || 'Recherche impossible.'); }
+    });
   }
 
   // --- TEXT AGENT METHODS ---
@@ -84,7 +121,7 @@ export class AiAssistantComponent {
     this.aiService.uploadTextFile(file).subscribe({
       next: (res) => {
         this.textLoading.set(false);
-        this.textUploadSuccess.set(`Fichier "${file.name}" téléversé et indexé par l'Agent Texte (ID: ${res.content_id || res.id || 'OK'}) !`);
+        this.textUploadSuccess.set(`Fichier "${file.name}" téléversé et analysé par l'Agent Texte (ID: ${res.content_id || res.id || 'OK'}) !`);
       },
       error: (err) => {
         this.textLoading.set(false);
@@ -132,7 +169,7 @@ export class AiAssistantComponent {
     this.aiService.ingestVideoUrl(this.youtubeUrl().trim(), 'Vidéo YouTube').subscribe({
       next: (res) => {
         this.videoLoading.set(false);
-        this.videoUploadSuccess.set('Vidéo YouTube ingérée et indexée par l\'Agent Vidéo !');
+        this.videoUploadSuccess.set('Vidéo YouTube analysée par l\'Agent Vidéo !');
         this.youtubeUrl.set('');
       },
       error: () => {
@@ -153,7 +190,7 @@ export class AiAssistantComponent {
     this.aiService.uploadVideoFile(file).subscribe({
       next: (res) => {
         this.videoLoading.set(false);
-        this.videoUploadSuccess.set(`Vidéo "${file.name}" indexée avec succès !`);
+        this.videoUploadSuccess.set(`Vidéo "${file.name}" analysée avec succès !`);
       },
       error: () => {
         this.videoLoading.set(false);

@@ -76,3 +76,24 @@ class CourseChatRequest(BaseModel):
     resource_details: list[ResourceDetail] = []
     messages: list[ChatMessage] = []
     action: str = "chat"  # "chat" ou "summary"
+
+
+# ---------------------------------------------------------------- RAG de l'administration
+
+class RagLesson(BaseModel):
+    """Une leçon d'un cours, avec ses ressources, à indexer pour la recherche de l'administration."""
+    course_id: int
+    course_title: str = ""
+    chapter_title: str = ""
+    lesson_title: str = ""
+    description: Optional[str] = None
+    resources: list[ResourceDetail] = []
+
+
+class RagIndexRequest(BaseModel):
+    lessons: list[RagLesson] = Field(default_factory=list, max_length=5000)
+
+
+class RagAskRequest(BaseModel):
+    question: str = Field(..., min_length=3, max_length=1000)
+    top_k: int = Field(5, ge=1, le=10)

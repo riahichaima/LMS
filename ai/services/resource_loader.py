@@ -49,18 +49,23 @@ def resolve_backend_path(file_path: str) -> Path:
 
 
 def _cached(key: str, compute) -> str:
-    """Analyser une vidéo coûte cher (crédits Azure) : le texte est gardé sur disque."""
+    """Analyser une vidéo coûte cher (crédits Azure) : le texte est gardé sur disque.
+
+    compute=None : lecture du cache seulement (index du RAG : aucune nouvelle analyse payante).
+    """
     path = EXTRACT_CACHE_PATH / f"{hashlib.sha1(key.encode('utf-8')).hexdigest()}.txt"
     if path.is_file():
         logger.info("Contenu repris du cache (%s)", key)
         return path.read_text(encoding="utf-8")
+    if compute is None:
+        raise ValueError("pas encore analysé (générez d'abord un quiz sur cette ressource)")
     text = compute()
     if text.strip():
         path.write_text(text, encoding="utf-8")
     return text
 
 
-def _pdf_text(pdf_path: Path) -> str:
+def _pdf_text(pdf_path: Path, cache_only: bool = False) -> str:
     """Texte d'un PDF ; PDF scanné (images sans texte) : pages lues par le modèle, résultat gardé en cache."""
     try:
         text = extract_from_pdf(str(pdf_path))
@@ -75,7 +80,8 @@ def _pdf_text(pdf_path: Path) -> str:
     stat = pdf_path.stat()
     logger.info("PDF sans texte exploitable (%d caractères, %d pages) : lecture des images", len(text.strip()), pages)
     try:
-        return _cached(f"pdf-ocr:{pdf_path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}", lambda: pdf_ocr.ocr_pdf(str(pdf_path)))
+        return _cached(f"pdf-ocr:{pdf_path.resolve()}:{stat.st_size}:{stat.st_mtime_ns}",
+                       None if cache_only else (lambda: pdf_ocr.ocr_pdf(str(pdf_path))))
     except Exception as e:
         if text.strip():
             logger.warning("Lecture des images du PDF impossible (%s) : texte extrait conservé", e)
@@ -83,8 +89,12 @@ def _pdf_text(pdf_path: Path) -> str:
         raise
 
 
-def extract_resource(resource: ResourceDetail) -> str:
-    """Extraire le texte d'une ressource selon son type."""
+def extract_resource(resource: ResourceDetail, media_from_cache_only: bool = False) -> str:
+    """Extraire le texte d'une ressource selon son type.
+
+    media_from_cache_only : vidéos, audios, YouTube et PDF scannés ne sont pas réanalysés (texte du cache
+    seulement) ; utilisé par l'index du RAG pour ne jamais lancer d'analyse longue et payante.
+    """
     rtype = resource.type.upper()
     url = resource.external_url
 
@@ -92,16 +102,17 @@ def extract_resource(resource: ResourceDetail) -> str:
         return resource.title
     # Seul un vrai lien YouTube part vers yt-dlp ; tout autre lien passe par le téléchargement protégé (SSRF)
     if url and is_youtube_url(url):
-        return _cached(f"youtube:{url}", lambda: analyze_youtube(url))
+        return _cached(f"youtube:{url}", None if media_from_cache_only else (lambda: analyze_youtube(url)))
     if resource.file_path and rtype == "PDF":
-        return _pdf_text(resolve_backend_path(resource.file_path))
+        return _pdf_text(resolve_backend_path(resource.file_path), cache_only=media_from_cache_only)
     if resource.file_path and rtype in ("VIDEO", "AUDIO"):
         media = resolve_backend_path(resource.file_path)
         stat = media.stat()
         is_audio = rtype == "AUDIO" or media.suffix.lower() in AUDIO_EXTENSIONS
         analyze = analyze_audio if is_audio else analyze_video
         # La clé change si le fichier est remplacé (taille / date)
-        return _cached(f"media:{media.resolve()}:{stat.st_size}:{stat.st_mtime_ns}", lambda: analyze(str(media)))
+        return _cached(f"media:{media.resolve()}:{stat.st_size}:{stat.st_mtime_ns}",
+                       None if media_from_cache_only else (lambda: analyze(str(media))))
     if url:
         return extract_from_url(url)
     raise ValueError(f"Ressource '{resource.title}' ({rtype}) sans fichier ni lien.")

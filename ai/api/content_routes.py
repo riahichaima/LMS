@@ -31,7 +31,7 @@ def _save_upload(file: UploadFile) -> Path:
 
 @router.post("/upload/pdf")
 def upload_document(file: UploadFile = File(...)):
-    """Indexer un document (PDF, TXT, MD)."""
+    """Analyser un document (PDF, TXT, MD) : son texte complet est gardé pour les questions (pas de RAG ici)."""
     name = (file.filename or "").lower()
     if not name.endswith((".pdf",) + TEXT_EXTENSIONS):
         raise HTTPException(status_code=400, detail="Formats acceptés : PDF, TXT, MD.")
@@ -49,7 +49,7 @@ def upload_document(file: UploadFile = File(...)):
         "id": content["id"],
         "title": content["title"],
         "contentType": content["content_type"],
-        "message": f"Document indexé ({len(text)} caractères extraits).",
+        "message": f"Document analysé ({len(text)} caractères extraits).",
         "textPreview": _preview(text),
     }
 

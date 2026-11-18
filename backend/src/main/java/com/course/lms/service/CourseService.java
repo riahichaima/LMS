@@ -69,15 +69,28 @@ public class CourseService {
     @Autowired
     private com.course.lms.repository.PaymentRepository paymentRepository;
 
-    public CourseResponse createCourse(CourseRequest request, String userEmail) {
-        User teacher;
-        if (request.getTeacherId() != null) {
-            teacher = userRepository.findById(request.getTeacherId())
-                    .orElseThrow(() -> new RuntimeException("Professeur spécifié non trouvé"));
-        } else {
-            teacher = userRepository.findByEmail(userEmail)
-                    .orElseThrow(() -> new RuntimeException("Utilisateur connecté non trouvé"));
+    /**
+     * Propriétaire d'un nouveau cours. Un enseignant crée toujours ses propres cours (jamais au nom d'un autre).
+     * Un administrateur doit choisir le formateur : le cours lui appartient et il reçoit 60 % des ventes.
+     */
+    User resolveOwner(CourseRequest request, String userEmail) {
+        User current = userRepository.findByEmail(userEmail).orElse(null);
+        if (current != null && current.getRole() != null && "TEACHER".equals(current.getRole().getName())) {
+            return current;
         }
+        if (request.getTeacherId() == null) {
+            throw new IllegalArgumentException("Choisissez le formateur du cours.");
+        }
+        User teacher = userRepository.findById(request.getTeacherId())
+                .orElseThrow(() -> new IllegalArgumentException("Formateur introuvable."));
+        if (teacher.getRole() == null || !"TEACHER".equals(teacher.getRole().getName())) {
+            throw new IllegalArgumentException("Le formateur choisi doit être un enseignant.");
+        }
+        return teacher;
+    }
+
+    public CourseResponse createCourse(CourseRequest request, String userEmail) {
+        User teacher = resolveOwner(request, userEmail);
 
         Course course = new Course(request.getTitle(), request.getDescription(), teacher);
         course.setThumbnail(request.getThumbnail());
@@ -185,14 +198,7 @@ public class CourseService {
 
     @Transactional
     public CourseResponse createFullCourse(CourseRequest request, String userEmail) {
-        User teacher;
-        if (request.getTeacherId() != null) {
-            teacher = userRepository.findById(request.getTeacherId())
-                    .orElseThrow(() -> new RuntimeException("Professeur spécifié non trouvé"));
-        } else {
-            teacher = userRepository.findByEmail(userEmail)
-                    .orElseThrow(() -> new RuntimeException("Utilisateur connecté non trouvé"));
-        }
+        User teacher = resolveOwner(request, userEmail);
 
         // 1. Create and save the course
         Course course = new Course(request.getTitle(), request.getDescription(), teacher);
@@ -259,6 +265,12 @@ public class CourseService {
     public Page<CourseResponse> searchCourses(String title, Pageable pageable) {
         return courseRepository.findByTitleContainingIgnoreCase(title, pageable)
                 .map(this::mapToResponse);
+    }
+
+    /** Tous les cours de la plateforme (studio et « Quiz & TP » de l'administration). */
+    public List<CourseResponse> getAllCoursesList() {
+        return courseRepository.findAll(org.springframework.data.domain.Sort.by("title"))
+                .stream().map(this::mapToResponse).collect(Collectors.toList());
     }
 
     public List<CourseResponse> getMyCourses(String teacherEmail) {
@@ -332,10 +344,10 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         User teacher = userRepository.findById(teacherId)
-                .orElseThrow(() -> new RuntimeException("Formateur non trouvé"));
+                .orElseThrow(() -> new IllegalArgumentException("Formateur introuvable."));
 
         if (teacher.getRole() == null || !"TEACHER".equals(teacher.getRole().getName())) {
-            throw new RuntimeException("L'utilisateur sélectionné n'a pas le rôle TEACHER");
+            throw new IllegalArgumentException("Le formateur choisi doit être un enseignant.");
         }
 
         course.setTeacher(teacher);

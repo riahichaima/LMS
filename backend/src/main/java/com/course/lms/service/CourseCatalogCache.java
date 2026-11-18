@@ -45,6 +45,14 @@ public class CourseCatalogCache {
 
     public CourseCatalogCache(CacheManager cacheManager) {
         this.cache = cacheManager.getCache(NAME);
+    }
+
+    /**
+     * Seul le cache créé par Spring est vidé par l'écouteur JPA. Un cache créé à la main (tests unitaires)
+     * ne doit jamais prendre sa place, sinon le vrai cache ne serait plus vidé.
+     */
+    @jakarta.annotation.PostConstruct
+    void register() {
         active = this;
     }
 

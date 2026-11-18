@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     # Taille max du contenu du cours envoyé au modèle
     MAX_CONTENT_CHARS: int = 60000
 
+    # RAG de l'administration (recherche dans tous les cours).
+    # Déploiement d'embeddings Azure (ex : text-embedding-3-small) ; vide = recherche par mots-clés (BM25)
+    AZURE_EMBEDDING_DEPLOYMENT: str = ""
+    RAG_CHUNK_CHARS: int = 1200
+    RAG_CHUNK_OVERLAP: int = 200
+    RAG_TOP_K: int = 5
+
     @property
     def max_content_chars(self) -> int:
         return self.MAX_CONTENT_CHARS
@@ -47,5 +54,7 @@ TMP_PATH = UPLOAD_PATH / "tmp"
 CONTENT_STORE_PATH = UPLOAD_PATH / "contents"
 # Texte déjà extrait des vidéos (une vidéo n'est analysée qu'une fois)
 EXTRACT_CACHE_PATH = UPLOAD_PATH / "cache"
-for _p in (TMP_PATH, CONTENT_STORE_PATH, EXTRACT_CACHE_PATH):
+# Index du RAG (morceaux de cours et leurs vecteurs)
+RAG_PATH = UPLOAD_PATH / "rag"
+for _p in (TMP_PATH, CONTENT_STORE_PATH, EXTRACT_CACHE_PATH, RAG_PATH):
     _p.mkdir(parents=True, exist_ok=True)
