@@ -97,6 +97,8 @@ export class TeacherAssessmentsComponent implements OnInit {
   });
   // Types décochés par l'enseignant (tout est coché par défaut)
   excludedSources = signal<string[]>([]);
+  /** Administration : le choix porte sur les cours de tous les enseignants (nom affiché à côté du titre) */
+  readonly isAdmin = inject(AuthService).isAdmin();
 
   constructor(
     private courseService: CourseService,

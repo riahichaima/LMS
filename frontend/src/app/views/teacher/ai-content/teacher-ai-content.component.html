@@ -8,7 +8,7 @@
   <button type="button" class="btn btn-primary btn-sm me-2" (click)="navigate.emit('generate')">
     <svg cIcon name="cilLightbulb" size="sm" class="me-1"></svg>Générer avec l'IA
   </button>
-  <button type="button" class="btn btn-outline-primary btn-sm" (click)="navigate.emit('files')">
+  <button *ngIf="!isAdmin" type="button" class="btn btn-outline-primary btn-sm" (click)="navigate.emit('files')">
     <svg cIcon name="cilCloudUpload" size="sm" class="me-1"></svg>Importer un fichier
   </button>
 </app-empty-state>
@@ -18,8 +18,13 @@
   <div class="stat-grid mb-3">
     <app-stat-card label="Quiz" icon="cilListNumbered" tone="primary" [value]="stats().quizzes" [hint]="stats().questions + ' questions au total'" />
     <app-stat-card label="TP" icon="cilTask" tone="info" [value]="stats().tps" hint="Avec leurs corrigés" />
-    <app-stat-card label="Fichiers importés" icon="cilCloudUpload" tone="success" [value]="importedFiles()" hint="Quiz et TP en fichier" />
-    <app-stat-card label="Copies à corriger" icon="cilPencil" tone="warning" [value]="copiesToGrade()" [highlight]="copiesToGrade() > 0" />
+    <ng-container *ngIf="!isAdmin; else adminStats">
+      <app-stat-card label="Fichiers importés" icon="cilCloudUpload" tone="success" [value]="importedFiles()" hint="Quiz et TP en fichier" />
+      <app-stat-card label="Copies à corriger" icon="cilPencil" tone="warning" [value]="copiesToGrade()" [highlight]="copiesToGrade() > 0" />
+    </ng-container>
+    <ng-template #adminStats>
+      <app-stat-card label="Cours concernés" icon="cilBook" tone="success" [value]="courses().length" hint="Tous les enseignants" />
+    </ng-template>
   </div>
 
   <div class="card mb-4">

@@ -1,5 +1,6 @@
 import { ScheduleEditorComponent } from '../../../shared/schedule-editor.component';
-import { Component, OnInit, computed, output, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, output, signal } from '@angular/core';
+import { AuthService } from '../../../services/auth.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AlertComponent, BadgeComponent, FormSelectDirective, SpinnerComponent } from '@coreui/angular';
@@ -109,10 +110,14 @@ export class TeacherAiContentComponent implements OnInit {
     };
   });
 
+  /** Administration : quiz et TP de tous les cours ; les sujets importés restent propres à chaque enseignant */
+  readonly isAdmin = inject(AuthService).isAdmin();
+
   constructor(private aiService: AiService, private manualService: ManualAssessmentService, private fileService: AssessmentFileService) {}
 
   ngOnInit(): void {
     this.load();
+    if (this.isAdmin) return;
     this.fileService.teacherFiles().subscribe({
       next: files => {
         this.importedFiles.set(files.length);

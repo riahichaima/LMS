@@ -83,7 +83,8 @@ export class AdminCoursesComponent implements OnInit {
 
     this.adminService.getUsers().subscribe({
       next: (users) => {
-        this.teachers.set(users.filter(u => u.role.includes('TEACHER') || u.role.includes('ADMIN')));
+        // Seul un enseignant peut être formateur d'un cours (règle vérifiée aussi par le backend)
+        this.teachers.set(users.filter(u => u.role.replace('ROLE_', '') === 'TEACHER'));
       }
     });
   }

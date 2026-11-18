@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { IconDirective } from '@coreui/icons-angular';
 import { PageHeaderComponent } from '../../../shared/ui/page-header.component';
+import { AuthService } from '../../../services/auth.service';
 import { TeacherAiContentComponent } from '../ai-content/teacher-ai-content.component';
 import { TeacherAssessmentsComponent } from '../assessments/teacher-assessments.component';
 import { TeacherFilesComponent } from './teacher-files.component';
@@ -17,8 +18,13 @@ export type QuizTpTab = 'list' | 'generate' | 'files';
   standalone: true,
   imports: [IconDirective, PageHeaderComponent, TeacherAiContentComponent, TeacherAssessmentsComponent, TeacherFilesComponent],
   template: `
-    <app-page-header title="Quiz & TP" icon="cilTask"
-                     subtitle="Quiz et TP générés avec l'IA (corrections par niveau) et sujets que vous importez depuis votre ordinateur." />
+    @if (isAdmin) {
+      <app-page-header title="Quiz & TP avec l'IA" icon="cilTask"
+                       subtitle="Générez des quiz et des TP avec l'IA pour les cours de tous les enseignants, puis relisez-les par niveau." />
+    } @else {
+      <app-page-header title="Quiz & TP" icon="cilTask"
+                       subtitle="Quiz et TP générés avec l'IA (corrections par niveau) et sujets que vous importez depuis votre ordinateur." />
+    }
 
     <ul class="nav nav-pills lms-tabs quiz-tabs mb-4" role="tablist">
       <li class="nav-item">
@@ -31,11 +37,14 @@ export type QuizTpTab = 'list' | 'generate' | 'files';
           <svg cIcon name="cilLightbulb" size="sm"></svg>Générer avec l'IA
         </button>
       </li>
-      <li class="nav-item">
-        <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'files'" [attr.aria-selected]="tab() === 'files'" (click)="go('files')">
-          <svg cIcon name="cilCloudUpload" size="sm"></svg>Importer un fichier
-        </button>
-      </li>
+      <!-- Sujets importés et notation des copies : travail de l'enseignant, pas de l'administration -->
+      @if (!isAdmin) {
+        <li class="nav-item">
+          <button type="button" role="tab" class="nav-link" [class.active]="tab() === 'files'" [attr.aria-selected]="tab() === 'files'" (click)="go('files')">
+            <svg cIcon name="cilCloudUpload" size="sm"></svg>Importer un fichier
+          </button>
+        </li>
+      }
     </ul>
 
     @switch (tab()) {
@@ -49,12 +58,14 @@ export type QuizTpTab = 'list' | 'generate' | 'files';
 export class TeacherQuizTpComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  /** Administration : génère pour tous les cours, sans l'onglet d'import des sujets et des copies */
+  readonly isAdmin = inject(AuthService).isAdmin();
   tab = signal<QuizTpTab>('list');
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
       const t = params.get('tab');
-      this.tab.set(t === 'generate' || t === 'files' ? t : 'list');
+      this.tab.set(t === 'generate' || (t === 'files' && !this.isAdmin) ? t : 'list');
     });
   }
 

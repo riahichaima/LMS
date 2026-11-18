@@ -106,8 +106,10 @@ public class CourseController {
     @GetMapping("/teacher/courses")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<List<CourseResponse>> getTeacherCourses() {
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return ResponseEntity.ok(courseService.getMyCourses(email));
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        // L'administration (et le super admin) gère les cours de tous les enseignants ; l'enseignant ne voit que les siens
+        boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()));
+        return ResponseEntity.ok(isAdmin ? courseService.getAllCoursesList() : courseService.getMyCourses(auth.getName()));
     }
 
     @GetMapping("/teacher/courses/{id}")

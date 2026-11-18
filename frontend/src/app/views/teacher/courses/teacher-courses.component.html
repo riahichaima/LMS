@@ -1,5 +1,7 @@
-<app-page-header title="Mes cours & studio" icon="cilBook"
-                 subtitle="Créez vos formations en chapitres et leçons, ajoutez vos supports et publiez-les.">
+<app-page-header [title]="isAdmin ? 'Cours & studio' : 'Mes cours & studio'" icon="cilBook"
+                 [subtitle]="isAdmin
+                   ? 'Créez un cours pour un formateur et modifiez les cours de tous les enseignants.'
+                   : 'Créez vos formations en chapitres et leçons, ajoutez vos supports et publiez-les.'">
   <button type="button" class="btn btn-primary" (click)="openCreateModal()">
     <svg cIcon name="cilPlus" class="me-1"></svg>Nouveau cours
   </button>
@@ -26,6 +28,7 @@
             <tr>
               <th>ID</th>
               <th>Titre du Cours</th>
+              <th *ngIf="isAdmin">Enseignant</th>
               <th>Description</th>
               <th>Chapitres</th>
               <th>Prix</th>
@@ -37,6 +40,7 @@
             <tr *ngFor="let c of courses()">
               <td>#{{ c.id }}</td>
               <td class="fw-semibold">{{ c.title }}</td>
+              <td *ngIf="isAdmin" class="text-nowrap">{{ c.teacherName || '—' }}</td>
               <td>{{ c.description }}</td>
               <td>{{ c.chaptersCount || c.chapters?.length || 0 }} Chapitres</td>
               <td class="text-nowrap">
@@ -58,8 +62,8 @@
               </td>
             </tr>
             <tr *ngIf="courses().length === 0">
-              <td colspan="7" class="text-center py-3 text-muted">
-                Vous n'avez pas encore créé de cours. Cliquez sur "Créer un Nouveau Cours" pour commencer.
+              <td [attr.colspan]="isAdmin ? 8 : 7" class="text-center py-3 text-muted">
+                {{ isAdmin ? 'Aucun cours sur la plateforme pour le moment.' : 'Vous n\'avez pas encore créé de cours. Cliquez sur « Nouveau cours » pour commencer.' }}
               </td>
             </tr>
           </tbody>
@@ -76,6 +80,15 @@
   </c-modal-header>
   <c-modal-body style="max-height: 70vh; overflow-y: auto;">
     <c-alert color="danger" *ngIf="errorMessage() && createModalVisible()" class="mb-3">{{ errorMessage() }}</c-alert>
+    <!-- Administration : le cours appartient au formateur choisi, qui reçoit 60 % des ventes -->
+    <div class="mb-3" *ngIf="isAdmin && !isEditing">
+      <label class="form-label fw-bold" for="course-teacher">Formateur du cours :</label>
+      <select id="course-teacher" class="form-select" [(ngModel)]="teacherId">
+        <option [ngValue]="null" disabled>Choisissez un enseignant</option>
+        <option *ngFor="let t of teachers()" [ngValue]="t.id">{{ t.name }} · {{ t.email }}</option>
+      </select>
+      <div class="form-text">Le cours lui appartient : il le gère et reçoit 60 % de chaque vente.</div>
+    </div>
     <div class="mb-3">
       <label class="form-label fw-bold">Titre du Cours :</label>
       <input type="text" cFormControl [(ngModel)]="courseTitle" placeholder="Ex: Mathématiques Niveau 1" />

@@ -1,4 +1,6 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
+import { AuthService } from '../../../services/auth.service';
+import { AdminService, UserWithRoleDetails } from '../../../services/admin.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -72,10 +74,21 @@ export class TeacherCoursesComponent implements OnInit {
   // Files selected for upload
   selectedFilesMap: Map<string, File> = new Map();
 
+  /** Administration (et super admin) : tous les cours, et choix obligatoire du formateur à la création */
+  readonly isAdmin = inject(AuthService).isAdmin();
+  private adminService = inject(AdminService);
+  teachers = signal<UserWithRoleDetails[]>([]);
+  teacherId: number | null = null;
+
   constructor(private courseService: CourseService, private aiService: AiService) {}
 
   ngOnInit(): void {
     this.loadTeacherCourses();
+    if (this.isAdmin) {
+      this.adminService.getUsers().subscribe({
+        next: users => this.teachers.set(users.filter(u => u.role.replace('ROLE_', '') === 'TEACHER'))
+      });
+    }
   }
 
   loadTeacherCourses(): void {
@@ -102,7 +115,9 @@ export class TeacherCoursesComponent implements OnInit {
     this.pricingType = 'FREE';
     this.price = null;
     this.chapters = [];
+    this.teacherId = null;
     this.selectedFilesMap.clear();
+    this.errorMessage.set('');
     this.createModalVisible.set(true);
   }
 
@@ -224,13 +239,20 @@ export class TeacherCoursesComponent implements OnInit {
       return;
     }
 
+    if (this.isAdmin && !this.isEditing && !this.teacherId) {
+      this.errorMessage.set('Choisissez le formateur du cours.');
+      return;
+    }
+
     const coursePayload: Course = {
       title: this.courseTitle,
       description: this.courseDescription,
       status: this.courseStatus,
       pricingType: this.pricingType,
       price: this.pricingType === 'PAID' ? this.price : null,
-      chapters: this.chapters
+      chapters: this.chapters,
+      // Seule l'administration choisit le formateur ; un enseignant crée toujours ses propres cours
+      ...(this.isAdmin && !this.isEditing && this.teacherId ? { teacherId: this.teacherId } : {})
     };
 
     this.loading.set(true);
