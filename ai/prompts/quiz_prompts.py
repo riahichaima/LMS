@@ -1,11 +1,10 @@
 """Prompts pour la génération de QCM et de TP."""
 
 # Règles calculées par le code à partir du contenu (services/course_profile.py), puis vérifiées à la réception
-LANGUAGE_RULES = {
-    "ar": ("LANGUE : arabe, obligatoire. Écris TOUT en arabe (questions, choix, explications, titres, énoncés, "
-           "corrections). Aucune phrase en français ni en anglais."),
-    "fr": "LANGUE : la langue principale du contenu (français par défaut, anglais si le cours est en anglais).",
-}
+def language_rule(name: str) -> str:
+    """Consigne de langue, pour la langue détectée par le code (« arabe », « anglais », « espagnol »...)."""
+    return (f"LANGUE : {name}, obligatoire. Écris TOUT en {name} (questions, choix, explications, titres, "
+            f"énoncés, corrections). Aucune phrase dans une autre langue.")
 EXERCISE_RULES = {
     True: ("TYPE D'EXERCICES : cours de programmation. Exercices de code dans le langage du cours, avec exemples "
            "d'appels et résultats attendus, code de départ et solution."),

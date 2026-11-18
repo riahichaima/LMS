@@ -5,14 +5,19 @@ import re
 
 from agents.base_agent import BaseAgent
 from config import settings
-from prompts.quiz_prompts import EXERCISE_RULES, LANGUAGE_RULES, LEVEL_GUIDANCE, QCM_GENERATION_PROMPT, TP_GENERATION_PROMPT
-from services.course_profile import course_language, is_in_language, is_programming_course
+from prompts.quiz_prompts import EXERCISE_RULES, LEVEL_GUIDANCE, QCM_GENERATION_PROMPT, TP_GENERATION_PROMPT, language_rule
+from services.course_profile import course_language, is_in_language, is_programming_course, language_name
 
 logger = logging.getLogger(__name__)
 
 LETTERS = "ABCD"
 # Intitulés ajoutés autour des exercices, dans la langue du cours
-LABELS = {"fr": ("Exemples :", "Code de départ :"), "ar": ("أمثلة :", "الشفرة الأولية :")}
+LABELS = {
+    "fr": ("Exemples :", "Code de départ :"), "en": ("Examples:", "Starter code:"),
+    "es": ("Ejemplos:", "Código inicial:"), "de": ("Beispiele:", "Startcode:"),
+    "it": ("Esempi:", "Codice iniziale:"), "pt": ("Exemplos:", "Código inicial:"),
+    "ar": ("أمثلة :", "الشفرة الأولية :"),
+}
 # "A. texte", "B) texte", "c - texte"...
 _LETTER_PREFIX = re.compile(r"^\s*([A-Da-d])\s*[\.\)\-:]\s*")
 
@@ -30,7 +35,7 @@ class QuizAgent(BaseAgent):
         {question, choices: [4 textes], correct_index, explanation}
         """
         language = course_language(content)
-        rules = LANGUAGE_RULES[language]
+        rules = language_rule(language_name(language))
         questions: list[dict] = []
         for attempt in range(self.MAX_ATTEMPTS):
             missing = count - len(questions)
@@ -56,7 +61,7 @@ class QuizAgent(BaseAgent):
         """
         language = course_language(content)
         programming = is_programming_course(content)
-        rules = LANGUAGE_RULES[language] + "\n" + EXERCISE_RULES[programming]
+        rules = language_rule(language_name(language)) + "\n" + EXERCISE_RULES[programming]
         exercises: list[dict] = []
         for attempt in range(self.MAX_ATTEMPTS):
             missing = count - len(exercises)
@@ -91,7 +96,7 @@ class QuizAgent(BaseAgent):
 
         question = [f"**{title}**", ""] if title else []
         question.append(statement)
-        examples_label, starter_label = LABELS.get(course_lang, LABELS["fr"])
+        examples_label, starter_label = LABELS.get(course_lang, LABELS["en"])
         if examples:
             question += ["", examples_label, f"```{language}", *examples, "```"]
         if starter:
