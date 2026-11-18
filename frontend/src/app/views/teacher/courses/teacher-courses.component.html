@@ -39,7 +39,8 @@
           <tbody>
             <tr *ngFor="let c of courses()">
               <td>#{{ c.id }}</td>
-              <td class="fw-semibold">{{ c.title }}</td>
+              <td class="fw-semibold">{{ c.title }}
+                <span *ngIf="c.assignedByAdmin" class="badge rounded-pill bg-info-subtle text-info-emphasis ms-1">Affecté par l'admin</span></td>
               <td *ngIf="isAdmin" class="text-nowrap">{{ c.teacherName || '—' }}</td>
               <td>{{ c.description }}</td>
               <td>{{ c.chaptersCount || c.chapters?.length || 0 }} Chapitres</td>

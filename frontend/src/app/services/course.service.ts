@@ -46,6 +46,8 @@ export interface Course {
   level?: string;
   teacherName?: string;
   teacherId?: number;
+  /** Créé ou affecté par l'administration */
+  assignedByAdmin?: boolean;
   chaptersCount?: number;
   lessonsCount?: number;
   createdAt?: string;

@@ -44,6 +44,11 @@ public class Course {
     @JoinColumn(name = "teacher_id", nullable = false)
     private User teacher;
 
+    /** Créé ou affecté par l'administration : l'enseignant le voit marqué « Affecté par l'admin ». */
+    @Column(name = "assigned_by_admin")
+    private Boolean assignedByAdmin = false;
+
+
     @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Chapter> chapters = new ArrayList<>();
 
@@ -98,4 +103,7 @@ public class Course {
     public void setPrice(java.math.BigDecimal price) { this.price = price; }
 
     public boolean isPaid() { return "PAID".equals(getPricingType()); }
+
+    public boolean isAssignedByAdmin() { return Boolean.TRUE.equals(assignedByAdmin); }
+    public void setAssignedByAdmin(Boolean assignedByAdmin) { this.assignedByAdmin = assignedByAdmin; }
 }

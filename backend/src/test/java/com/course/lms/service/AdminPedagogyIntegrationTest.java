@@ -33,6 +33,47 @@ class AdminPedagogyIntegrationTest {
     @Autowired QuizRepository quizzes;
     @Autowired LessonRepository lessons;
     @Autowired SubmissionRepository submissions;
+    @Autowired NotificationRepository notifications;
+
+    // ---------------------------------------------------------------- cours affecté par l'administration
+
+    private java.util.List<String> typesFor(User u) {
+        return notifications.findByRecipientIdOrderByCreatedAtDescIdDesc(u.getId()).stream().map(Notification::getType).toList();
+    }
+
+    @Test
+    void aCourseCreatedByTheAdminIsMarkedAndTheTeacherIsNotified() throws Exception {
+        User admin = newUser("ADMIN");
+        User teacher = newUser("TEACHER");
+        mvc.perform(post("/api/teacher/courses").with(user(admin.getEmail()).roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Cours affecté\",\"teacherId\":" + teacher.getId() + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignedByAdmin").value(true));
+        assertThat(typesFor(teacher)).contains("COURSE_ASSIGNED");
+    }
+
+    @Test
+    void aCourseCreatedByTheTeacherIsNotMarked() throws Exception {
+        User teacher = newUser("TEACHER");
+        mvc.perform(post("/api/teacher/courses").with(user(teacher.getEmail()).roles("TEACHER"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Mon cours\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignedByAdmin").value(false));
+        assertThat(typesFor(teacher)).doesNotContain("COURSE_ASSIGNED");
+    }
+
+    @Test
+    void assigningAnExistingCourseNotifiesTheNewTeacher() throws Exception {
+        User admin = newUser("ADMIN");
+        User newTeacher = newUser("TEACHER");
+        Course course = courseOf(newUser("TEACHER"));
+        mvc.perform(put("/api/admin/courses/" + course.getId() + "/assign-teacher/" + newTeacher.getId())
+                        .with(user(admin.getEmail()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.assignedByAdmin").value(true));
+        assertThat(typesFor(newTeacher)).contains("COURSE_ASSIGNED");
+    }
 
     // ---------------------------------------------------------------- analyse de progression d'un cours
 

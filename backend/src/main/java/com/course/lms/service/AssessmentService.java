@@ -57,6 +57,12 @@ public class AssessmentService {
     @Autowired
     private AssessmentScheduleService scheduleService;
 
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private com.course.lms.repository.EnrollmentRepository enrollmentRepository;
+
     public AssessmentService(@Qualifier("lmsAiWebClient") WebClient webClient) {
         this.webClient = webClient;
     }
@@ -191,7 +197,8 @@ public class AssessmentService {
                     quiz.setTimeLimitMinutes((Integer) quizData.get("time_limit_minutes"));
                     quiz.setPassingScore((Double) quizData.get("passing_score"));
                     quiz.setGeneratedByAi(true);
-                    
+                    quiz.setAssignedByAdmin(teacherEmail == null);
+
                     if (!lessons.isEmpty()) {
                         quiz.setLesson(lessons.get(0));
                     }
@@ -258,14 +265,15 @@ public class AssessmentService {
                     assignment.setMaxPoints((Double) assignmentData.get("max_points"));
                     applyExercises(assignment, assignmentData);
                     assignment.setGeneratedByAi(true);
-                    
+                    assignment.setAssignedByAdmin(teacherEmail == null);
+
                     if (!lessons.isEmpty()) {
                         assignment.setLesson(lessons.get(0));
                     }
                     if (!selectedChapters.isEmpty()) {
                         assignment.setChapter(selectedChapters.get(0));
                     }
-                    
+
                     Assignment savedAssignment = assignmentRepository.save(assignment);
                     savedAssignments.add(savedAssignment);
 
@@ -285,6 +293,9 @@ public class AssessmentService {
             scheduleService.applyAfterGeneration(selectedChapters.isEmpty() ? null : selectedChapters.get(0).getCourse(),
                     savedQuizzes, savedAssignments, request.getDueAt(),
                     request.getQuizDurationMinutes(), request.getAssignmentDurationMinutes());
+            if (anyGenerated && !selectedChapters.isEmpty()) {
+                notifyNewAssessments(selectedChapters.get(0).getCourse(), savedQuizzes.size(), savedAssignments.size(), teacherEmail == null);
+            }
             if (failed.isEmpty()) {
                 response.setMessage("Assessments generated successfully");
             } else if (anyGenerated) {
@@ -332,6 +343,7 @@ public class AssessmentService {
             dto.put("statement", assignment.getDescription());
             dto.put("expectedSolution", assignment.getExpectedSolution());
             dto.put("generatedByAi", !Boolean.FALSE.equals(assignment.getGeneratedByAi()));
+            dto.put("assignedByAdmin", assignment.isAssignedByAdmin());
             dto.put("dueAt", assignment.getDueAt());
             dto.put("durationMinutes", assignment.getDurationMinutes());
             assignments.add(dto);
@@ -707,6 +719,26 @@ public class AssessmentService {
         return prefix + ": [" + e.getClass().getSimpleName() + "] " + (e.getMessage() != null ? e.getMessage() : "no message");
     }
 
+    /**
+     * Nouveaux quiz / TP : les étudiants inscrits sont prévenus au nom de l'enseignant du cours (même si c'est
+     * l'administration qui les a générés) ; l'enseignant est prévenu quand c'est l'administration.
+     */
+    private void notifyNewAssessments(Course course, int quizCount, int tpCount, boolean byAdmin) {
+        if (course == null) return;
+        String what = (quizCount > 0 ? quizCount + " quiz" : "") + (quizCount > 0 && tpCount > 0 ? " et " : "")
+                + (tpCount > 0 ? tpCount + " TP" : "");
+        String teacher = course.getTeacher() != null ? course.getTeacher().getName() : "Votre enseignant";
+        for (Enrollment e : enrollmentRepository.findByCourseId(course.getId())) {
+            notificationService.sendNotification(e.getStudent(), "📝 Nouveaux quiz et TP",
+                    teacher + " a publié " + what + " dans le cours « " + course.getTitle() + " ».", "NEW_ASSESSMENT", course.getId());
+        }
+        if (byAdmin && course.getTeacher() != null) {
+            notificationService.sendNotification(course.getTeacher(), "📌 Quiz et TP affectés par l'administration",
+                    "L'administration a ajouté " + what + " à votre cours « " + course.getTitle()
+                            + " ». Vous pouvez les relire, les modifier ou les supprimer.", "ASSESSMENT_ASSIGNED", course.getId());
+        }
+    }
+
     private void logError(Exception e) {
         System.out.println("=== ASSESSMENT SERVICE ERROR ===");
         System.out.println("Type: " + e.getClass().getName());
@@ -1019,6 +1051,7 @@ public class AssessmentService {
             response.setChapterTitle(quiz.getChapter().getTitle());
         }
         response.setGeneratedByAi(!Boolean.FALSE.equals(quiz.getGeneratedByAi()));
+        response.setAssignedByAdmin(quiz.isAssignedByAdmin());
         response.setDueAt(quiz.getDueAt());
         response.setDurationMinutes(quiz.getDurationMinutes());
 

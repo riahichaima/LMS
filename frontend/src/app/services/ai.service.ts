@@ -73,6 +73,8 @@ export interface ReviewQuiz {
   questions: ReviewQuestion[];
   /** true : généré par l'IA ; false : créé à la main par l'enseignant */
   generatedByAi?: boolean;
+  /** Généré par l'administration pour le cours de l'enseignant */
+  assignedByAdmin?: boolean;
   dueAt?: string | null;
   durationMinutes?: number | null;
 }
@@ -88,6 +90,8 @@ export interface ReviewAssignment {
   statement: string;
   expectedSolution: string;
   generatedByAi?: boolean;
+  /** Généré par l'administration pour le cours de l'enseignant */
+  assignedByAdmin?: boolean;
   dueAt?: string | null;
   durationMinutes?: number | null;
 }

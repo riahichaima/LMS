@@ -17,8 +17,13 @@ public class CourseResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private List<ChapterResponse> chapters;
+    /** Créé ou affecté par l'administration (badge « Affecté par l'admin » chez l'enseignant). */
+    private boolean assignedByAdmin;
 
     public CourseResponse() {}
+
+    public boolean isAssignedByAdmin() { return assignedByAdmin; }
+    public void setAssignedByAdmin(boolean assignedByAdmin) { this.assignedByAdmin = assignedByAdmin; }
 
     public CourseResponse(Long id, String title, String description, Long teacherId, String teacherName,
                           String status, String thumbnail, LocalDateTime createdAt, LocalDateTime updatedAt) {

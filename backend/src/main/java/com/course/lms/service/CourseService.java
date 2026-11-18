@@ -100,7 +100,12 @@ public class CourseService {
         } else {
             course.setStatus("DRAFT");
         }
+        boolean byAdmin = !isTeacherAccount(userEmail);
         Course savedCourse = courseRepository.save(course);
+        if (byAdmin) {
+            markAssignedByAdmin(savedCourse, true);   // après l'enregistrement : la notification porte l'id du cours
+            savedCourse = courseRepository.save(savedCourse);
+        }
         notifyStudentsOfNewCourse(savedCourse);
 
         return mapToResponse(savedCourse);
@@ -209,7 +214,12 @@ public class CourseService {
         } else {
             course.setStatus("DRAFT");
         }
+        boolean byAdmin = !isTeacherAccount(userEmail);
         Course savedCourse = courseRepository.save(course);
+        if (byAdmin) {
+            markAssignedByAdmin(savedCourse, true);   // après l'enregistrement : la notification porte l'id du cours
+            savedCourse = courseRepository.save(savedCourse);
+        }
         notifyStudentsOfNewCourse(savedCourse);
 
         // 2. Create chapters
@@ -350,7 +360,9 @@ public class CourseService {
             throw new IllegalArgumentException("Le formateur choisi doit être un enseignant.");
         }
 
+        boolean changed = course.getTeacher() == null || !course.getTeacher().getId().equals(teacher.getId());
         course.setTeacher(teacher);
+        if (changed) markAssignedByAdmin(course, false);
         Course updated = courseRepository.save(course);
         return mapToResponse(updated);
     }
@@ -370,7 +382,22 @@ public class CourseService {
         );
         response.setPricingType(course.getPricingType());
         response.setPrice(course.isPaid() ? course.getPrice() : null);
+        response.setAssignedByAdmin(course.isAssignedByAdmin());
         return response;
+    }
+
+    /** Cours créé ou affecté par l'administration : marqué, et l'enseignant est prévenu. */
+    private void markAssignedByAdmin(Course course, boolean created) {
+        course.setAssignedByAdmin(true);
+        notificationService.sendNotification(course.getTeacher(), "📌 Cours affecté par l'administration",
+                "L'administration vous a " + (created ? "créé et affecté" : "affecté") + " le cours « " + course.getTitle()
+                        + " ». Vous pouvez le modifier ou le supprimer comme vos autres cours.",
+                "COURSE_ASSIGNED", course.getId());
+    }
+
+    private boolean isTeacherAccount(String email) {
+        return userRepository.findByEmail(email)
+                .map(u -> u.getRole() != null && "TEACHER".equals(u.getRole().getName())).orElse(false);
     }
 
     // Prix minimum accepté par Stripe pour une carte en USD : 0,50 $
