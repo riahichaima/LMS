@@ -28,9 +28,10 @@ public class RagController {
 
     /** Reconstruire l'index à partir des leçons de tous les cours. */
     @PostMapping("/reindex")
-    public ResponseEntity<Map<String, Object>> reindex(Authentication auth) {
+    public ResponseEntity<Map<String, Object>> reindex(Authentication auth,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean complet) {
         aiRateLimiter.check(auth.getName(), AiRateLimiter.Usage.GENERATION);
-        return ResponseEntity.ok(ragService.rebuildIndex());
+        return ResponseEntity.ok(ragService.rebuildIndex(complet));
     }
 
     @GetMapping("/status")

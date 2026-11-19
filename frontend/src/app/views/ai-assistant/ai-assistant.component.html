@@ -54,7 +54,11 @@
                 · recherche {{ st.mode === 'embeddings' ? 'sémantique (embeddings ' + st.embedding_model + ')' : 'par mots-clés (BM25)' }}
                 · mis à jour le {{ st.built_at | date:'dd/MM/yyyy HH:mm' }}
                 <div *ngIf="st.unreadable.length" class="text-body-secondary mt-1">
-                  {{ st.unreadable.length }} ressource(s) non indexée(s) (vidéo jamais analysée ou fichier illisible).
+                  {{ st.unreadable.length }} ressource(s) non indexée(s) (vidéo jamais analysée ou fichier illisible) :
+                  <span class="rag__unreadable">{{ st.unreadable.join(' · ') }}</span>.
+                  <button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="rebuildRagIndex(true)"
+                          [disabled]="ragIndexing()">Indexation complète</button>
+                  <span> (analyse aussi les vidéos et les PDF scannés, plus long).</span>
                 </div>
               </ng-container>
               <ng-template #emptyIndex><strong>Index vide :</strong> mettez-le à jour pour commencer.</ng-template>
@@ -62,7 +66,7 @@
             <ng-template #noStatus><div class="flex-grow-1 small text-body-secondary">Chargement de l'état de l'index…</div></ng-template>
             <button cButton color="primary" variant="outline" (click)="rebuildRagIndex()" [disabled]="ragIndexing()">
               <c-spinner aria-hidden="true" size="sm" *ngIf="ragIndexing()" class="me-1"></c-spinner>
-              {{ ragIndexing() ? 'Indexation…' : "Mettre à jour l'index" }}
+              {{ ragIndexing() ? (ragFullIndexing() ? 'Analyse des vidéos et indexation…' : 'Indexation…') : "Mettre à jour l'index" }}
             </button>
           </div>
 

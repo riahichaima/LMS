@@ -46,9 +46,10 @@ def env(tmp_path, monkeypatch):
     rag.reset_cache()
 
     def fake_extract(resource, media_from_cache_only=False):
-        assert media_from_cache_only, "l'index ne doit jamais lancer de nouvelle analyse payante"
         if resource.title == "video.mp4":
-            raise ValueError("pas encore analysé")
+            if media_from_cache_only:
+                raise ValueError("pas encore analysé")
+            return "Vidéo : le rôle de l'utilisateur est vérifié par PreAuthorize."
         return COURSES[resource.title]
 
     monkeypatch.setattr(rag, "extract_resource", fake_extract)
@@ -105,7 +106,8 @@ def test_vector_index_and_cosine_search(env, monkeypatch):
     rag.reset_cache()  # relu depuis le disque, comme après un redémarrage
     hits, mode = rag.search("équation et discriminant", top_k=2)
     assert mode == "embeddings" and hits[0]["course"] == "Mathématiques"
-    assert hits[0]["score"] > hits[1]["score"]
+    # Seuil : les passages sans rapport (Java, Web) ne sont pas retenus
+    assert all(h["course"] == "Mathématiques" and h["score"] >= settings.RAG_MIN_SCORE for h in hits)
     assert math.isclose(sum(x * x for x in rag._load()[1][0]), 1.0, rel_tol=1e-4)  # vecteurs normalisés
 
 
@@ -133,3 +135,53 @@ def test_api_rejects_a_question_before_the_index_exists(env):
     response = TestClient(app).post("/api/rag/ask", json={"question": "Que dit le cours sur JWT ?"})
     assert response.status_code == 409
     assert "Mettre à jour l'index" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------- Qualité : seuil, pertinence, sources vérifiées
+
+
+def test_normal_update_never_analyses_a_video(env):
+    stats = rag.build_index(lessons())
+    assert stats["unreadable"] == ["Java avancé › video.mp4"]
+
+
+def test_full_indexing_analyses_the_videos_never_read(env):
+    stats = rag.build_index(lessons(), analyze_media=True)
+    assert stats["unreadable"] == []
+    assert any(c["resource"] == "video.mp4" for c in rag._load()[0]["chunks"])
+
+
+def test_unrelated_question_finds_no_passage(env, monkeypatch):
+    monkeypatch.setattr(settings, "AZURE_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
+    rag.build_index(lessons())
+    real_embed = env.embed
+    # Comme un vrai modèle : une question sans rapport a un vecteur éloigné de tous les passages
+    monkeypatch.setattr(env, "embed", lambda texts: [[-1.0] * len(WORDS) if "chocolat" in t else v
+                                                     for t, v in zip(texts, real_embed(texts), strict=True)])
+    result = rag.ask("recette de cuisine au chocolat")
+    assert result["sources"] == [] and "assez proche" in result["answer"]
+    assert env.prompts == []  # aucun appel au modèle de réponse
+
+
+def test_only_cited_passages_are_shown_as_sources(env, monkeypatch):
+    monkeypatch.setattr(settings, "AZURE_EMBEDDING_DEPLOYMENT", "")
+    monkeypatch.setattr(settings, "RAG_BM25_RATIO", 0.0)  # garder plusieurs passages pour le test
+    rag.build_index(lessons())
+    result = rag.ask("jeton JWT et formulaire Angular")
+    assert [s["n"] for s in result["sources"]] == [1]
+
+
+def test_answer_without_citation_is_refused(env, monkeypatch):
+    monkeypatch.setattr(settings, "AZURE_EMBEDDING_DEPLOYMENT", "")
+    rag.build_index(lessons())
+    monkeypatch.setattr(env, "generate", lambda *a, **k: "Les branches infinies sont liées aux limites.")
+    result = rag.ask("Comment le jeton JWT est-il vérifié ?")
+    assert result["sources"] == [] and "ne répondent pas" in result["answer"]
+
+
+def test_model_saying_no_answer_gives_no_source(env, monkeypatch):
+    monkeypatch.setattr(settings, "AZURE_EMBEDDING_DEPLOYMENT", "")
+    rag.build_index(lessons())
+    monkeypatch.setattr(env, "generate", lambda *a, **k: rag.NO_ANSWER)
+    result = rag.ask("Comment le jeton JWT est-il vérifié ?")
+    assert result["sources"] == []

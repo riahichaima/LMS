@@ -239,8 +239,9 @@ export class AiService {
     return this.http.get<RagStatus>(`${this.apiUrl}/api/ai/rag/status`);
   }
 
-  ragReindex(): Observable<RagStatus> {
-    return this.http.post<RagStatus>(`${this.apiUrl}/api/ai/rag/reindex`, {});
+  /** complet : analyser aussi les vidéos et PDF scannés jamais lus (plus long) */
+  ragReindex(complet = false): Observable<RagStatus> {
+    return this.http.post<RagStatus>(`${this.apiUrl}/api/ai/rag/reindex${complet ? '?complet=true' : ''}`, {});
   }
 
   ragAsk(question: string): Observable<RagAnswer> {

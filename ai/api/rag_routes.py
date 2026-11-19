@@ -11,7 +11,7 @@ router = APIRouter()
 @router.post("/index")
 def build_index(request: RagIndexRequest):
     """Reconstruire l'index à partir des leçons de tous les cours."""
-    return rag.build_index(request.lessons)
+    return rag.build_index(request.lessons, request.analyze_media)
 
 
 @router.get("/status")

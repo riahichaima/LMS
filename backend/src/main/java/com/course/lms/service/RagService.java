@@ -63,9 +63,10 @@ public class RagService {
         return lessons;
     }
 
-    public Map<String, Object> rebuildIndex() {
+    /** analyzeMedia : indexation complète, les vidéos et PDF scannés jamais lus sont analysés (plus long). */
+    public Map<String, Object> rebuildIndex(boolean analyzeMedia) {
         return call(webClient.post().uri("/api/rag/index").contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of("lessons", collectLessons())));
+                .bodyValue(Map.of("lessons", collectLessons(), "analyze_media", analyzeMedia)));
     }
 
     public Map<String, Object> status() {

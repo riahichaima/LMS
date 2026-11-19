@@ -92,6 +92,7 @@ class RagLesson(BaseModel):
 
 class RagIndexRequest(BaseModel):
     lessons: list[RagLesson] = Field(default_factory=list, max_length=5000)
+    analyze_media: bool = False  # indexation complète : analyser aussi les vidéos et scans jamais lus
 
 
 class RagAskRequest(BaseModel):
