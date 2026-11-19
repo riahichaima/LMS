@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     RAG_CHUNK_CHARS: int = 1200
     RAG_CHUNK_OVERLAP: int = 200
     RAG_TOP_K: int = 5
+    # Seuils calibrés sur text-embedding-3-small : passage pertinent 0,47 à 0,69 ; sans rapport, 0,40 au plus
+    RAG_MIN_SCORE: float = 0.40     # similarité cosinus minimale d'un passage retenu
+    RAG_SCORE_MARGIN: float = 0.15  # et au plus 0,15 sous le meilleur passage
+    RAG_BM25_RATIO: float = 0.5     # mode mots-clés : au moins la moitié du meilleur score
 
     @property
     def max_content_chars(self) -> int:

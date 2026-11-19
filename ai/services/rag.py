@@ -31,11 +31,13 @@ logger = logging.getLogger(__name__)
 INDEX_FILE = RAG_PATH / "index.json"
 VECTORS_FILE = RAG_PATH / "vectors.bin"
 
+NO_ANSWER = "AUCUNE_REPONSE"
 SYSTEM_PROMPT = (
     "Tu es l'assistant de l'administration d'une plateforme de cours en ligne. Réponds dans la langue de la question (français par défaut), "
     "uniquement à partir des extraits de cours fournis. Après chaque information, cite l'extrait utilisé "
-    "entre crochets, par exemple [1]. Si les extraits ne contiennent pas la réponse, dis-le clairement "
-    "et n'invente rien."
+    "entre crochets, par exemple [1]. N'utilise que les extraits qui traitent vraiment de la question et ignore "
+    "les autres. N'ajoute aucune information qui ne figure pas dans les extraits, et n'invente rien. "
+    f"Si aucun extrait ne répond à la question, réponds exactement : {NO_ANSWER}"
 )
 
 STOPWORDS = set(
@@ -165,11 +167,13 @@ def reset_cache() -> None:
     _index, _vectors = None, None
 
 
-def build_index(lessons: list) -> dict:
+def build_index(lessons: list, analyze_media: bool = False) -> dict:
     """Construire l'index à partir des leçons de tous les cours (envoyées par le backend).
 
     Chaque leçon : course_id, course_title, chapter_title, lesson_title, description, resources.
     Une ressource illisible (ou une vidéo jamais analysée) est ignorée et signalée, sans bloquer les autres.
+    analyze_media : indexation complète demandée par l'administrateur ; les vidéos, audios et PDF scannés pas
+    encore lus sont analysés (Azure, plus long), puis gardés en cache pour les fois suivantes.
     """
     chunks: list[dict] = []
     unreadable: list[str] = []
@@ -182,7 +186,7 @@ def build_index(lessons: list) -> dict:
         for resource in lesson.resources:
             name = resource.title or resource.type
             try:
-                text = extract_resource(resource, media_from_cache_only=True).strip()
+                text = extract_resource(resource, media_from_cache_only=not analyze_media).strip()
             except Exception as e:
                 logger.info("RAG : ressource ignorée '%s' (%s)", name, e)
                 unreadable.append(f"{lesson.course_title} › {name}")
@@ -245,7 +249,13 @@ def search(question: str, top_k: int | None = None) -> tuple[list[dict], str]:
         mode = "bm25"
         scores = bm25_scores(question, [c["text"] for c in chunks])
     ranked = sorted(range(len(chunks)), key=lambda i: scores[i], reverse=True)
-    hits = [{**chunks[i], "score": round(scores[i], 4)} for i in ranked[:top_k] if scores[i] > 0]
+    best = scores[ranked[0]] if ranked else 0.0
+    if mode == "embeddings":
+        # Seuil absolu (rien de faible) et relatif (rien de loin derrière le meilleur passage)
+        floor = max(settings.RAG_MIN_SCORE, best - settings.RAG_SCORE_MARGIN)
+    else:
+        floor = best * settings.RAG_BM25_RATIO
+    hits = [{**chunks[i], "score": round(scores[i], 4)} for i in ranked[:top_k] if scores[i] > 0 and scores[i] >= floor]
     return hits, mode
 
 
@@ -256,14 +266,20 @@ def ask(question: str, top_k: int | None = None) -> dict:
         raise ValueError("Posez une question d'au moins 3 caractères.")
     hits, mode = search(question, top_k)
     if not hits:
-        return {"answer": "Aucun passage des cours ne correspond à cette question.", "sources": [], "mode": mode}
+        return {"answer": "Aucun passage des cours n'est assez proche de cette question. Précisez-la, par exemple "
+                          "avec le nom d'une notion ou d'un cours.", "sources": [], "mode": mode}
     context = "\n\n".join(
         f"[{i}] Cours « {h['course']} » › {h['chapter']} › {h['lesson']} › {h['resource']}\n{h['text']}"
         for i, h in enumerate(hits, 1)
     )
     prompt = f"Extraits des cours :\n\n{context}\n\nQuestion de l'administrateur : {question}"
-    answer = get_llm_client().generate(prompt, system=SYSTEM_PROMPT, temperature=0.2)
+    answer = get_llm_client().generate(prompt, system=SYSTEM_PROMPT, temperature=0.2).strip()
+    # Vérification : la réponse doit s'appuyer sur des extraits cités ; seuls ceux-là sont montrés comme sources
+    cited = {int(n) for n in re.findall(r"\[(\d+)\]", answer) if 1 <= int(n) <= len(hits)}
+    if NO_ANSWER in answer or not cited:
+        return {"answer": "Les passages retrouvés ne répondent pas à cette question : les cours ne contiennent "
+                          "pas cette information, ou la question doit être précisée.", "sources": [], "mode": mode}
     sources = [{"n": i, "course_id": h["course_id"], "course": h["course"], "chapter": h["chapter"],
                 "lesson": h["lesson"], "resource": h["resource"], "score": h["score"],
-                "excerpt": h["text"][:300]} for i, h in enumerate(hits, 1)]
-    return {"answer": answer.strip(), "sources": sources, "mode": mode}
+                "excerpt": h["text"][:300]} for i, h in enumerate(hits, 1) if i in cited]
+    return {"answer": answer, "sources": sources, "mode": mode}

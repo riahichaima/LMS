@@ -50,6 +50,7 @@ export class AiAssistantComponent implements OnInit {
   // RAG
   ragStatus = signal<RagStatus | null>(null);
   ragIndexing = signal(false);
+  ragFullIndexing = signal(false);
   ragQuestion = '';
   ragLoading = signal(false);
   ragAnswer = signal<RagAnswer | null>(null);
@@ -96,12 +97,17 @@ export class AiAssistantComponent implements OnInit {
   }
 
   // --- RAG ---
-  rebuildRagIndex(): void {
+  /** complet : analyser aussi les vidéos et PDF scannés jamais lus (plus long, appels Azure) */
+  rebuildRagIndex(complet = false): void {
     this.ragError.set('');
     this.ragIndexing.set(true);
-    this.aiService.ragReindex().subscribe({
-      next: st => { this.ragStatus.set(st); this.ragIndexing.set(false); },
-      error: err => { this.ragIndexing.set(false); this.ragError.set(err.error?.message || "Mise à jour de l'index impossible."); }
+    this.ragFullIndexing.set(complet);
+    this.aiService.ragReindex(complet).subscribe({
+      next: st => { this.ragStatus.set(st); this.ragIndexing.set(false); this.ragFullIndexing.set(false); },
+      error: err => {
+        this.ragIndexing.set(false); this.ragFullIndexing.set(false);
+        this.ragError.set(err.error?.message || "Mise à jour de l'index impossible.");
+      }
     });
   }
 
