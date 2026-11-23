@@ -4,12 +4,10 @@ import com.course.lms.dto.FinanceDtos.*;
 import com.course.lms.model.Payment;
 import com.course.lms.model.User;
 import com.course.lms.model.Wallet;
-import com.course.lms.model.WithdrawalRequest;
 import com.course.lms.repository.PaymentRepository;
 import com.course.lms.repository.UserRepository;
 import com.course.lms.repository.WalletRepository;
 import com.course.lms.repository.WalletTransactionRepository;
-import com.course.lms.repository.WithdrawalRequestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +20,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// Vues financières en lecture seule (enseignant, administrateur, super administrateur)
+// Vues financières en lecture seule : ventes et partage 60 % enseignant / 40 % plateforme
 @Service
 @Transactional(readOnly = true)
 public class FinanceService {
@@ -37,9 +35,6 @@ public class FinanceService {
 
     @Autowired
     private WalletTransactionRepository transactionRepository;
-
-    @Autowired
-    private WithdrawalRequestRepository withdrawalRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -64,21 +59,15 @@ public class FinanceService {
                 .toList();
 
         return new TeacherEarningsView(sales.size(), sum(sales, Payment::getAmount), wallet.getTotalEarned(),
-                wallet.getAvailableBalance(), wallet.getPendingBalance(), wallet.getTotalWithdrawn(),
-                walletService.getMinWithdrawal(), CURRENCY, salesByCourse,
-                sales.stream().limit(20).map(PaymentView::of).toList(),
-                withdrawalRepository.findByTeacherIdOrderByRequestedAtDesc(teacher.getId()).stream()
-                        .map(WithdrawalView::of).toList());
+                CURRENCY, salesByCourse, sales.stream().limit(20).map(PaymentView::of).toList());
     }
 
     // ── Administrateur ──────────────────────────────────────────────────────
 
     public FinanceSummary summary() {
         List<Payment> paid = paymentRepository.findByStatusOrderByPaidAtDesc(Payment.PAID);
-        List<Wallet> teacherWallets = walletRepository.findByType(Wallet.TEACHER);
         return new FinanceSummary(paid.size(), sum(paid, Payment::getAmount), sum(paid, Payment::getPlatformCommission),
-                sum(paid, Payment::getTeacherAmount), sum(teacherWallets, Wallet::getPendingBalance),
-                sum(teacherWallets, Wallet::getTotalWithdrawn), CURRENCY);
+                sum(paid, Payment::getTeacherAmount), CURRENCY);
     }
 
     public List<PaymentView> payments() {
@@ -90,14 +79,9 @@ public class FinanceService {
                 .collect(Collectors.groupingBy(p -> p.getTeacher().getId(), Collectors.counting()));
         return walletRepository.findByType(Wallet.TEACHER).stream()
                 .map(w -> new TeacherWalletView(w.getOwner().getId(), w.getOwner().getName(), w.getOwner().getEmail(),
-                        salesByTeacher.getOrDefault(w.getOwner().getId(), 0L), w.getTotalEarned(), w.getAvailableBalance(),
-                        w.getPendingBalance(), w.getTotalWithdrawn()))
+                        salesByTeacher.getOrDefault(w.getOwner().getId(), 0L), w.getTotalEarned()))
                 .sorted(Comparator.comparing(TeacherWalletView::totalEarned).reversed())
                 .toList();
-    }
-
-    public List<WithdrawalView> withdrawals() {
-        return withdrawalRepository.findAllByOrderByRequestedAtDesc().stream().map(WithdrawalView::of).toList();
     }
 
     // ── Super administrateur ────────────────────────────────────────────────
@@ -107,20 +91,12 @@ public class FinanceService {
         Wallet platform = walletService.getOrCreatePlatformWallet();
         List<Wallet> teacherWallets = walletRepository.findByType(Wallet.TEACHER);
         List<Payment> paid = paymentRepository.findByStatusOrderByPaidAtDesc(Payment.PAID);
-        long toTransfer = withdrawalRepository.findByStatusInOrderByRequestedAtDesc(List.of(WithdrawalRequest.APPROVED)).size();
-        BigDecimal held = sum(teacherWallets, Wallet::getAvailableBalance).add(sum(teacherWallets, Wallet::getPendingBalance));
-        return new PlatformWalletView(platform.getAvailableBalance(), platform.getTotalEarned(), held,
-                sum(teacherWallets, Wallet::getTotalEarned), sum(teacherWallets, Wallet::getTotalWithdrawn),
-                sum(paid, Payment::getAmount), paid.size(), toTransfer, CURRENCY);
+        return new PlatformWalletView(platform.getTotalEarned(), sum(teacherWallets, Wallet::getTotalEarned),
+                sum(paid, Payment::getAmount), paid.size(), CURRENCY);
     }
 
     public List<TransactionView> transactions() {
         return transactionRepository.findAllByOrderByCreatedAtDesc().stream().map(TransactionView::of).toList();
-    }
-
-    public List<WithdrawalView> transfers() {
-        return withdrawalRepository.findByStatusInOrderByRequestedAtDesc(List.of(WithdrawalRequest.APPROVED, WithdrawalRequest.PAID))
-                .stream().map(WithdrawalView::of).toList();
     }
 
     private static <T> BigDecimal sum(List<T> items, Function<T, BigDecimal> value) {

@@ -140,5 +140,3 @@ stripe:
 payments:
   # Répartition de chaque vente confirmée : 60 % enseignant, 40 % plateforme
   teacher-share: 0.60
-  # Montant minimum d'une demande de retrait (USD)
-  min-withdrawal: 10.00

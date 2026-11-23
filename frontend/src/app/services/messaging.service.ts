@@ -29,7 +29,7 @@ export interface ContactView {
   unreadCount: number;
 }
 
-export type NotificationType = 'MESSAGE' | 'ENROLLMENT' | 'PAYMENT' | 'SALE' | 'WITHDRAWAL' | 'ADMIN_REQUEST' | string;
+export type NotificationType = 'MESSAGE' | 'ENROLLMENT' | 'PAYMENT' | 'SALE' | 'ADMIN_REQUEST' | string;
 
 export interface NotificationView {
   id: number;
@@ -135,8 +135,6 @@ export class MessagingService {
       case 'ENROLLMENT': return { path: '/teacher/courses' };
       case 'SALE': return { path: '/teacher/earnings' };
       case 'PAYMENT': return n.relatedId ? { path: `/learn/${n.relatedId}` } : { path: '/my-enrollments' };
-      case 'WITHDRAWAL':
-        return this.authService.isTeacher() ? { path: '/teacher/earnings' } : { path: '/admin/finance' };
       case 'ADMIN_REQUEST': return { path: '/super-admin/demandes' };
       // Avis des étudiants → section « Avis et commentaires » du suivi pédagogique
       case 'RATING':

@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * Notifications persistantes + push temps réel (WebSocket /user/queue/notifications).
- * Types : MESSAGE, ENROLLMENT, PAYMENT, SALE, WITHDRAWAL, ADMIN_REQUEST.
+ * Types : MESSAGE, ENROLLMENT, PAYMENT, SALE, ADMIN_REQUEST.
  */
 @Service
 public class NotificationService {
