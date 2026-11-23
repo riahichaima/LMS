@@ -4,7 +4,6 @@ import com.course.lms.model.Course;
 import com.course.lms.model.Payment;
 import com.course.lms.model.SystemLog;
 import com.course.lms.model.User;
-import com.course.lms.model.WithdrawalRequest;
 import com.course.lms.repository.CourseRepository;
 import com.course.lms.repository.UserRepository;
 import jakarta.persistence.EntityManager;
@@ -14,7 +13,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -31,7 +29,7 @@ import java.util.UUID;
  *   <li>Données personnelles toujours effacées : notifications, messages, liens email, progression, photo.</li>
  *   <li>Compte sans historique financier : supprimé de la base avec ses inscriptions, copies, portefeuille vide
  *       et, pour un enseignant, ses cours (aucun n'a été vendu).</li>
- *   <li>Compte avec des paiements ou des retraits : l'historique comptable doit rester juste (gains des
+ *   <li>Compte avec des paiements : l'historique comptable doit rester juste (gains des
  *       enseignants, achats des étudiants). Le compte est alors anonymisé : nom et email effacés, connexion
  *       impossible, cours de l'enseignant retirés de la vente (les acheteurs gardent l'accès).</li>
  * </ul>
@@ -53,7 +51,7 @@ public class AccountDeletionService {
 
     public static final Map<String, String> TEACHER_REASONS = reasons(
             "REVENUS", "Mes revenus sont trop faibles",
-            "RETRAIT", "Retard dans le paiement de mes gains (retraits)",
+            "COMMISSION", "La commission de la plateforme (40 %) est trop élevée",
             "OUTILS", "Les outils pour créer mes cours ne me conviennent pas",
             "SITE", "Le site ne me plaît pas ou est difficile à utiliser",
             "AUTRE", "Autre raison");
@@ -98,7 +96,6 @@ public class AccountDeletionService {
             throw new IllegalArgumentException("Écrivez la raison de la suppression (5 caractères minimum).");
         }
         if (text.length() > 1000) throw new IllegalArgumentException("Raison trop longue (1000 caractères maximum).");
-        if ("TEACHER".equals(roleOf(user))) checkNoMoneyLeft(user);
 
         // « Autre raison » : le texte écrit devient la raison affichée à l'administration
         String label = "AUTRE".equals(code) ? (text.length() > 90 ? text.substring(0, 89) + "…" : text) : reasons.get(code);
@@ -120,7 +117,6 @@ public class AccountDeletionService {
         // Paiements jamais aboutis : aucune valeur comptable
         sql("DELETE FROM payments WHERE student_id = ?1 AND status <> ?2", id, Payment.PAID);
         boolean financialHistory = count("SELECT COUNT(*) FROM payments WHERE student_id = ?1 OR teacher_id = ?1", id) > 0
-                || count("SELECT COUNT(*) FROM withdrawal_requests WHERE teacher_id = ?1", id) > 0
                 || count("SELECT COUNT(*) FROM wallet_transactions t JOIN wallets w ON w.id = t.wallet_id WHERE w.owner_id = ?1", id) > 0;
 
         // Données personnelles
@@ -132,9 +128,6 @@ public class AccountDeletionService {
         // Réclamations : gardées pour l'administration, avec le nom et l'email de l'auteur
         sql("UPDATE complaints SET author_name = COALESCE(author_name, ?2), author_email = COALESCE(author_email, ?3), "
                 + "author_role = COALESCE(author_role, ?4), author_id = NULL WHERE author_id = ?1", id, name, email, role);
-        // Décisions prises par un administrateur supprimé : la trace reste, sans le lien vers son compte
-        sql("UPDATE withdrawal_requests SET reviewed_by = NULL WHERE reviewed_by = ?1", id);
-        sql("UPDATE withdrawal_requests SET transferred_by = NULL WHERE transferred_by = ?1", id);
         sql("UPDATE file_storage SET uploaded_by = NULL WHERE uploaded_by = ?1", id);
         String avatar = user.getAvatarPath();
 
@@ -163,22 +156,6 @@ public class AccountDeletionService {
                         + (email.equalsIgnoreCase(actorEmail) ? " à sa demande" : ""),
                 actorEmail);
         log.info("Compte {} supprimé{}", id, financialHistory ? " (anonymisé)" : "");
-    }
-
-    // Un enseignant ne perd pas ses gains : retrait d'abord, suppression ensuite
-    private void checkNoMoneyLeft(User teacher) {
-        Object total = em.createNativeQuery(
-                        "SELECT COALESCE(SUM(available_balance + pending_balance), 0) FROM wallets WHERE owner_id = ?1")
-                .setParameter(1, teacher.getId()).getSingleResult();
-        BigDecimal balance = total instanceof BigDecimal b ? b : new BigDecimal(String.valueOf(total));
-        if (balance.signum() > 0) {
-            throw new IllegalStateException("Il vous reste " + balance.stripTrailingZeros().toPlainString()
-                    + " sur votre portefeuille : demandez un retrait de vos gains avant de supprimer votre compte.");
-        }
-        if (count("SELECT COUNT(*) FROM withdrawal_requests WHERE teacher_id = ?1 AND status IN ('"
-                + WithdrawalRequest.PENDING + "', '" + WithdrawalRequest.APPROVED + "')", teacher.getId()) > 0) {
-            throw new IllegalStateException("Une demande de retrait est en cours : attendez son paiement avant de supprimer votre compte.");
-        }
     }
 
     // Historique financier : compte conservé mais vidé de toute donnée personnelle

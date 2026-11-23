@@ -95,17 +95,35 @@ class AccountDeletionIntegrationTest {
     }
 
     @Test
-    void teacherWithMoneyLeftMustWithdrawFirst() {
+    void teacherWithSalesDeletesOwnAccountAndEarningsStayInHistory() {
         User teacher = user("TEACHER");
+        User student = user("STUDENT");
+        Course course = course(teacher, "PUBLISHED");
+        Payment payment = new Payment();
+        payment.setStudent(student);
+        payment.setTeacher(teacher);
+        payment.setCourse(course);
+        payment.setAmount(new BigDecimal("20.00"));
+        payment.setTeacherAmount(new BigDecimal("12.00"));
+        payment.setPlatformCommission(new BigDecimal("8.00"));
+        payment.setStatus(Payment.PAID);
+        payment.setPaidAt(LocalDateTime.now());
+        payments.save(payment);
         Wallet wallet = new Wallet();
         wallet.setType("TEACHER");
         wallet.setOwner(teacher);
-        wallet.setAvailableBalance(new BigDecimal("12.50"));
+        wallet.setAvailableBalance(new BigDecimal("12.00"));
+        wallet.setTotalEarned(new BigDecimal("12.00"));
         wallets.save(wallet);
 
-        assertThatThrownBy(() -> deletion.deleteOwnAccount(teacher.getEmail(), "REVENUS", ""))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("retrait");
-        assertThat(users.findById(teacher.getId())).isPresent();
+        // Plus de retrait : l'enseignant peut supprimer son compte, ses gains restent dans l'historique comptable
+        deletion.deleteOwnAccount(teacher.getEmail(), "COMMISSION", "");
+
+        User anonymized = users.findById(teacher.getId()).orElseThrow();
+        assertThat(anonymized.getName()).isEqualTo("Compte supprimé");
+        assertThat(anonymized.isEnabled()).isFalse();
+        assertThat(payments.findById(payment.getId())).isPresent();
+        assertThat(wallets.findById(wallet.getId()).orElseThrow().getTotalEarned()).isEqualByComparingTo("12.00");
     }
 
     @Test

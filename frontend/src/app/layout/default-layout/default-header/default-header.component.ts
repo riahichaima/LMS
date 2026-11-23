@@ -77,7 +77,6 @@ export class DefaultHeaderComponent extends HeaderComponent {
     ENROLLMENT: 'cilUserFollow',
     PAYMENT: 'cilCreditCard',
     SALE: 'cilDollar',
-    WITHDRAWAL: 'cilDollar',
     ADMIN_REQUEST: 'cilUserFollow',
     RATING: 'cilStar',
     REACTION: 'cilThumbUp',

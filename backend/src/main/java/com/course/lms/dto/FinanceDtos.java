@@ -2,7 +2,6 @@ package com.course.lms.dto;
 
 import com.course.lms.model.Payment;
 import com.course.lms.model.WalletTransaction;
-import com.course.lms.model.WithdrawalRequest;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -35,56 +34,29 @@ public final class FinanceDtos {
 
     public record CourseSales(Long courseId, String courseTitle, long sales, BigDecimal revenue, BigDecimal earnings) {}
 
-    public record TeacherEarningsView(long totalSales, BigDecimal totalRevenue, BigDecimal totalEarnings,
-                                      BigDecimal availableBalance, BigDecimal pendingBalance, BigDecimal totalWithdrawn,
-                                      BigDecimal minWithdrawal, String currency,
-                                      List<CourseSales> salesByCourse, List<PaymentView> recentSales,
-                                      List<WithdrawalView> withdrawals) {}
-
-    public record WithdrawalView(Long id, Long teacherId, String teacherName, String teacherEmail,
-                                 BigDecimal amount, String status, LocalDateTime requestedAt,
-                                 String reviewedBy, LocalDateTime reviewedAt, String adminNote,
-                                 String transferredBy, LocalDateTime transferredAt, String transferReference,
-                                 String payoutMethod, String payoutAccount) {
-
-        public static WithdrawalView of(WithdrawalRequest w) {
-            return new WithdrawalView(w.getId(), w.getTeacher().getId(), w.getTeacher().getName(), w.getTeacher().getEmail(),
-                    w.getAmount(), w.getStatus(), w.getRequestedAt(),
-                    w.getReviewedBy() != null ? w.getReviewedBy().getName() : null, w.getReviewedAt(), w.getAdminNote(),
-                    w.getTransferredBy() != null ? w.getTransferredBy().getName() : null, w.getTransferredAt(),
-                    w.getTransferReference(), w.getPayoutMethod(), w.getPayoutAccount());
-        }
-    }
-
-    /** payoutMethod : BANK, D17 ou PAYPAL ; payoutAccount : RIB / IBAN, numéro D17 ou email PayPal */
-    public record WithdrawalRequestBody(BigDecimal amount, String payoutMethod, String payoutAccount) {}
-
-    public record ReviewBody(String note) {}
+    /** Revenus de l'enseignant : 60 % de chaque vente de ses cours. */
+    public record TeacherEarningsView(long totalSales, BigDecimal totalRevenue, BigDecimal totalEarnings, String currency,
+                                      List<CourseSales> salesByCourse, List<PaymentView> recentSales) {}
 
     public record TeacherWalletView(Long teacherId, String teacherName, String teacherEmail, long sales,
-                                    BigDecimal totalEarned, BigDecimal availableBalance, BigDecimal pendingBalance,
-                                    BigDecimal totalWithdrawn) {}
+                                    BigDecimal totalEarned) {}
 
     public record FinanceSummary(long paidPayments, BigDecimal grossRevenue, BigDecimal platformCommission,
-                                 BigDecimal teacherEarnings, BigDecimal pendingWithdrawals, BigDecimal totalWithdrawn,
-                                 String currency) {}
+                                 BigDecimal teacherEarnings, String currency) {}
 
     public record TransactionView(Long id, String walletType, String walletOwner, String type, BigDecimal amount,
-                                  BigDecimal availableAfter, Long paymentId, Long withdrawalId, String description,
-                                  LocalDateTime createdAt) {
+                                  BigDecimal availableAfter, Long paymentId, String description, LocalDateTime createdAt) {
 
         public static TransactionView of(WalletTransaction t) {
             return new TransactionView(t.getId(), t.getWallet().getType(),
                     t.getWallet().getOwner() != null ? t.getWallet().getOwner().getName() : "Plateforme",
                     t.getType(), t.getAmount(), t.getAvailableAfter(),
                     t.getPayment() != null ? t.getPayment().getId() : null,
-                    t.getWithdrawal() != null ? t.getWithdrawal().getId() : null,
                     t.getDescription(), t.getCreatedAt());
         }
     }
 
-    public record PlatformWalletView(BigDecimal availableBalance, BigDecimal totalCommission,
-                                     BigDecimal teacherFundsHeld, BigDecimal totalTeacherEarnings,
-                                     BigDecimal totalPaidOut, BigDecimal grossRevenue, long paidPayments,
-                                     long transfersToSimulate, String currency) {}
+    /** Portefeuille de la plateforme : 40 % de chaque vente. */
+    public record PlatformWalletView(BigDecimal totalCommission, BigDecimal totalTeacherEarnings,
+                                     BigDecimal grossRevenue, long paidPayments, String currency) {}
 }

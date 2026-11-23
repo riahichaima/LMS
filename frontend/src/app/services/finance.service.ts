@@ -4,44 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { PaymentView } from './payment.service';
 
-// Portefeuilles et retraits VIRTUELS (simulation PFE) — montants en USD
-
-export type WithdrawalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PAID';
-
-export interface WithdrawalView {
-  id: number;
-  teacherId: number;
-  teacherName: string;
-  teacherEmail: string;
-  amount: number;
-  status: WithdrawalStatus;
-  requestedAt: string;
-  reviewedBy?: string | null;
-  reviewedAt?: string | null;
-  adminNote?: string | null;
-  transferredBy?: string | null;
-  transferredAt?: string | null;
-  transferReference?: string | null;
-  /** Moyen de réception choisi par l'enseignant */
-  payoutMethod?: PayoutMethod | null;
-  payoutAccount?: string | null;
-}
-
-export type PayoutMethod = 'BANK' | 'D17' | 'PAYPAL';
-
-/** Moyens de réception proposés à l'enseignant (transfert simulé en mode test). */
-export const PAYOUT_METHODS: { value: PayoutMethod; label: string; placeholder: string; hint: string }[] = [
-  { value: 'BANK', label: 'Virement bancaire', placeholder: 'RIB (20 chiffres) ou IBAN', hint: 'Ex. RIB : 08 006 0123456789012 34' },
-  { value: 'D17', label: 'D17 (La Poste)', placeholder: 'Numéro D17 (8 chiffres)', hint: 'Numéro de téléphone lié à votre compte D17' },
-  { value: 'PAYPAL', label: 'PayPal', placeholder: 'Email du compte PayPal', hint: 'Adresse email de votre compte PayPal' }
-];
-
-/** « Virement bancaire · •••• 1234 » (l'email PayPal reste lisible) */
-export function payoutLabel(method?: PayoutMethod | null, account?: string | null): string {
-  if (!method || !account) return 'Non renseigné';
-  const label = PAYOUT_METHODS.find(m => m.value === method)?.label ?? method;
-  return `${label} · ${method === 'PAYPAL' ? account : '•••• ' + account.slice(-4)}`;
-}
+// Ventes et portefeuilles VIRTUELS (simulation PFE) : 60 % enseignant, 40 % plateforme — montants en USD
 
 export interface CourseSales {
   courseId: number;
@@ -55,14 +18,9 @@ export interface TeacherEarningsView {
   totalSales: number;
   totalRevenue: number;
   totalEarnings: number;
-  availableBalance: number;
-  pendingBalance: number;
-  totalWithdrawn: number;
-  minWithdrawal: number;
   currency: string;
   salesByCourse: CourseSales[];
   recentSales: PaymentView[];
-  withdrawals: WithdrawalView[];
 }
 
 export interface FinanceSummary {
@@ -70,8 +28,6 @@ export interface FinanceSummary {
   grossRevenue: number;
   platformCommission: number;
   teacherEarnings: number;
-  pendingWithdrawals: number;
-  totalWithdrawn: number;
   currency: string;
 }
 
@@ -81,9 +37,6 @@ export interface TeacherWalletView {
   teacherEmail: string;
   sales: number;
   totalEarned: number;
-  availableBalance: number;
-  pendingBalance: number;
-  totalWithdrawn: number;
 }
 
 export interface TransactionView {
@@ -94,20 +47,15 @@ export interface TransactionView {
   amount: number;
   availableAfter: number;
   paymentId?: number | null;
-  withdrawalId?: number | null;
   description: string;
   createdAt: string;
 }
 
 export interface PlatformWalletView {
-  availableBalance: number;
   totalCommission: number;
-  teacherFundsHeld: number;
   totalTeacherEarnings: number;
-  totalPaidOut: number;
   grossRevenue: number;
   paidPayments: number;
-  transfersToSimulate: number;
   currency: string;
 }
 
@@ -120,10 +68,6 @@ export class FinanceService {
   // ── Enseignant (ses propres revenus uniquement) ──
   getMyEarnings(): Observable<TeacherEarningsView> {
     return this.http.get<TeacherEarningsView>(`${this.apiUrl}/api/teacher/earnings`);
-  }
-
-  requestWithdrawal(amount: number, payoutMethod: PayoutMethod, payoutAccount: string): Observable<WithdrawalView> {
-    return this.http.post<WithdrawalView>(`${this.apiUrl}/api/teacher/withdrawals`, { amount, payoutMethod, payoutAccount });
   }
 
   // ── Administrateur ──
@@ -139,18 +83,6 @@ export class FinanceService {
     return this.http.get<TeacherWalletView[]>(`${this.apiUrl}/api/admin/finance/teacher-earnings`);
   }
 
-  getWithdrawals(): Observable<WithdrawalView[]> {
-    return this.http.get<WithdrawalView[]>(`${this.apiUrl}/api/admin/finance/withdrawals`);
-  }
-
-  approveWithdrawal(id: number, note?: string): Observable<WithdrawalView> {
-    return this.http.put<WithdrawalView>(`${this.apiUrl}/api/admin/finance/withdrawals/${id}/approve`, { note: note || null });
-  }
-
-  rejectWithdrawal(id: number, note?: string): Observable<WithdrawalView> {
-    return this.http.put<WithdrawalView>(`${this.apiUrl}/api/admin/finance/withdrawals/${id}/reject`, { note: note || null });
-  }
-
   // ── Super administrateur ──
   getPlatformWallet(): Observable<PlatformWalletView> {
     return this.http.get<PlatformWalletView>(`${this.apiUrl}/api/super-admin/finance/platform-wallet`);
@@ -158,13 +90,5 @@ export class FinanceService {
 
   getTransactions(): Observable<TransactionView[]> {
     return this.http.get<TransactionView[]>(`${this.apiUrl}/api/super-admin/finance/transactions`);
-  }
-
-  getTransfers(): Observable<WithdrawalView[]> {
-    return this.http.get<WithdrawalView[]>(`${this.apiUrl}/api/super-admin/finance/transfers`);
-  }
-
-  simulateTransfer(withdrawalId: number): Observable<WithdrawalView> {
-    return this.http.post<WithdrawalView>(`${this.apiUrl}/api/super-admin/finance/transfers/${withdrawalId}/simulate`, {});
   }
 }

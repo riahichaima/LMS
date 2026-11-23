@@ -14,12 +14,6 @@ public class WalletTransaction {
     public static final String SALE_EARNING = "SALE_EARNING";
     // Commission plateforme (40 %) d'une vente confirmée
     public static final String PLATFORM_COMMISSION = "PLATFORM_COMMISSION";
-    // Demande de retrait : disponible -> en attente
-    public static final String WITHDRAWAL_HOLD = "WITHDRAWAL_HOLD";
-    // Retrait refusé : en attente -> disponible
-    public static final String WITHDRAWAL_RELEASE = "WITHDRAWAL_RELEASE";
-    // Transfert simulé vers l'enseignant : en attente -> retiré
-    public static final String WITHDRAWAL_PAYOUT = "WITHDRAWAL_PAYOUT";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -43,10 +37,6 @@ public class WalletTransaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_id")
     private Payment payment;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "withdrawal_id")
-    private WithdrawalRequest withdrawal;
 
     @Column(length = 500)
     private String description;
@@ -75,9 +65,6 @@ public class WalletTransaction {
 
     public Payment getPayment() { return payment; }
     public void setPayment(Payment payment) { this.payment = payment; }
-
-    public WithdrawalRequest getWithdrawal() { return withdrawal; }
-    public void setWithdrawal(WithdrawalRequest withdrawal) { this.withdrawal = withdrawal; }
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
