@@ -120,7 +120,7 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à modifier ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         course.setTitle(request.getTitle());
@@ -308,7 +308,7 @@ public class CourseService {
 
         // Vérification des droits
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à modifier ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         course.setTitle(request.getTitle());
@@ -329,7 +329,7 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à supprimer ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         // Un cours déjà vendu garde son historique financier : il ne peut pas être supprimé

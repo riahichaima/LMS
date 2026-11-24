@@ -32,7 +32,7 @@ public class ChapterService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : ce cours appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         Chapter chapter = new Chapter(request.getTitle(), course);
@@ -66,7 +66,7 @@ public class ChapterService {
 
         Course course = chapter.getCourse();
         if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : ce chapitre appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Ce chapitre appartient à un autre enseignant.");
         }
 
         chapter.setTitle(request.getTitle());
@@ -84,7 +84,7 @@ public class ChapterService {
 
         Course course = chapter.getCourse();
         if (!isAdmin && !course.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : ce chapitre appartient à " + course.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Ce chapitre appartient à un autre enseignant.");
         }
 
         contentCleanupService.beforeDeletingChapter(chapter);

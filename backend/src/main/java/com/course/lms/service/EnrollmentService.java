@@ -152,7 +152,7 @@ public class EnrollmentService {
                 .orElseThrow(() -> new RuntimeException("Inscription non trouvée"));
 
         if (!enrollment.getStudent().getEmail().equals(studentEmail)) {
-            throw new RuntimeException("Non autorisé à supprimer cette inscription");
+            throw new SecurityException("Cette inscription appartient à un autre étudiant.");
         }
 
         enrollmentRepository.delete(enrollment);

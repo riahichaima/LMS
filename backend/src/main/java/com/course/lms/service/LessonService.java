@@ -44,7 +44,7 @@ public class LessonService {
 
         Course parentCourse = chapter.getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : ce cours appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         Lesson lesson = new Lesson();
@@ -80,7 +80,7 @@ public class LessonService {
 
         Course parentCourse = lesson.getChapter().getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : cette leçon appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Cette leçon appartient à un autre enseignant.");
         }
 
         lesson.setTitle(request.getTitle());
@@ -91,6 +91,10 @@ public class LessonService {
         if (request.getChapterId() != null && !lesson.getChapter().getId().equals(request.getChapterId())) {
             Chapter newChapter = chapterRepository.findById(request.getChapterId())
                     .orElseThrow(() -> new RuntimeException("Nouveau chapitre non trouvé"));
+            // La leçon ne peut aller que dans un chapitre d'un cours du même enseignant
+            if (!isAdmin && !newChapter.getCourse().getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
+                throw new SecurityException("Ce chapitre appartient à un autre enseignant.");
+            }
             lesson.setChapter(newChapter);
         }
 
@@ -125,7 +129,7 @@ public class LessonService {
 
         Course parentCourse = lesson.getChapter().getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : cette leçon appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Cette leçon appartient à un autre enseignant.");
         }
 
         contentCleanupService.beforeDeletingLessons(java.util.List.of(lesson));
