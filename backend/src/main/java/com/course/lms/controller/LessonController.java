@@ -187,6 +187,8 @@ public class LessonController {
                             rr.setFilePath(filePath);
                             rr.setMimeType(file.getContentType());
                             rr.setSize(file.getSize());
+                        } catch (IllegalArgumentException e) {
+                            throw e; // type de fichier refusé
                         } catch (Exception e) {
                             throw new RuntimeException("Erreur lors de l'upload du fichier " + file.getOriginalFilename() + ": " + e.getMessage());
                         }

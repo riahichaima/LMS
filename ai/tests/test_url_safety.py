@@ -11,6 +11,8 @@ from services import content_extractor as ce
 def fake_dns(mapping):
     """Résolution DNS simulée : nom → adresse IP (aucun accès réseau pendant les tests)."""
     def resolve(host, port, *args, **kwargs):
+        if host.replace(".", "").isdigit():  # adresse IP écrite directement : rendue telle quelle
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (host, port))]
         if host not in mapping:
             raise socket.gaierror("inconnu")
         return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (mapping[host], port))]
@@ -74,7 +76,7 @@ def test_adresses_internes_refusees(dns, url):
 
 def test_redirection_vers_adresse_interne_refusee(dns):
     def handler(request):
-        if request.url.host == "cours.example.org":
+        if request.headers["host"] == "cours.example.org":
             return httpx.Response(302, headers={"location": "http://backend:8091/actuator/env"})
         return httpx.Response(200, text="secret interne")
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
@@ -96,6 +98,47 @@ def test_trop_de_redirections(dns):
     with httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(302, headers={"location": "/boucle"}))) as client:
         with pytest.raises(ValueError):
             ce.fetch_public(client, "https://cours.example.org/boucle")
+
+
+def test_dns_rebinding_sans_effet(monkeypatch):
+    """Le DNS répond d'abord une adresse publique puis 127.0.0.1 : la connexion part quand même vers
+    l'adresse publique vérifiée, car le nom n'est résolu qu'une fois par requête."""
+    reponses = iter(["93.184.215.14", "127.0.0.1", "127.0.0.1"])
+    appels = []
+
+    def resolve(host, port, *args, **kwargs):
+        appels.append(host)
+        return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (next(reponses), port))]
+    monkeypatch.setattr(socket, "getaddrinfo", resolve)
+
+    vus = []
+
+    def handler(request):
+        vus.append((request.url.host, request.headers["host"], request.extensions.get("sni_hostname")))
+        return httpx.Response(200, text="contenu du cours")
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert ce.fetch_public(client, "https://piege.example.org/cours").text == "contenu du cours"
+    assert vus == [("93.184.215.14", "piege.example.org", "piege.example.org")]
+    assert appels == ["piege.example.org"]
+
+
+def test_redirection_resolue_puis_epinglee(dns):
+    """Après une redirection, le nouveau nom est vérifié et la connexion part vers SON adresse vérifiée."""
+    dns["autre.example.org"] = "93.184.215.99"
+
+    def handler(request):
+        if request.headers["host"] == "cours.example.org":
+            return httpx.Response(302, headers={"location": "https://autre.example.org:8443/doc"})
+        return httpx.Response(200, text=f"{request.url.host} {request.headers['host']}")
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert ce.fetch_public(client, "https://cours.example.org/x").text == "93.184.215.99 autre.example.org:8443"
+
+
+def test_adresse_ip_directe_sans_epinglage(dns):
+    def handler(request):
+        return httpx.Response(200, text=request.url.host)
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert ce.fetch_public(client, "http://93.184.215.14/page").text == "93.184.215.14"
 
 
 @pytest.mark.parametrize("url, attendu", [

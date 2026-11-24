@@ -13,10 +13,22 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
 public class FileStorageService {
+
+    /**
+     * Types de supports de cours acceptés. Tout le reste (html, svg, xml, js...) est refusé : servi depuis
+     * /uploads sur le domaine de l'API, un tel fichier pourrait exécuter du JavaScript dans le navigateur.
+     */
+    public static final Set<String> ALLOWED_EXTENSIONS = Set.of(
+            "pdf", "txt",
+            "mp4", "webm", "mov", "mkv", "avi", "m4v",
+            "mp3", "wav", "m4a", "ogg", "aac",
+            "png", "jpg", "jpeg", "gif", "webp",
+            "doc", "docx", "ppt", "pptx", "xls", "xlsx", "odt", "odp", "ods");
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -33,7 +45,7 @@ public class FileStorageService {
 
         // Générer un nom de fichier unique
         String originalFileName = file.getOriginalFilename();
-        String extension = getFileExtension(originalFileName);
+        String extension = requireAllowedExtension(originalFileName);
         String storedFileName = UUID.randomUUID().toString() + "." + extension;
         String filePath = insideUploadDir(uploadPath, storedFileName).toString();
 
@@ -67,7 +79,7 @@ public class FileStorageService {
         if (originalFileName == null) {
             originalFileName = "file";
         }
-        String extension = getFileExtension(originalFileName);
+        String extension = requireAllowedExtension(originalFileName);
         String storedFileName = UUID.randomUUID().toString() + "." + extension;
         String filePath = insideUploadDir(uploadPath, storedFileName).toString();
 
@@ -115,6 +127,16 @@ public class FileStorageService {
             if (ext.matches("[a-z0-9]{1,10}")) return ext;
         }
         return "bin";
+    }
+
+    /** Extension du fichier si elle fait partie des types acceptés, sinon refus (HTTP 400). */
+    static String requireAllowedExtension(String fileName) {
+        String extension = getFileExtension(fileName);
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("Type de fichier refusé (" + (extension.equals("bin") ? "sans extension" : "." + extension)
+                    + ") : PDF, texte, vidéo, audio, image ou document Office uniquement.");
+        }
+        return extension;
     }
 
     /** Chemin final du fichier, refusé s'il n'est pas dans le dossier d'upload. */

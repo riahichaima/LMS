@@ -88,6 +88,8 @@ public class CourseController {
                                             resReq.setFilePath(filePath);
                                             resReq.setMimeType(file.getContentType());
                                             resReq.setSize(file.getSize());
+                                        } catch (IllegalArgumentException e) {
+                                            throw e; // type de fichier refusé
                                         } catch (Exception e) {
                                             throw new RuntimeException("Erreur lors de l'upload du fichier " + originalFilename + ": " + e.getMessage());
                                         }
@@ -159,6 +161,8 @@ public class CourseController {
                                             resReq.setFilePath(filePath);
                                             resReq.setMimeType(file.getContentType());
                                             resReq.setSize(file.getSize());
+                                        } catch (IllegalArgumentException e) {
+                                            throw e; // type de fichier refusé
                                         } catch (Exception e) {
                                             throw new RuntimeException("Erreur upload fichier: " + e.getMessage());
                                         }

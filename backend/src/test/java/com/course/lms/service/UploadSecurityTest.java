@@ -32,6 +32,32 @@ class UploadSecurityTest {
     }
 
     @Test
+    void acceptsCourseMaterialTypesOnly() {
+        assertThat(FileStorageService.requireAllowedExtension("Cours 1.PDF")).isEqualTo("pdf");
+        assertThat(FileStorageService.requireAllowedExtension("seance.mp4")).isEqualTo("mp4");
+        assertThat(FileStorageService.requireAllowedExtension("podcast.m4a")).isEqualTo("m4a");
+        assertThat(FileStorageService.requireAllowedExtension("plan.pptx")).isEqualTo("pptx");
+        for (String piege : new String[]{"page.html", "logo.svg", "x.htm", "flux.xml", "script.js", "a.xhtml", "sans-extension", null}) {
+            assertThatThrownBy(() -> FileStorageService.requireAllowedExtension(piege))
+                    .as(piege).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    void refusedFileIsNeverWritten(@org.junit.jupiter.api.io.TempDir Path dir) throws Exception {
+        FileStorageService service = new FileStorageService();
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "uploadDir", dir.toString());
+        var html = new org.springframework.mock.web.MockMultipartFile("file", "cours.html", "text/html",
+                "<script>alert(document.domain)</script>".getBytes());
+        assertThatThrownBy(() -> service.storePhysicalFileOnly(html)).isInstanceOf(IllegalArgumentException.class);
+        try (var files = java.nio.file.Files.list(dir)) {
+            assertThat(files).isEmpty();
+        }
+        var pdf = new org.springframework.mock.web.MockMultipartFile("file", "cours.pdf", "application/pdf", "%PDF-1.4".getBytes());
+        assertThat(service.storePhysicalFileOnly(pdf)).endsWith(".pdf");
+    }
+
+    @Test
     void refusesPathsOutsideUploadDir() {
         Path dir = Path.of("uploads", "videos");
         assertThat(FileStorageService.insideUploadDir(dir, "abc.pdf").getFileName().toString()).isEqualTo("abc.pdf");

@@ -27,11 +27,13 @@ def is_youtube_url(url: str) -> bool:
     return urlparse(url).scheme in ("http", "https") and _host_matches(url, YOUTUBE_HOSTS)
 
 
-def check_public_url(url: str) -> None:
-    """Protection SSRF : seuls les liens http(s) vers des adresses publiques sont téléchargés.
+def resolve_public_ip(url: str) -> str:
+    """Protection SSRF : renvoie l'adresse IP publique à laquelle se connecter pour ce lien.
 
-    Refuse localhost, les réseaux privés (conteneurs Docker, réseau de la VM), les adresses
-    link-local (dont 169.254.169.254, service de métadonnées Azure) et les adresses réservées.
+    Refuse les liens non http(s), localhost, les réseaux privés (conteneurs Docker, réseau de la VM),
+    les adresses link-local (dont 169.254.169.254, service de métadonnées Azure) et les adresses réservées.
+    Le nom de domaine est résolu UNE seule fois : la connexion se fait ensuite à cette adresse vérifiée
+    (voir fetch_public), donc un DNS qui change de réponse entre-temps (« DNS rebinding ») ne sert à rien.
     """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https") or not parsed.hostname:
@@ -40,10 +42,18 @@ def check_public_url(url: str) -> None:
         infos = socket.getaddrinfo(parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80))
     except socket.gaierror as e:
         raise ValueError(f"Lien refusé : nom de domaine introuvable ({parsed.hostname}).") from e
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
+    ips = [ipaddress.ip_address(info[4][0]) for info in infos]
+    if not ips:
+        raise ValueError(f"Lien refusé : nom de domaine introuvable ({parsed.hostname}).")
+    for ip in ips:
         if not ip.is_global or ip.is_multicast:
             raise ValueError("Lien refusé : adresse interne ou réservée.")
+    return str(ips[0])
+
+
+def check_public_url(url: str) -> None:
+    """Vérifie seulement que le lien mène à une adresse publique (voir resolve_public_ip)."""
+    resolve_public_ip(url)
 
 
 def extract_from_pdf(source) -> str:
@@ -58,9 +68,11 @@ def extract_from_pdf(source) -> str:
 def extract_from_url(url: str) -> str:
     """Extraire le texte d'un lien externe (page web, PDF en ligne, Google Docs/Drive)."""
     url = _google_export_url(url)
-    with httpx.Client(timeout=30.0, follow_redirects=False, headers=_HEADERS) as client:
+    # Pas de connexion réutilisée : chaque requête ouvre une connexion neuve vers l'adresse vérifiée
+    limits = httpx.Limits(max_keepalive_connections=0)
+    with httpx.Client(timeout=30.0, follow_redirects=False, headers=_HEADERS, limits=limits) as client:
         response = fetch_public(client, url)
-        url = str(response.url)
+        url = str(response.url)  # même chemin ; l'hôte peut être l'adresse IP vérifiée
 
     content_type = response.headers.get("content-type", "")
     if "pdf" in content_type or url.lower().endswith(".pdf"):
@@ -89,13 +101,38 @@ def _google_export_url(url: str) -> str:
 
 
 def fetch_public(client: httpx.Client, url: str) -> httpx.Response:
-    """GET en suivant les redirections à la main : chaque adresse (y compris après redirection) est vérifiée."""
+    """GET en suivant les redirections à la main : chaque adresse (y compris après redirection) est vérifiée.
+
+    La connexion part vers l'adresse IP vérifiée (et pas vers le nom, qui serait résolu une 2e fois) ;
+    le nom reste dans l'en-tête Host et dans le SNI, donc le certificat HTTPS est contrôlé pour ce nom.
+    """
     for _ in range(MAX_REDIRECTS + 1):
-        check_public_url(url)
-        response = client.get(url)
+        response = client.send(pinned_request(client, url))
         if response.is_redirect and response.headers.get("location"):
             url = urljoin(url, response.headers["location"])
             continue
         response.raise_for_status()
         return response
     raise ValueError("Lien refusé : trop de redirections.")
+
+
+def pinned_request(client: httpx.Client, url: str) -> httpx.Request:
+    """Requête GET vers l'adresse IP vérifiée du lien, avec le vrai nom en Host et en SNI."""
+    ip = resolve_public_ip(url)
+    target = httpx.URL(url)
+    host = target.host
+    headers = {}
+    extensions = {}
+    if not _is_ip_literal(host):
+        headers["Host"] = host if target.port is None else f"{host}:{target.port}"
+        extensions["sni_hostname"] = host
+        target = target.copy_with(host=ip)
+    return client.build_request("GET", target, headers=headers, extensions=extensions)
+
+
+def _is_ip_literal(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        return False
