@@ -118,6 +118,68 @@ public class CourseAccessService {
         }
     }
 
+    // ── Gestion d'un cours : son enseignant ou l'administration, jamais un autre enseignant ──
+
+    public boolean isAdmin() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
+    }
+
+    /** Utilisateur du jeton, ou null si personne n'est connecté. */
+    public User currentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return null;
+        return userRepository.findByEmail(auth.getName()).orElse(null);
+    }
+
+    public boolean canManage(Course course) {
+        if (isAdmin()) return true;
+        User user = currentUser();
+        return user != null && course.getTeacher() != null && course.getTeacher().getId().equals(user.getId());
+    }
+
+    public void requireManage(Course course) {
+        if (!canManage(course)) {
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
+        }
+    }
+
+    public void requireManageCourse(Long courseId) {
+        courseRepository.findById(courseId).ifPresent(this::requireManage);
+    }
+
+    public void requireManageChapter(Long chapterId) {
+        chapterRepository.findById(chapterId).ifPresent(ch -> requireManage(ch.getCourse()));
+    }
+
+    public void requireManageLesson(Long lessonId) {
+        lessonRepository.findById(lessonId).ifPresent(l -> requireManage(l.getChapter().getCourse()));
+    }
+
+    public void requireManageQuiz(Long quizId) {
+        quizRepository.findById(quizId).ifPresent(q -> requireManage(courseOf(q)));
+    }
+
+    /** Une copie : son auteur, l'enseignant du cours ou l'administration. */
+    public void requireSubmissionView(com.course.lms.model.Submission submission) {
+        User user = currentUser();
+        if (user != null && submission.getStudent() != null && submission.getStudent().getId().equals(user.getId())) return;
+        Course course = submission.getQuiz() != null ? courseOf(submission.getQuiz())
+                : submission.getAssignment() != null ? courseOf(submission.getAssignment()) : null;
+        if (course == null || !canManage(course)) {
+            throw new SecurityException("Cette copie appartient à un autre étudiant.");
+        }
+    }
+
+    private Course courseOf(com.course.lms.model.Quiz q) {
+        return q.getChapter() != null ? q.getChapter().getCourse() : q.getLesson().getChapter().getCourse();
+    }
+
+    private Course courseOf(com.course.lms.model.Assignment a) {
+        return a.getChapter() != null ? a.getChapter().getCourse() : a.getLesson().getChapter().getCourse();
+    }
+
     // Masque les ressources d'un cours payant non acheté (le programme reste visible)
     public CourseResponse protect(CourseResponse course) {
         if (course != null && !canAccess(course.getId(), course.getPricingType(), course.getTeacherId())) {

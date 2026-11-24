@@ -40,13 +40,15 @@ public class EnrollmentController {
     public ResponseEntity<EnrollmentResponse> updateProgress(
             @PathVariable Long enrollmentId,
             @RequestParam Integer progressPercentage) {
-        return ResponseEntity.ok(enrollmentService.updateProgress(enrollmentId, progressPercentage));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(enrollmentService.updateProgress(enrollmentId, progressPercentage, email));
     }
 
     @PutMapping("/student/enrollments/{enrollmentId}/complete")
     @PreAuthorize("hasRole('STUDENT')")
     public ResponseEntity<EnrollmentResponse> markAsCompleted(@PathVariable Long enrollmentId) {
-        return ResponseEntity.ok(enrollmentService.markAsCompleted(enrollmentId));
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return ResponseEntity.ok(enrollmentService.markAsCompleted(enrollmentId, email));
     }
 
     @DeleteMapping("/student/enrollments/{enrollmentId}")

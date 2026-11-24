@@ -112,6 +112,7 @@ public class LessonController {
     @GetMapping("/teacher/lessons/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<LessonResponse> getTeacherLessonById(@PathVariable Long id) {
+        courseAccessService.requireManageLesson(id);
         return ResponseEntity.ok(lessonService.getLessonById(id));
     }
 

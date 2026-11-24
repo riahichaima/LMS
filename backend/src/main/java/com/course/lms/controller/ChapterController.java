@@ -47,6 +47,7 @@ public class ChapterController {
     @GetMapping("/teacher/chapters/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<ChapterResponse> getTeacherChapterById(@PathVariable Long id) {
+        courseAccessService.requireManageChapter(id);
         return ResponseEntity.ok(chapterService.getChapterById(id));
     }
 

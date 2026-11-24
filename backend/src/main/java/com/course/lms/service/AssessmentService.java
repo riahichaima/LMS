@@ -765,7 +765,8 @@ public class AssessmentService {
             boolean hasSolution = assignment.getExpectedSolution() != null && !assignment.getExpectedSolution().isBlank();
             payload.put("question", hasStatement ? assignment.getDescription() : assignment.getTitle());
             payload.put("student_answer", request.getStudentAnswer());
-            payload.put("expected_answer", hasSolution ? assignment.getExpectedSolution() : request.getAssignmentContent());
+            payload.put("expected_answer", hasSolution ? assignment.getExpectedSolution()
+                    : (hasStatement ? assignment.getDescription() : assignment.getTitle()));
             payload.put("response_type", "text");
             payload.put("level", assignment.getDifficultyLevel().toString().toLowerCase());
             payload.put("user_id", request.getStudentId());
