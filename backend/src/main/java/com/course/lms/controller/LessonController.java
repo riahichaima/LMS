@@ -38,6 +38,9 @@ public class LessonController {
     @Autowired
     private com.course.lms.service.CourseAccessService courseAccessService;
 
+    @Autowired
+    private com.course.lms.service.ResourcePathGuard resourcePathGuard;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // ENDPOINT UNIQUE ET ULTRA-ROBUSTE
@@ -135,6 +138,10 @@ public class LessonController {
                     .orElseThrow(() -> new RuntimeException("Ressource non trouvée: " + id));
 
             if (resource.getFilePath() == null) {
+                return ResponseEntity.notFound().build();
+            }
+            // Jamais un fichier hors du dossier uploads (chemin forgé ou ancienne donnée)
+            if (!resourcePathGuard.isInsideUploads(resource.getFilePath())) {
                 return ResponseEntity.notFound().build();
             }
 

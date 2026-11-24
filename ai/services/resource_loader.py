@@ -43,16 +43,16 @@ def resolve_backend_path(file_path: str) -> Path:
     """
     path = Path(file_path)
     root = Path(settings.BACKEND_ROOT_DIR)
+    uploads = (root / "uploads").resolve()
     candidates = [path] if path.is_absolute() else [root / path, path]
     tail = _uploads_tail(file_path)
     if tail:
-        uploads = (root / "uploads").resolve()
-        mapped = uploads.joinpath(*tail).resolve()
-        if mapped.is_relative_to(uploads):
-            candidates.append(mapped)
+        candidates.append(uploads.joinpath(*tail))
     for candidate in candidates:
-        if candidate.is_file():
-            return candidate
+        resolved = candidate.resolve()
+        # Jamais un fichier hors du dossier uploads du backend (ex. chemin forgé dans une ressource)
+        if resolved.is_relative_to(uploads) and resolved.is_file():
+            return resolved
     raise FileNotFoundError(f"Fichier introuvable : {file_path} (BACKEND_ROOT_DIR={settings.BACKEND_ROOT_DIR})")
 
 

@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 public class LessonService {
 
     @Autowired
+    private ResourcePathGuard resourcePathGuard;
+
+    @Autowired
     private ContentCleanupService contentCleanupService;
 
     @Autowired
@@ -58,7 +61,7 @@ public class LessonService {
                 resource.setLesson(savedLesson);
                 resource.setResourceType(rr.getResourceType());
                 resource.setTitle(rr.getTitle());
-                resource.setFilePath(rr.getFilePath());
+                resource.setFilePath(resourcePathGuard.requireAllowed(rr.getFilePath(), java.util.Set.of()));
                 resource.setExternalUrl(rr.getExternalUrl());
                 resource.setMimeType(rr.getMimeType());
                 resource.setSize(rr.getSize());
@@ -92,6 +95,8 @@ public class LessonService {
         }
 
         // Handle resources update (simple approach: clear and re-add)
+        final java.util.Set<String> storedPaths = lesson.getResources().stream()
+                .map(LessonResource::getFilePath).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         lesson.getResources().clear();
         lessonRepository.saveAndFlush(lesson); // Flush the clear to delete orphans
 
@@ -101,7 +106,7 @@ public class LessonService {
                 resource.setLesson(lesson);
                 resource.setResourceType(rr.getResourceType());
                 resource.setTitle(rr.getTitle());
-                resource.setFilePath(rr.getFilePath());
+                resource.setFilePath(resourcePathGuard.requireAllowed(rr.getFilePath(), storedPaths));
                 resource.setExternalUrl(rr.getExternalUrl());
                 resource.setMimeType(rr.getMimeType());
                 resource.setSize(rr.getSize());
