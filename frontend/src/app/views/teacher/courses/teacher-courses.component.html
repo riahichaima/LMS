@@ -195,7 +195,7 @@
 
               <div *ngIf="resourceInfo(res.resourceType).accept as accept">
                 <div *ngIf="res.filePath && !res.fileName" class="small mb-1">
-                  Fichier actuel : <a [href]="fileUrl(res.filePath)" target="_blank" rel="noopener">ouvrir</a>
+                  Fichier actuel : <a href="#" (click)="openFile(res, $event)">ouvrir</a>
                   <span class="text-body-secondary">(choisissez un fichier ci-dessous pour le remplacer)</span>
                 </div>
                 <input type="file" class="form-control form-control-sm" [accept]="accept" (change)="onFileSelected($event, res)" />

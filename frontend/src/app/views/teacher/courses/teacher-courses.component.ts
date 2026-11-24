@@ -21,7 +21,7 @@ import {
   FormControlDirective
 } from '@coreui/angular';
 import { IconDirective } from '@coreui/icons-angular';
-import { environment } from '../../../../environments/environment';
+import { LearningService } from '../../../services/learning.service';
 import { CourseService, Course, Chapter, Lesson, LessonResource, ResourceType, PricingType } from '../../../services/course.service';
 import { AiService } from '../../../services/ai.service';
 
@@ -77,6 +77,9 @@ export class TeacherCoursesComponent implements OnInit {
   /** Administration (et super admin) : tous les cours, et choix obligatoire du formateur à la création */
   readonly isAdmin = inject(AuthService).isAdmin();
   private adminService = inject(AdminService);
+  private learningService = inject(LearningService);
+  // Id des ressources déjà enregistrées (pour « ouvrir »), gardé hors du formulaire envoyé au serveur
+  private savedResourceIds = new WeakMap<object, number>();
   teachers = signal<UserWithRoleDetails[]>([]);
   teacherId: number | null = null;
 
@@ -205,15 +208,19 @@ export class TeacherCoursesComponent implements OnInit {
             title: les.title,
             description: les.description || '',
             orderIndex: les.orderIndex ?? j + 1,
-            resources: (les.resources || []).map(r => ({
-              resourceType: r.resourceType,
-              title: r.title,
-              externalUrl: r.externalUrl || '',
-              filePath: r.filePath,
-              mimeType: r.mimeType,
-              size: r.size,
-              fileName: ''
-            }))
+            resources: (les.resources || []).map(r => {
+              const res: LessonResource = {
+                resourceType: r.resourceType,
+                title: r.title,
+                externalUrl: r.externalUrl || '',
+                filePath: r.filePath,
+                mimeType: r.mimeType,
+                size: r.size,
+                fileName: ''
+              };
+              if (r.id) this.savedResourceIds.set(res, r.id);
+              return res;
+            })
           }))
         }));
         this.selectedFilesMap.clear();
@@ -223,9 +230,23 @@ export class TeacherCoursesComponent implements OnInit {
     });
   }
 
-  // Lien vers un fichier déjà importé (servi par le backend sous /uploads)
-  fileUrl(filePath: string): string {
-    return `${environment.apiUrl}/${filePath.replace(/\\/g, '/')}`;
+  // Fichier déjà importé : téléchargé avec le jeton (comme côté étudiant) puis ouvert dans un nouvel onglet
+  openFile(res: LessonResource, event: Event): void {
+    event.preventDefault();
+    const id = this.savedResourceIds.get(res);
+    if (!id) return;
+    const tab = window.open('', '_blank');
+    this.learningService.getResourceFile(id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        if (tab) tab.location.href = url; else window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      },
+      error: () => {
+        tab?.close();
+        this.errorMessage.set("Impossible d'ouvrir ce fichier.");
+      }
+    });
   }
 
   saveCourse(): void {
