@@ -79,6 +79,10 @@ public class AuthService {
         if ("SUPER_ADMIN".equals(roleName)) {
             throw new RuntimeException("Le rôle super administrateur ne peut pas être choisi à l'inscription");
         }
+        // Aucun autre rôle ne peut être inventé à l'inscription
+        if (!java.util.Set.of("STUDENT", "TEACHER", "ADMIN").contains(roleName)) {
+            throw new IllegalArgumentException("Rôle inconnu : choisissez étudiant, enseignant ou administrateur.");
+        }
 
         Role role = roleRepository.findByName(roleName)
                 .orElseGet(() -> {

@@ -95,9 +95,8 @@ public class EnrollmentService {
     /**
      * Module Étudiant - Mise à jour de la progression
      */
-    public EnrollmentResponse updateProgress(Long enrollmentId, Integer progressPercentage) {
-        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Inscription non trouvée"));
+    public EnrollmentResponse updateProgress(Long enrollmentId, Integer progressPercentage, String studentEmail) {
+        Enrollment enrollment = ownEnrollment(enrollmentId, studentEmail);
 
         enrollment.updateProgress(progressPercentage);
         Enrollment updated = enrollmentRepository.save(enrollment);
@@ -107,9 +106,8 @@ public class EnrollmentService {
     /**
      * Module Étudiant - Marquer un cours comme terminé
      */
-    public EnrollmentResponse markAsCompleted(Long enrollmentId) {
-        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new RuntimeException("Inscription non trouvée"));
+    public EnrollmentResponse markAsCompleted(Long enrollmentId, String studentEmail) {
+        Enrollment enrollment = ownEnrollment(enrollmentId, studentEmail);
 
         enrollment.updateProgress(100);
         Enrollment updated = enrollmentRepository.save(enrollment);
@@ -139,12 +137,22 @@ public class EnrollmentService {
     /**
      * Module Étudiant - Désinscription d'un cours
      */
+    // Une inscription n'est modifiable que par son étudiant
+    private Enrollment ownEnrollment(Long enrollmentId, String studentEmail) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+                .orElseThrow(() -> new IllegalArgumentException("Inscription non trouvée"));
+        if (!enrollment.getStudent().getEmail().equalsIgnoreCase(studentEmail)) {
+            throw new SecurityException("Cette inscription appartient à un autre étudiant.");
+        }
+        return enrollment;
+    }
+
     public void unenrollStudent(Long enrollmentId, String studentEmail) {
         Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
                 .orElseThrow(() -> new RuntimeException("Inscription non trouvée"));
 
         if (!enrollment.getStudent().getEmail().equals(studentEmail)) {
-            throw new RuntimeException("Non autorisé à supprimer cette inscription");
+            throw new SecurityException("Cette inscription appartient à un autre étudiant.");
         }
 
         enrollmentRepository.delete(enrollment);

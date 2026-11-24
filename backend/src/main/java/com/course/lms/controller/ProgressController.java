@@ -20,6 +20,9 @@ public class ProgressController {
     @Autowired
     private com.course.lms.service.AiRateLimiter aiRateLimiter;
 
+    @Autowired
+    private com.course.lms.service.CourseAccessService courseAccessService;
+
     /**
      * Analyze student performance and get recommendations
      * Student and Teacher endpoint
@@ -29,6 +32,17 @@ public class ProgressController {
     public CompletableFuture<ResponseEntity<StudentRecommendationsResponse>> analyzeProgress(
             @PathVariable Long studentId,
             @PathVariable Long courseId) {
+        org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        boolean student = auth.getAuthorities().stream().anyMatch(a -> "ROLE_STUDENT".equals(a.getAuthority()));
+        if (student) {
+            com.course.lms.model.User me = courseAccessService.currentUser();
+            if (me == null || !me.getId().equals(studentId)) {
+                throw new SecurityException("Un étudiant ne peut analyser que sa propre progression.");
+            }
+        } else {
+            courseAccessService.requireManageCourse(courseId);
+        }
         aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.CHAT);
         return progressAnalysisService.analyzeStudentPerformanceAsync(studentId, courseId)
                 .thenApply(ResponseEntity::ok);

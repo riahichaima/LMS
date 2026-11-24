@@ -31,6 +31,9 @@ public class AssessmentController {
     @Autowired
     private com.course.lms.service.AiRateLimiter aiRateLimiter;
 
+    @Autowired
+    private com.course.lms.repository.SubmissionRepository submissionRepository;
+
     /**
      * Generate assessments (Quiz and/or Assignment) for selected chapters
      * Enseignant : uniquement pour ses propres cours. Administrateur et super admin : pour le cours de n'importe quel enseignant.
@@ -95,8 +98,22 @@ public class AssessmentController {
     @PostMapping("/submissions/correct")
     @PreAuthorize("hasRole('STUDENT')")
     public CompletableFuture<ResponseEntity<SubmissionCorrectionResponse>> correctSubmission(
-            @RequestBody SubmissionCorrectionRequest request) {
-        aiRateLimiter.check(org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName(), com.course.lms.service.AiRateLimiter.Usage.CORRECTION);
+            @RequestBody SubmissionCorrectionRequest request,
+            org.springframework.security.core.Authentication auth) {
+        // Contrôles faits ici : la correction tourne dans un autre thread, sans le contexte de sécurité
+        com.course.lms.model.User student = userRepository.findByEmail(auth.getName())
+                .orElseThrow(() -> new IllegalArgumentException("Utilisateur introuvable"));
+        if (request.getSubmissionId() == null) throw new IllegalArgumentException("Copie manquante.");
+        com.course.lms.model.Submission submission = submissionRepository.findById(request.getSubmissionId())
+                .orElseThrow(() -> new IllegalArgumentException("Copie introuvable."));
+        if (submission.getStudent() == null || !submission.getStudent().getId().equals(student.getId())) {
+            throw new SecurityException("Cette copie appartient à un autre étudiant.");
+        }
+        if (submission.getAssignment() == null || !submission.getAssignment().getId().equals(request.getAssignmentId())) {
+            throw new IllegalArgumentException("Cette copie ne correspond pas à ce TP.");
+        }
+        request.setStudentId(student.getId());
+        aiRateLimiter.check(student.getEmail(), com.course.lms.service.AiRateLimiter.Usage.CORRECTION);
         return assessmentService.correctSubmissionAsync(request)
                 .thenApply(response -> ResponseEntity.ok(response));
     }
@@ -184,6 +201,7 @@ public class AssessmentController {
     @GetMapping("/chapter/{chapterId}/review")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<java.util.Map<String, Object>> reviewChapterAssessments(@PathVariable Long chapterId) {
+        courseAccessService.requireManageChapter(chapterId);
         return ResponseEntity.ok(assessmentService.getChapterAssessmentsForTeacher(chapterId));
     }
 
@@ -193,6 +211,7 @@ public class AssessmentController {
     @GetMapping("/quizzes/{quizId}/detail")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<com.course.lms.dto.QuizDetailResponse> viewQuizDetailForTeacher(@PathVariable Long quizId) {
+        courseAccessService.requireManageQuiz(quizId);
         return ResponseEntity.ok(assessmentService.getQuizDetailForTeacher(quizId));
     }
 
@@ -202,6 +221,7 @@ public class AssessmentController {
     @GetMapping("/quizzes/{quizId}/correction/{submissionId}")
     public ResponseEntity<com.course.lms.dto.QuizCorrectionResponse> viewQuizCorrection(
             @PathVariable Long quizId, @PathVariable Long submissionId) {
+        submissionRepository.findById(submissionId).ifPresent(courseAccessService::requireSubmissionView);
         return ResponseEntity.ok(assessmentService.getQuizCorrection(quizId, submissionId));
     }
 }

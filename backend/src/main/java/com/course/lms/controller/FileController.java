@@ -38,6 +38,8 @@ public class FileController {
             
             FileStorage savedFile = fileStorageService.storeFile(file, currentUser);
             return ResponseEntity.ok(savedFile);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Erreur lors de l'upload: " + e.getMessage());
         }

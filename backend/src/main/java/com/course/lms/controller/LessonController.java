@@ -38,6 +38,9 @@ public class LessonController {
     @Autowired
     private com.course.lms.service.CourseAccessService courseAccessService;
 
+    @Autowired
+    private com.course.lms.service.ResourcePathGuard resourcePathGuard;
+
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
     // ENDPOINT UNIQUE ET ULTRA-ROBUSTE
@@ -112,6 +115,7 @@ public class LessonController {
     @GetMapping("/teacher/lessons/{id}")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ResponseEntity<LessonResponse> getTeacherLessonById(@PathVariable Long id) {
+        courseAccessService.requireManageLesson(id);
         return ResponseEntity.ok(lessonService.getLessonById(id));
     }
 
@@ -134,6 +138,10 @@ public class LessonController {
                     .orElseThrow(() -> new RuntimeException("Ressource non trouvée: " + id));
 
             if (resource.getFilePath() == null) {
+                return ResponseEntity.notFound().build();
+            }
+            // Jamais un fichier hors du dossier uploads (chemin forgé ou ancienne donnée)
+            if (!resourcePathGuard.isInsideUploads(resource.getFilePath())) {
                 return ResponseEntity.notFound().build();
             }
 
@@ -186,6 +194,8 @@ public class LessonController {
                             rr.setFilePath(filePath);
                             rr.setMimeType(file.getContentType());
                             rr.setSize(file.getSize());
+                        } catch (IllegalArgumentException e) {
+                            throw e; // type de fichier refusé
                         } catch (Exception e) {
                             throw new RuntimeException("Erreur lors de l'upload du fichier " + file.getOriginalFilename() + ": " + e.getMessage());
                         }

@@ -23,6 +23,8 @@ public class User {
     private String email;
     
     @Column(nullable = false)
+    // Jamais dans une réponse JSON (ex. FileStorage.uploadedBy renvoyé par /api/files/*)
+    @com.fasterxml.jackson.annotation.JsonProperty(access = com.fasterxml.jackson.annotation.JsonProperty.Access.WRITE_ONLY)
     private String password;
     
     @Column(nullable = false)

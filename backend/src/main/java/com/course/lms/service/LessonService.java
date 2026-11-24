@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 public class LessonService {
 
     @Autowired
+    private ResourcePathGuard resourcePathGuard;
+
+    @Autowired
     private ContentCleanupService contentCleanupService;
 
     @Autowired
@@ -41,7 +44,7 @@ public class LessonService {
 
         Course parentCourse = chapter.getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : ce cours appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         Lesson lesson = new Lesson();
@@ -58,7 +61,7 @@ public class LessonService {
                 resource.setLesson(savedLesson);
                 resource.setResourceType(rr.getResourceType());
                 resource.setTitle(rr.getTitle());
-                resource.setFilePath(rr.getFilePath());
+                resource.setFilePath(resourcePathGuard.requireAllowed(rr.getFilePath(), java.util.Set.of()));
                 resource.setExternalUrl(rr.getExternalUrl());
                 resource.setMimeType(rr.getMimeType());
                 resource.setSize(rr.getSize());
@@ -77,7 +80,7 @@ public class LessonService {
 
         Course parentCourse = lesson.getChapter().getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : cette leçon appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Cette leçon appartient à un autre enseignant.");
         }
 
         lesson.setTitle(request.getTitle());
@@ -88,10 +91,16 @@ public class LessonService {
         if (request.getChapterId() != null && !lesson.getChapter().getId().equals(request.getChapterId())) {
             Chapter newChapter = chapterRepository.findById(request.getChapterId())
                     .orElseThrow(() -> new RuntimeException("Nouveau chapitre non trouvé"));
+            // La leçon ne peut aller que dans un chapitre d'un cours du même enseignant
+            if (!isAdmin && !newChapter.getCourse().getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
+                throw new SecurityException("Ce chapitre appartient à un autre enseignant.");
+            }
             lesson.setChapter(newChapter);
         }
 
         // Handle resources update (simple approach: clear and re-add)
+        final java.util.Set<String> storedPaths = lesson.getResources().stream()
+                .map(LessonResource::getFilePath).filter(java.util.Objects::nonNull).collect(Collectors.toSet());
         lesson.getResources().clear();
         lessonRepository.saveAndFlush(lesson); // Flush the clear to delete orphans
 
@@ -101,7 +110,7 @@ public class LessonService {
                 resource.setLesson(lesson);
                 resource.setResourceType(rr.getResourceType());
                 resource.setTitle(rr.getTitle());
-                resource.setFilePath(rr.getFilePath());
+                resource.setFilePath(resourcePathGuard.requireAllowed(rr.getFilePath(), storedPaths));
                 resource.setExternalUrl(rr.getExternalUrl());
                 resource.setMimeType(rr.getMimeType());
                 resource.setSize(rr.getSize());
@@ -120,7 +129,7 @@ public class LessonService {
 
         Course parentCourse = lesson.getChapter().getCourse();
         if (!isAdmin && !parentCourse.getTeacher().getEmail().equalsIgnoreCase(userEmail)) {
-            throw new RuntimeException("Non autorisé : cette leçon appartient à " + parentCourse.getTeacher().getEmail() + " mais vous êtes connecté en tant que " + userEmail);
+            throw new SecurityException("Cette leçon appartient à un autre enseignant.");
         }
 
         contentCleanupService.beforeDeletingLessons(java.util.List.of(lesson));

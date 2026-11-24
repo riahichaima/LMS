@@ -41,6 +41,16 @@ def test_path_cannot_leave_uploads(backend_root):
         resolve_backend_path("/app/uploads/videos/absent.pdf")
 
 
+def test_absolute_path_outside_uploads_is_refused(backend_root):
+    """Chemin absolu vers un vrai fichier hors du dossier uploads (filePath forgé) : jamais lu."""
+    secret = backend_root / "secret.txt"
+    secret.write_text("JWT_SECRET=...")
+    with pytest.raises(FileNotFoundError):
+        resolve_backend_path(str(secret))
+    with pytest.raises(FileNotFoundError):
+        resolve_backend_path(__file__)
+
+
 def test_unreadable_course_stops_generation(backend_root):
     resources = [ResourceDetail(type="PDF", title="Chapitre 1", file_path="/app/uploads/videos/absent.pdf")]
     with pytest.raises(ValueError, match="n'a pas pu être lu"):

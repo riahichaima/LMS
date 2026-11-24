@@ -34,6 +34,9 @@ import java.util.stream.Collectors;
 public class CourseService {
 
     @Autowired
+    private ResourcePathGuard resourcePathGuard;
+
+    @Autowired
     private ContentCleanupService contentCleanupService;
 
     @Autowired
@@ -117,7 +120,7 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à modifier ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         course.setTitle(request.getTitle());
@@ -179,6 +182,8 @@ public class CourseService {
 
                 // Les ressources sont remplacées par la liste envoyée (les fichiers déjà importés
                 // reviennent avec leur filePath, les nouveaux viennent d'être enregistrés)
+                Set<String> storedPaths = lesson.getResources().stream()
+                        .map(LessonResource::getFilePath).filter(Objects::nonNull).collect(Collectors.toSet());
                 lesson.getResources().clear();
                 Lesson savedLesson = lessonRepository.saveAndFlush(lesson);
                 if (lesReq.getResources() != null) {
@@ -187,7 +192,7 @@ public class CourseService {
                         resource.setLesson(savedLesson);
                         resource.setResourceType(resReq.getResourceType());
                         resource.setTitle(resReq.getTitle());
-                        resource.setFilePath(resReq.getFilePath());
+                        resource.setFilePath(resourcePathGuard.requireAllowed(resReq.getFilePath(), storedPaths));
                         resource.setExternalUrl(resReq.getExternalUrl());
                         resource.setMimeType(resReq.getMimeType());
                         resource.setSize(resReq.getSize());
@@ -249,7 +254,7 @@ public class CourseService {
                                 resource.setLesson(savedLesson);
                                 resource.setResourceType(resReq.getResourceType());
                                 resource.setTitle(resReq.getTitle());
-                                resource.setFilePath(resReq.getFilePath());
+                                resource.setFilePath(resourcePathGuard.requireAllowed(resReq.getFilePath(), Set.of()));
                                 resource.setExternalUrl(resReq.getExternalUrl());
                                 resource.setMimeType(resReq.getMimeType());
                                 resource.setSize(resReq.getSize());
@@ -303,7 +308,7 @@ public class CourseService {
 
         // Vérification des droits
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à modifier ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         course.setTitle(request.getTitle());
@@ -324,7 +329,7 @@ public class CourseService {
                 .orElseThrow(() -> new RuntimeException("Cours non trouvé"));
 
         if (!isAdmin && !course.getTeacher().getEmail().equals(userEmail)) {
-            throw new RuntimeException("Non autorisé à supprimer ce cours");
+            throw new SecurityException("Ce cours appartient à un autre enseignant.");
         }
 
         // Un cours déjà vendu garde son historique financier : il ne peut pas être supprimé
