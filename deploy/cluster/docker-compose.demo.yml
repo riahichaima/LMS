@@ -1,0 +1,78 @@
+# Démonstration locale : deux backends derrière Caddy, avec Redis et MySQL (aucun coût, aucun serveur).
+#
+#   cd backend && ./mvnw -q -DskipTests package          # construit backend/target/lms-0.0.1-SNAPSHOT.jar
+#   cd ../deploy/cluster && docker compose -f docker-compose.demo.yml up -d
+#   curl -si http://localhost:8090/livez | grep X-Backend   # répété : backend-1, backend-2, backend-1…
+#   docker compose -f docker-compose.demo.yml stop backend-1  # panne : tout passe par backend-2
+#   docker compose -f docker-compose.demo.yml down -v          # tout effacer
+#
+# Le frontend local (npm start) appelle déjà http://localhost:8090 : il passe donc par le répartiteur.
+name: lms-cluster-demo
+
+x-backend: &backend
+  image: eclipse-temurin:17-jre-jammy
+  working_dir: /app
+  command: ['java', '-Xmx512m', '-jar', '/app/lms.jar']
+  restart: unless-stopped
+  depends_on:
+    db: { condition: service_healthy }
+    redis: { condition: service_healthy }
+  environment:
+    DB_URL: jdbc:mysql://db:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=UTF-8
+    DB_USERNAME: root
+    DB_PASSWORD: demo-only
+    JWT_SECRET: demo-only-jwt-secret-0123456789abcdefghijklmnopqrstuvwxyz-0123456789
+    SUPER_ADMIN_PASSWORD: Demo-Only-1!
+    MAIL_HOST: localhost
+    MAIL_PORT: '1025'
+    # Mode plusieurs backends : cache, notifications et limites IA partagés par Redis
+    APP_CLUSTER_ENABLED: 'true'
+    REDIS_HOST: redis
+    # Limite IA basse pour la démonstration (3 questions par heure, tous backends confondus)
+    AI_CHAT_PER_HOUR: '3'
+  volumes:
+    - ../../backend/target/lms-0.0.1-SNAPSHOT.jar:/app/lms.jar:ro
+    # Fichiers des cours partagés par les deux backends (en production : dossier NFS de la VM 1)
+    - uploads:/app/uploads
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: lms_db
+      MYSQL_ROOT_PASSWORD: demo-only
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -pdemo-only --silent']
+      interval: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      retries: 10
+
+  backend-1:
+    <<: *backend
+    hostname: backend-1
+
+  backend-2:
+    <<: *backend
+    hostname: backend-2
+    # Démarre après le premier : les vérifications de la base au démarrage ne se font pas en même temps
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      backend-1: { condition: service_started }
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on: [backend-1, backend-2]
+    ports:
+      - '127.0.0.1:8090:80'
+    volumes:
+      - ./Caddyfile.demo:/etc/caddy/Caddyfile:ro
+
+volumes:
+  uploads:

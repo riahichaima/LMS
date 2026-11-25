@@ -34,6 +34,32 @@ public class NotificationService {
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
 
+    /**
+     * Plusieurs backends : l'utilisateur est connecté en WebSocket à un seul d'entre eux. Le push passe par
+     * Redis ; chaque backend le remet à ses propres connexions (les autres l'ignorent sans erreur).
+     */
+    private com.course.lms.cluster.ClusterBus bus;
+    private final com.fasterxml.jackson.databind.ObjectMapper pushJson = new com.fasterxml.jackson.databind.ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    @Autowired(required = false)
+    void setClusterBus(com.course.lms.cluster.ClusterBus bus) {
+        this.bus = bus;
+        bus.subscribe(com.course.lms.cluster.ClusterBus.PUSH_CHANNEL, this::deliverLocally);
+    }
+
+    /** Message Redis {email, destination, payload} : remis aux connexions WebSocket de ce backend. */
+    void deliverLocally(String message) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode n = pushJson.readTree(message);
+            Object payload = pushJson.treeToValue(n.get("payload"), Object.class);
+            messagingTemplate.convertAndSendToUser(n.get("email").asText(), n.get("destination").asText(), payload);
+        } catch (Exception e) {
+            log.warn("Push reçu d'un autre backend non remis : {}", e.getMessage());
+        }
+    }
+
     @Transactional
     public void sendNotification(User recipient, String title, String message, String type, Long relatedId) {
         String text = message == null ? "" : (message.length() > 300 ? message.substring(0, 297) + "…" : message);
@@ -65,7 +91,13 @@ public class NotificationService {
     public void pushToUser(String email, String destination, Object payload) {
         Runnable push = () -> {
             try {
-                messagingTemplate.convertAndSendToUser(email, destination, payload);
+                if (bus != null) {
+                    var n = pushJson.createObjectNode().put("email", email).put("destination", destination);
+                    n.set("payload", pushJson.valueToTree(payload));
+                    bus.publish(com.course.lms.cluster.ClusterBus.PUSH_CHANNEL, pushJson.writeValueAsString(n));
+                } else {
+                    messagingTemplate.convertAndSendToUser(email, destination, payload);
+                }
             } catch (Exception e) {
                 log.warn("Push WebSocket impossible vers {} : {}", email, e.getMessage());
             }

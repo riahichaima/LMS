@@ -1,0 +1,54 @@
+# VM 2 : un second backend, rien d'autre. Base, service IA et Redis restent sur la VM 1 (réseau privé) ;
+# les fichiers des cours sont ceux de la VM 1, montés en NFS sur /mnt/lms-uploads.
+#
+#   cd /opt/lms/LMS/deploy/cluster
+#   cp vm2.env.example .env        # puis remplir (mêmes secrets que la VM 1)
+#   docker compose -f docker-compose.vm2.yml pull && docker compose -f docker-compose.vm2.yml up -d
+name: lms
+
+services:
+  backend:
+    image: ghcr.io/${GHCR_OWNER:-riahichaima}/lms-backend:${BACKEND_TAG:-latest}
+    restart: unless-stopped
+    hostname: backend-2
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+    mem_limit: 1300m
+    environment:
+      DB_URL: jdbc:mysql://${VM1_PRIVATE_IP:?Définir VM1_PRIVATE_IP}:3306/lms_db?allowPublicKeyRetrieval=true&useSSL=false&characterEncoding=UTF-8
+      DB_USERNAME: ${DB_USERNAME:-lms}
+      DB_PASSWORD: ${DB_PASSWORD:?Définir DB_PASSWORD (le même que la VM 1)}
+      JPA_SHOW_SQL: 'false'
+      # Mêmes secrets que la VM 1 : un jeton signé par un backend doit être accepté par l'autre
+      JWT_SECRET: ${JWT_SECRET:?Définir JWT_SECRET (le même que la VM 1)}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-superadmin@lms.com}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:?Définir SUPER_ADMIN_PASSWORD}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-Super Administrateur}
+      FRONTEND_URL: ${PUBLIC_APP_URL:-http://localhost}
+      APP_CORS_ORIGINS: ${PUBLIC_APP_URL:-http://localhost}
+      LMS_AI_URL: http://${VM1_PRIVATE_IP}:8000
+      MAX_UPLOAD_SIZE: ${MAX_UPLOAD_SIZE:-200MB}
+      AI_CHAT_PER_HOUR: ${AI_CHAT_PER_HOUR:-30}
+      AI_GENERATION_PER_HOUR: ${AI_GENERATION_PER_HOUR:-10}
+      AI_CORRECTION_PER_HOUR: ${AI_CORRECTION_PER_HOUR:-30}
+      MAIL_HOST: ${MAIL_HOST:-sandbox.smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Africa/Tunis}
+      TURN_URL: ${TURN_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      APP_CLUSTER_ENABLED: 'true'
+      REDIS_HOST: ${VM1_PRIVATE_IP}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Définir REDIS_PASSWORD (le même que la VM 1)}
+    volumes:
+      # Dossier uploads de la VM 1 monté en NFS (voir README.md)
+      - /mnt/lms-uploads:/app/uploads
+    ports:
+      # Seulement sur l'adresse privée : Caddy (VM 1) est la seule entrée depuis Internet
+      - '${PRIVATE_IP:?Définir PRIVATE_IP (adresse privée de la VM 2)}:8090:8090'

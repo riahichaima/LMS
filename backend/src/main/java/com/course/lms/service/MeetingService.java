@@ -149,8 +149,14 @@ public class MeetingService {
 
     // ── Rappel automatique 1 h avant ────────────────────────────
 
+    /** Plusieurs backends : un seul envoie les rappels à chaque passage (verrou MySQL). */
+    @Autowired(required = false)
+    private com.course.lms.cluster.JobLock jobLock;
+
     @Scheduled(fixedDelayString = "${app.meetings.reminder-check-ms:60000}", initialDelay = 20000)
     public void sendReminders() {
+        // Verrou un peu plus court que la période (60 s) : jamais deux rappels pour la même réunion
+        if (jobLock != null && !jobLock.tryLock("meeting-reminders", Duration.ofSeconds(50))) return;
         Instant now = Instant.now();
         for (Meeting m : meetingRepository.findDueReminders(now.plus(REMINDER_BEFORE), now.minus(Duration.ofMinutes(5)))) {
             long minutes = Math.max(0, Duration.between(now, m.getStartAt()).toMinutes());
