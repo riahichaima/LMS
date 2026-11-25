@@ -254,3 +254,7 @@ avec le pilote mysql-connector-j).
 - Métriques sur un port interne (8091) ; seuls `/livez` et `/readyz` sont publics.
 - CORS limité aux adresses du frontend, HTTPS + HSTS avec Caddy, en-têtes de sécurité nginx / Vercel.
 - Approbation humaine avant la production, retour arrière automatique.
+
+## Répartiteur de charge (option)
+
+Deux backends derrière Caddy, avec Redis et une seconde VM (≈ 30 $ par mois en plus) : voir [cluster/README.md](cluster/README.md). Démonstration locale sans coût : `cluster/docker-compose.demo.yml`.

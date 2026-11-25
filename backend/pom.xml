@@ -159,6 +159,13 @@
             <artifactId>caffeine</artifactId>
         </dependency>
 
+        <!-- Plusieurs backends derrière un répartiteur de charge (APP_CLUSTER_ENABLED=true) : Redis partage
+             le vidage du cache, les notifications temps réel et les limites IA. Inutilisé avec un seul backend. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
         <!-- Support async pour les services IA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

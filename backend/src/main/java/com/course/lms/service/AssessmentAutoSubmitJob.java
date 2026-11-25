@@ -40,8 +40,18 @@ public class AssessmentAutoSubmitJob {
         this.userRepository = userRepository;
     }
 
+    /** Plusieurs backends : un seul envoie les copies à chaque passage (verrou MySQL). */
+    private com.course.lms.cluster.JobLock jobLock;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setJobLock(com.course.lms.cluster.JobLock jobLock) {
+        this.jobLock = jobLock;
+    }
+
     @Scheduled(fixedDelayString = "${app.assessments.auto-submit-check-ms:30000}", initialDelay = 25000)
     public void submitExpired() {
+        // Verrou un peu plus court que la période (30 s) : jamais deux envois de la même copie
+        if (jobLock != null && !jobLock.tryLock("assessment-auto-submit", java.time.Duration.ofSeconds(25))) return;
         Instant limit = Instant.now().minusSeconds(AssessmentScheduleService.GRACE_SECONDS);
         List<AssessmentAttempt> expired = attemptRepository.findBySubmittedAtIsNullAndKindInAndEndsAtBefore(
                 List.of(AssessmentAttempt.QUIZ, AssessmentAttempt.TP), limit);

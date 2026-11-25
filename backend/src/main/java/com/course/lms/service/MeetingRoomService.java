@@ -52,10 +52,37 @@ public class MeetingRoomService {
     private final Map<Long, Map<Long, Member>> rooms = new ConcurrentHashMap<>();
     private final Map<Long, Deque<ChatLine>> chats = new ConcurrentHashMap<>();
 
+    /**
+     * Plusieurs backends : les connexions WebSocket (donc les salles) restent sur un seul backend (Caddy) ;
+     * le nombre de participants est recopié dans Redis pour que l'autre backend l'affiche aussi.
+     */
+    private static final String COUNTS = "lms:room-count";
+    private com.course.lms.cluster.ClusterBus bus;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setClusterBus(com.course.lms.cluster.ClusterBus bus) {
+        this.bus = bus;
+    }
+
+    private void shareCount(Long meetingId) {
+        if (bus == null) return;
+        try {
+            Map<Long, Member> room = rooms.get(meetingId);
+            int n = room == null ? 0 : room.size();
+            var hash = bus.redis().opsForHash();
+            if (n == 0) hash.delete(COUNTS, meetingId.toString());
+            else hash.put(COUNTS, meetingId.toString(), Integer.toString(n));
+            bus.redis().expire(COUNTS, java.time.Duration.ofHours(12));
+        } catch (RuntimeException e) {
+            // Affichage seulement : la visio continue même si Redis ne répond pas
+        }
+    }
+
     /** Entrée dans la salle ; renvoie les autres participants déjà présents. */
     public List<Member> join(Long meetingId, Long userId, String email, String name, String role, String avatarUrl, String sessionId) {
         Map<Long, Member> room = rooms.computeIfAbsent(meetingId, k -> new ConcurrentHashMap<>());
         room.put(userId, new Member(userId, email, name, role, avatarUrl, sessionId));
+        shareCount(meetingId);
         return room.values().stream().filter(m -> !m.userId.equals(userId)).toList();
     }
 
@@ -64,6 +91,7 @@ public class MeetingRoomService {
         if (room == null) return Optional.empty();
         Member removed = room.remove(userId);
         cleanup(meetingId);
+        shareCount(meetingId);
         return Optional.ofNullable(removed);
     }
 
@@ -77,7 +105,10 @@ public class MeetingRoomService {
             }
             return false;
         }));
-        removed.forEach(r -> cleanup(r.meetingId()));
+        removed.forEach(r -> {
+            cleanup(r.meetingId());
+            shareCount(r.meetingId());
+        });
         return removed;
     }
 
@@ -92,6 +123,14 @@ public class MeetingRoomService {
     }
 
     public int count(Long meetingId) {
+        if (bus != null) {
+            try {
+                Object n = bus.redis().opsForHash().get(COUNTS, meetingId.toString());
+                return n == null ? 0 : Integer.parseInt(n.toString());
+            } catch (RuntimeException e) {
+                // Redis indisponible : nombre connu de ce backend
+            }
+        }
         Map<Long, Member> room = rooms.get(meetingId);
         return room == null ? 0 : room.size();
     }

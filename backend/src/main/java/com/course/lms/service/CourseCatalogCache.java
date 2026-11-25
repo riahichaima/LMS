@@ -56,6 +56,15 @@ public class CourseCatalogCache {
         active = this;
     }
 
+    /** Plusieurs backends : vider ce cache quand un autre backend a modifié le catalogue. */
+    private com.course.lms.cluster.ClusterBus bus;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setClusterBus(com.course.lms.cluster.ClusterBus bus) {
+        this.bus = bus;
+        bus.subscribe(com.course.lms.cluster.ClusterBus.CACHE_CHANNEL, message -> clearLocal());
+    }
+
     /** Pages gardées : celles du catalogue normal (le site demande 200 cours par page), sans tri. */
     static final int MAX_CACHED_PAGE_SIZE = 200;
     static final int MAX_CACHED_PAGE_NUMBER = 20;
@@ -82,18 +91,30 @@ public class CourseCatalogCache {
         return copy(load("course|" + id, loader));
     }
 
-    /** Vide tout le cache maintenant et, s'il y a une transaction en cours, encore après sa validation. */
+    /**
+     * Vide tout le cache maintenant et, s'il y a une transaction en cours, encore après sa validation.
+     * Avec plusieurs backends, les autres sont prévenus à chaque fois (Redis) et vident aussi le leur.
+     */
     public void clear() {
         if (cache == null) return;
-        cache.clear();
+        clearEverywhere();
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCompletion(int status) {
-                    cache.clear();
+                    clearEverywhere();
                 }
             });
         }
+    }
+
+    private void clearEverywhere() {
+        clearLocal();
+        if (bus != null) bus.publish(com.course.lms.cluster.ClusterBus.CACHE_CHANNEL, "clear");
+    }
+
+    void clearLocal() {
+        if (cache != null) cache.clear();
     }
 
     static void clearActive() {

@@ -21,6 +21,14 @@ spring:
   cache:
     type: ${CACHE_TYPE:caffeine}
     cache-names: catalogue
+  # Redis : seulement avec plusieurs backends (app.cluster.enabled) ; aucune connexion sinon
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
@@ -72,6 +80,9 @@ management:
       probes:
         enabled: true
         add-additional-paths: true
+  health:
+    redis:
+      enabled: ${APP_CLUSTER_ENABLED:false}
   metrics:
     tags:
       application: lms-backend
@@ -81,6 +92,9 @@ management:
         http.server.requests: true
 
 app:
+  # Plusieurs backends derrière un répartiteur de charge (Caddy) : Redis partagé, voir deploy/cluster/README.md
+  cluster:
+    enabled: ${APP_CLUSTER_ENABLED:false}
   # Utilisé dans les liens des emails et les retours Stripe
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   # Origines autorisées à appeler l'API (séparées par des virgules), en plus des adresses locales

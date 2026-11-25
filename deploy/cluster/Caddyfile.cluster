@@ -1,0 +1,56 @@
+# Répartiteur de charge (VM 1) : deux backends derrière Caddy, HTTPS automatique comme avant.
+# Utilisé à la place de ../Caddyfile par docker-compose.vm1.yml. BACKEND_1 = backend de la VM 1,
+# BACKEND_2 = backend de la VM 2 (adresse privée). Voir README.md de ce dossier.
+
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	request_body {
+		max_size 210MB
+	}
+
+	@interne path /actuator /actuator/*
+	respond @interne 404
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Temps réel (visio, notifications) : toujours le backend 1, qui garde les salles en mémoire ;
+	# le backend 2 ne prend le relais que si le 1 ne répond plus.
+	handle /ws* {
+		reverse_proxy {$BACKEND_1} {$BACKEND_2} {
+			lb_policy first
+			health_uri /readyz
+			health_interval 10s
+			health_timeout 3s
+		}
+	}
+
+	# Connexion et e-mails : un même réseau va toujours au même backend, donc la limite des essais
+	# (5 par compte et par réseau, 20 par réseau) reste exacte.
+	handle /auth/* {
+		reverse_proxy {$BACKEND_1} {$BACKEND_2} {
+			lb_policy client_ip_hash
+			health_uri /readyz
+			health_interval 10s
+			health_timeout 3s
+			header_down X-Backend {http.reverse_proxy.upstream.hostport}
+		}
+	}
+
+	# Tout le reste de l'API : chaque requête au backend suivant ; un backend en panne est écarté
+	handle {
+		reverse_proxy {$BACKEND_1} {$BACKEND_2} {
+			lb_policy round_robin
+			health_uri /readyz
+			health_interval 10s
+			health_timeout 3s
+			lb_try_duration 5s
+			header_down X-Backend {http.reverse_proxy.upstream.hostport}
+		}
+	}
+}

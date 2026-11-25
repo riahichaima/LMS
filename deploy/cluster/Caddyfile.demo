@@ -1,0 +1,37 @@
+# Démonstration locale du répartiteur (docker-compose.demo.yml) : mêmes règles qu'en production,
+# en HTTP sur http://localhost:8090 (l'adresse que le frontend local utilise déjà).
+
+:80 {
+	@interne path /actuator /actuator/*
+	respond @interne 404
+
+	handle /ws* {
+		reverse_proxy backend-1:8090 backend-2:8090 {
+			lb_policy first
+			health_uri /readyz
+			health_interval 5s
+			health_timeout 2s
+		}
+	}
+
+	handle /auth/* {
+		reverse_proxy backend-1:8090 backend-2:8090 {
+			lb_policy client_ip_hash
+			health_uri /readyz
+			health_interval 5s
+			health_timeout 2s
+			header_down X-Backend {http.reverse_proxy.upstream.hostport}
+		}
+	}
+
+	handle {
+		reverse_proxy backend-1:8090 backend-2:8090 {
+			lb_policy round_robin
+			health_uri /readyz
+			health_interval 5s
+			health_timeout 2s
+			lb_try_duration 5s
+			header_down X-Backend {http.reverse_proxy.upstream.hostport}
+		}
+	}
+}
