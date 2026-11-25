@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AssessmentFile } from './assessment-file.service';
 import { Course } from './course.service';
@@ -154,6 +154,15 @@ export class LearningService {
   /** Avancement mesuré d'une ressource : pages PDF lues, part regardée / écoutée, lien ouvert (100 %). */
   updateResourceProgress(resourceId: number, percent: number): Observable<LessonCompletion> {
     return this.http.put<LessonCompletion>(`${this.apiUrl}/api/student/resources/${resourceId}/progress`, { percent: Math.round(percent) });
+  }
+
+  /**
+   * Vidéo ou audio en streaming : le serveur remet un lien signé et temporaire (4 h), lu directement par la balise
+   * <video> par morceaux. La lecture commence tout de suite au lieu d'attendre le fichier entier.
+   */
+  getStreamUrl(resourceId: number): Observable<string> {
+    return this.http.get<{ url: string }>(`${this.apiUrl}/api/lessons/resources/${resourceId}/stream-url`)
+      .pipe(map(r => `${this.apiUrl}${r.url}`));
   }
 
   // Fichier d'une ressource (PDF, vidéo...) : récupéré avec le jeton puis affiché via une URL blob

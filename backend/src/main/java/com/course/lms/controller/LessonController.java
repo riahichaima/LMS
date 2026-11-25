@@ -183,6 +183,68 @@ public class LessonController {
         }
     }
 
+    @Autowired
+    private com.course.lms.service.StreamLinkSigner streamLinkSigner;
+
+    /**
+     * Lien de lecture en streaming (vidéo, audio) : remis seulement à qui a le droit de lire la ressource
+     * (acheteur, enseignant, administration), valable 4 h, signé (voir StreamLinkSigner).
+     */
+    @GetMapping("/lessons/resources/{id}/stream-url")
+    public ResponseEntity<java.util.Map<String, Object>> streamUrl(@PathVariable Long id) {
+        courseAccessService.requireResourceAccess(id);
+        if (servableFile(id) == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(java.util.Map.of("url", streamLinkSigner.path(id),
+                "expiresInSeconds", com.course.lms.service.StreamLinkSigner.VALIDITY.toSeconds()));
+    }
+
+    /**
+     * Lecture par morceaux (HTTP 206, en-tête Range) : la vidéo commence tout de suite et se charge pendant la
+     * lecture. Pas de jeton (la balise vidéo ne peut pas l'envoyer) : la signature du lien en tient lieu.
+     */
+    @GetMapping("/lessons/resources/{id}/stream")
+    public ResponseEntity<org.springframework.core.io.Resource> stream(@PathVariable Long id,
+            @RequestParam long exp, @RequestParam String sig,
+            @RequestParam(defaultValue = "false") boolean download) {
+        if (!streamLinkSigner.isValid(id, exp, sig)) {
+            throw new SecurityException("Lien de lecture invalide ou expiré : rechargez la page.");
+        }
+        LessonResource resource = lessonResourceRepository.findById(id).orElse(null);
+        java.io.File file = servableFile(id);
+        if (resource == null || file == null) return ResponseEntity.notFound().build();
+
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (resource.getMimeType() != null) {
+            try {
+                mediaType = MediaType.parseMediaType(resource.getMimeType());
+            } catch (Exception e) {
+                // type inconnu : octet-stream
+            }
+        }
+        String filename = resource.getTitle() != null ? resource.getTitle() : "fichier";
+        String path = resource.getFilePath();
+        if (path.contains(".") && !filename.contains(".")) filename += path.substring(path.lastIndexOf('.'));
+        org.springframework.http.ContentDisposition disposition = (download
+                ? org.springframework.http.ContentDisposition.attachment()
+                : org.springframework.http.ContentDisposition.inline())
+                .filename(filename, java.nio.charset.StandardCharsets.UTF_8).build();
+        // Pas de longueur fixée ici : Spring répond 206 avec le morceau demandé (Range) ou 200 avec tout le fichier
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .contentType(mediaType)
+                .body(new org.springframework.core.io.FileSystemResource(file));
+    }
+
+    /** Fichier d'une ressource, seulement s'il existe et se trouve dans le dossier uploads. */
+    private java.io.File servableFile(Long id) {
+        LessonResource resource = lessonResourceRepository.findById(id).orElse(null);
+        if (resource == null || resource.getFilePath() == null) return null;
+        if (!resourcePathGuard.isInsideUploads(resource.getFilePath())) return null;
+        java.io.File file = new java.io.File(resource.getFilePath());
+        return file.isFile() ? file : null;
+    }
+
     // Helper method for file processing
     private void processFiles(LessonRequest request, java.util.List<org.springframework.web.multipart.MultipartFile> files) {
         if (files != null && !files.isEmpty() && request.getResources() != null) {

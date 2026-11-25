@@ -101,6 +101,8 @@ public class SecurityConfig {
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/uploads/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/profiles/avatars/**").permitAll()
+                // Lecture en streaming : la balise vidéo n'envoie pas le jeton ; le lien signé et temporaire le remplace
+                .requestMatchers(HttpMethod.GET, "/api/lessons/resources/*/stream").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/intelligent/ai-status").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/intelligent/public/ai-status").permitAll()
                 .requestMatchers("/api/courses/**").authenticated()
