@@ -236,6 +236,17 @@ export class TeacherCoursesComponent implements OnInit {
     const id = this.savedResourceIds.get(res);
     if (!id) return;
     const tab = window.open('', '_blank');
+    if (res.resourceType === 'VIDEO' || res.resourceType === 'AUDIO') {
+      // Vidéo ou audio : lecture en streaming, sans attendre le fichier entier
+      this.learningService.getStreamUrl(id).subscribe({
+        next: url => { if (tab) tab.location.href = url; else window.open(url, '_blank'); },
+        error: () => {
+          tab?.close();
+          this.errorMessage.set("Impossible d'ouvrir ce fichier.");
+        }
+      });
+      return;
+    }
     this.learningService.getResourceFile(id).subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);

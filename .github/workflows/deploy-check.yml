@@ -83,10 +83,11 @@ jobs:
       # Répartiteur de charge (deploy/cluster) : mêmes règles, et les ports ajoutés restent sur l'adresse privée
       - name: Répartiteur de charge (VM 1 + VM 2) valide, rien de plus sur Internet
         run: |
-          printf 'PRIVATE_IP=10.0.0.4
-BACKEND_2=10.0.0.5:8090
-REDIS_PASSWORD=ci-redis
-' >> ci.env
+          {
+            echo 'PRIVATE_IP=10.0.0.4'
+            echo 'BACKEND_2=10.0.0.5:8090'
+            echo 'REDIS_PASSWORD=ci-redis'
+          } >> ci.env
           COMPOSE_PROFILES=https,turn,monitoring docker compose --env-file ci.env             -f docker-compose.yml -f cluster/docker-compose.vm1.yml config --format json > cluster.json
           cp cluster/vm2.env.example vm2.env
           sed -i -e 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-db/' -e 's/^JWT_SECRET=.*/JWT_SECRET=ci-only-secret/'                  -e 's/^SUPER_ADMIN_PASSWORD=.*/SUPER_ADMIN_PASSWORD=ci-admin/' -e 's/^REDIS_PASSWORD=.*/REDIS_PASSWORD=ci-redis/' vm2.env

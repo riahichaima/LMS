@@ -360,7 +360,8 @@ export class CoursePlayerComponent implements OnInit, OnDestroy {
     const state = this.file(r);
     if (state?.status !== 'ready') return;
     const a = document.createElement('a');
-    a.href = state.url;
+    // Vidéo ou audio en streaming : le serveur envoie le fichier en pièce jointe (lien signé + download)
+    a.href = state.url.startsWith('blob:') ? state.url : `${state.url}&download=true`;
     a.download = r.fileName || r.title || 'ressource';
     a.click();
   }
@@ -372,6 +373,14 @@ export class CoursePlayerComponent implements OnInit, OnDestroy {
   private loadFile(r: LessonResource): void {
     const id = r.id!;
     this.files.update(f => ({ ...f, [id]: { status: 'loading' } }));
+    if (this.kind(r) === 'video' || this.kind(r) === 'audio') {
+      // Streaming : la lecture commence pendant le chargement (lien signé, requêtes par morceaux)
+      this.learningService.getStreamUrl(id).subscribe({
+        next: (url) => this.files.update(f => ({ ...f, [id]: { status: 'ready', url } })),
+        error: () => this.files.update(f => ({ ...f, [id]: { status: 'error' } }))
+      });
+      return;
+    }
     this.learningService.getResourceFile(id).subscribe({
       next: (blob) => {
         // Type MIME fiable pour l'affichage intégré (le serveur peut renvoyer octet-stream)
@@ -384,7 +393,7 @@ export class CoursePlayerComponent implements OnInit, OnDestroy {
   }
 
   private revokeFiles(): void {
-    Object.values(this.files()).forEach(f => { if (f.status === 'ready') URL.revokeObjectURL(f.url); });
+    Object.values(this.files()).forEach(f => { if (f.status === 'ready' && f.url.startsWith('blob:')) URL.revokeObjectURL(f.url); });
     this.files.set({});
   }
 }
