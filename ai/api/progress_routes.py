@@ -16,9 +16,13 @@ recommendation_agent = RecommendationAgent()
 @router.post("/analyze")
 def analyze_progress(request: ProgressAnalysisRequest):
     average_score = request.average_score or 0.0
+    quiz_scores, tp_scores = request.quiz_scores, request.tp_scores
+    if quiz_scores is None and tp_scores is None:
+        # Ancien client : seule la moyenne générale est connue
+        quiz_scores = [average_score] if average_score > 0 else None
 
     try:
-        result = recommendation_agent.recommend(quiz_scores=[average_score] if average_score > 0 else None)
+        result = recommendation_agent.recommend(quiz_scores=quiz_scores or None, tp_scores=tp_scores or None)
         recommendations = result.get("recommendations", [])
         analysis = result.get("analysis", "")
     except Exception:

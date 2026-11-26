@@ -84,6 +84,8 @@ public class ProgressAnalysisService {
             double averageScore = totalMaxScore > 0 ? (totalScore / totalMaxScore) * 100 : 0;
             performanceData.put("average_score", averageScore);
             performanceData.put("difficulty_distribution", difficultyCounts);
+            // Notes séparées par type : sans elles, l'agent croyait qu'aucun TP n'avait été rendu
+            performanceData.putAll(scoresByType(submissions));
 
             // 3. Call LMS_AI ProgressAgent for analysis
             @SuppressWarnings("unchecked")
@@ -145,5 +147,24 @@ public class ProgressAnalysisService {
             errorResponse.setPersonalizedAdvice("Analyse IA indisponible pour le moment : réessayez dans un instant.");
             return errorResponse;
         }
+    }
+
+    /**
+     * Note de chaque copie notée, en pourcentage (une décimale), séparée en quiz et TP :
+     * {@code quiz_scores} et {@code tp_scores}, comme les attend l'agent de recommandation du service IA.
+     */
+    static Map<String, List<Double>> scoresByType(List<Submission> submissions) {
+        List<Double> quiz = new java.util.ArrayList<>();
+        List<Double> tp = new java.util.ArrayList<>();
+        for (Submission s : submissions) {
+            if (s.getPoints() == null || s.getMaxPoints() == null || s.getMaxPoints() <= 0) continue;
+            double percent = Math.round(s.getPoints() / s.getMaxPoints() * 1000) / 10.0;
+            if (s.getQuiz() != null) quiz.add(percent);
+            else if (s.getAssignment() != null) tp.add(percent);
+        }
+        Map<String, List<Double>> scores = new HashMap<>();
+        scores.put("quiz_scores", quiz);
+        scores.put("tp_scores", tp);
+        return scores;
     }
 }

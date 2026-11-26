@@ -45,6 +45,9 @@ class ProgressAnalysisRequest(BaseModel):
     student_id: Optional[int] = None
     course_id: Optional[int] = None
     average_score: Optional[float] = 0.0
+    # Note (en %) de chaque copie, séparée par type ; absentes chez un ancien client (seulement la moyenne)
+    quiz_scores: Optional[list[float]] = None
+    tp_scores: Optional[list[float]] = None
 
 
 # ── Assistant IA (page "AI Assistant" du frontend, via LmsAiService) ──
